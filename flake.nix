@@ -58,19 +58,6 @@
           casks = [ ];
         };
     };
-    homeconfig = {pkgs, ...}: {
-        # this is internal compatibility configuration 
-        # for home-manager, don't change this!
-        home.stateVersion = "23.05";
-        # Let home-manager install and manage itself.
-        programs.home-manager.enable = true;
-
-        home.packages = with pkgs; [];
-
-        home.sessionVariables = {
-            EDITOR = "emacsclient";
-        };
-    };
   in
   {
     darwinConfigurations."aglaea" = nix-darwin.lib.darwinSystem {
@@ -80,7 +67,7 @@
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
               home-manager.verbose = true;
-              home-manager.users.cat = homeconfig;
+              home-manager.users.cat = import ./home.nix;
           }
       ];
     };
