@@ -7,9 +7,13 @@
         url = "github:LnL7/nix-darwin";
         inputs.nixpkgs.follows = "nixpkgs";
     };
+    home-manager = {
+        url = "github:nix-community/home-manager";
+        inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = inputs@{ self, nix-darwin, nixpkgs }:
+  outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager }:
   let
     configuration = {pkgs, ... }: {
 
@@ -28,9 +32,12 @@
         nixpkgs.hostPlatform = "aarch64-darwin";
 
         # Declare the user that will be running `nix-darwin`.
+        users.knownUsers = [ "cat" ];
         users.users.cat = {
+            uid = 501;
             name = "cat";
             home = "/Users/cat";
+            shell = pkgs.fish;
         };
 
         # Create fish setup that loads the nix-darwin environment.
@@ -41,12 +48,40 @@
         security.pam.enableSudoTouchIdAuth = true;
 
         environment.systemPackages = [ pkgs.neofetch ];
+
+        homebrew = {
+          enable = true;
+          # onActivation.cleanup = "uninstall";
+
+          taps = [ ];
+          brews = [ "cowsay" ];
+          casks = [ ];
+        };
+    };
+    homeconfig = {pkgs, ...}: {
+        # this is internal compatibility configuration 
+        # for home-manager, don't change this!
+        home.stateVersion = "23.05";
+        # Let home-manager install and manage itself.
+        programs.home-manager.enable = true;
+
+        home.packages = with pkgs; [];
+
+        home.sessionVariables = {
+            EDITOR = "emacsclient";
+        };
     };
   in
   {
     darwinConfigurations."aglaea" = nix-darwin.lib.darwinSystem {
       modules = [
-         configuration
+          configuration
+          home-manager.darwinModules.home-manager  {
+              home-manager.useGlobalPkgs = true;
+              home-manager.useUserPackages = true;
+              home-manager.verbose = true;
+              home-manager.users.cat = homeconfig;
+          }
       ];
     };
   };
