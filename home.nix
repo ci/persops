@@ -1,6 +1,10 @@
 { config, pkgs, ... }:
 
 {
+  imports = [
+    (import ./modules/tmux.nix)
+  ];
+
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process
 
   home.packages = [
