@@ -47,7 +47,16 @@
         # Use TouchID for sudo
         security.pam.enableSudoTouchIdAuth = true;
 
-        environment.systemPackages = [ pkgs.neofetch ];
+        environment = {
+            systemPackages = [ pkgs.neofetch pkgs.pam-reattach ];
+            # https://write.rog.gr/writing/using-touchid-with-tmux/
+            # https://github.com/LnL7/nix-darwin/pull/787
+            etc."pam.d/sudo_local".text = ''
+              # Managed by Nix Darwin
+              auth       optional       ${pkgs.pam-reattach}/lib/pam/pam_reattach.so ignore_ssh
+              auth       sufficient     pam_tid.so
+            '';
+        };
 
         homebrew = {
           enable = true;
