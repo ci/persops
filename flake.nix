@@ -48,7 +48,10 @@
         security.pam.enableSudoTouchIdAuth = true;
 
         environment = {
-            systemPackages = [ pkgs.neofetch pkgs.pam-reattach ];
+            systemPackages = [
+              pkgs.neofetch
+              pkgs.pam-reattach
+            ];
             # https://write.rog.gr/writing/using-touchid-with-tmux/
             # https://github.com/LnL7/nix-darwin/pull/787
             etc."pam.d/sudo_local".text = ''
@@ -64,7 +67,7 @@
 
           taps = [ ];
           brews = [ "cowsay" ];
-          casks = [ ];
+          casks = [ "ghostty" ];
         };
     };
   in
