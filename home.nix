@@ -10,6 +10,7 @@
 
   home.packages = [
     pkgs.hello
+    pkgs.overmind
 
     # # example 'fine-tuning' package
     # (pkgs.nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
