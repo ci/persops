@@ -5,6 +5,7 @@
     terminal = "tmux-256color";
     sensibleOnTop = false;
     historyLimit = 100000;
+    tmuxinator.enable = true;
     plugins = with pkgs;
     [
       tmuxPlugins.tmux-thumbs
