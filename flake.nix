@@ -51,12 +51,14 @@
             systemPackages = [
               pkgs.neofetch
               pkgs.pam-reattach
+              pkgs.pam-watchid
             ];
             # https://write.rog.gr/writing/using-touchid-with-tmux/
             # https://github.com/LnL7/nix-darwin/pull/787
             etc."pam.d/sudo_local".text = ''
               # Managed by Nix Darwin
               auth       optional       ${pkgs.pam-reattach}/lib/pam/pam_reattach.so ignore_ssh
+              auth       sufficient     ${pkgs.pam-watchid}/lib/pam_watchid.so
               auth       sufficient     pam_tid.so
             '';
         };
