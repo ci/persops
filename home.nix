@@ -2,6 +2,7 @@
 
 {
   imports = [
+    (import ./modules/fish.nix)
     (import ./modules/tmux.nix)
     (import ./modules/ghostty.nix)
   ];
