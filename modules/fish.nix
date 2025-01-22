@@ -12,6 +12,7 @@
       k = "kubectl";
       l = "exa --classify --group-directories-first";
       ll = "exa --git --long --header --classify --group-directories-first";
+      nixrb = "darwin-rebuild switch --flake ~/p/persops/";
     };
     shellAbbrs = {
       g = "git";
@@ -83,6 +84,14 @@
 
       set -x LESS '--quit-if-one-screen --ignore-case --status-column --LONG-PROMPT -R --HILITE-UNREAD --tabs=4 --no-init --window=-4'
       set -x FZF_DEFAULT_OPTS '--height "40%" --reverse --ansi --border --inline-info --tabstop=4'
+
+      fish_config theme choose "Catppuccin Mocha"
     '';
   };
+  xdg.configFile."fish/themes/Catppuccin Mocha.theme".source = pkgs.fetchFromGitHub {
+    owner = "catppuccin";
+    repo = "fish";
+    rev = "cc8e4d8fffbdaab07b3979131030b234596f18da";
+    sha256 = "sha256-udiU2TOh0lYL7K7ylbt+BGlSDgCjMpy75vQ98C1kFcc=";
+  } + "/themes/Catppuccin Mocha.theme";
 }
