@@ -5,6 +5,7 @@
     (import ./modules/fish.nix)
     (import ./modules/tmux.nix)
     (import ./modules/ghostty.nix)
+    (import ./modules/starship.nix)
   ];
 
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process
