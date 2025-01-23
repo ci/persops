@@ -15,7 +15,7 @@
 
   outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager }:
   let
-    configuration = {pkgs, ... }: {
+    configuration = {pkgs, lib, ... }: {
 
         services.nix-daemon.enable = true;
         # Necessary for using flakes on this system.
@@ -30,6 +30,14 @@
         # The platform the configuration will be used on.
         # If you're on an Intel system, replace with "x86_64-darwin"
         nixpkgs.hostPlatform = "aarch64-darwin";
+        nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+          "discord"
+          "mos"
+          "numi"
+          "slack"
+          "spotify"
+          "zoom"
+        ];
 
         # Declare the user that will be running `nix-darwin`.
         users.knownUsers = [ "cat" ];
@@ -69,7 +77,15 @@
 
           taps = [ ];
           brews = [ "cowsay" ];
-          casks = [ "ghostty" ];
+          casks = [
+            "font-jetbrains-mono-nerd-font"
+            "ghostty"
+            "homerow"
+            "keybase" # keybase-gui doesn't work on OSX yet
+            "kindavim"
+            # sec stuff
+            "sonic-visualiser"
+          ];
         };
     };
   in

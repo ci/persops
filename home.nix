@@ -11,8 +11,27 @@
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process
 
   home.packages = [
-    pkgs.hello
+    # misc
+    pkgs.spotify
+
+    # dev
     pkgs.overmind
+    pkgs.dbeaver-bin
+
+    # chat
+    pkgs.discord
+    # pkgs.signal-desktop # broken in current version? mismatching sha
+    pkgs.slack
+    pkgs.zoom-us
+
+    # osx specifics
+    pkgs.mos # reverse mouse direction only for mouse not touchpad
+    pkgs.hexfiend
+    pkgs.numi
+
+    # sec stuff
+    pkgs.audacity
+    pkgs.avalonia-ilspy
 
     # # example 'fine-tuning' package
     # (pkgs.nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
