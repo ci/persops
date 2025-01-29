@@ -1,0 +1,38 @@
+{ config, pkgs, ... }:
+
+let
+  pgpkg = pkgs.postgresql_14;
+  pgdir = "/var/lib/postgresql/${pgpkg.psqlSchema}";
+
+in
+
+{
+  # need to use nix-darwin instead of home-manager on OSX
+  # for the service functionality (through launchctl), since
+  # home-manager doesn't do that
+  environment.systemPackages = [ pgpkg.dev ];
+
+  # necessary for https://github.com/LnL7/nix-darwin/issues/339
+  system.activationScripts.preActivation = {
+    enable = true;
+    text = ''
+      if [ ! -d "${pgdir}" ]; then
+        echo "creating PostgreSQL data directory..."
+        sudo mkdir -m 750 -p ${pgdir}
+        chown -R cat:staff ${pgdir}
+      fi
+    '';
+  };
+
+  services.postgresql = {
+    enable = true;
+    package = pgpkg;
+    dataDir = pgdir;
+    # replication for pg_basebackup
+    authentication = pkgs.lib.mkOverride 10 ''
+      #type database  DBuser  auth-method
+      local all,replication       all     trust
+      host all       all 127.0.0.1/32    trust
+    '';
+  };
+}

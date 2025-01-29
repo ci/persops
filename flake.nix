@@ -16,8 +16,12 @@
   outputs = inputs@{ self, nix-darwin, nixpkgs, home-manager }:
   let
     configuration = {pkgs, lib, ... }: {
+        imports = [
+          ./postgres.nix
+        ];
 
         services.nix-daemon.enable = true;
+
         # Necessary for using flakes on this system.
         nix.settings.experimental-features = "nix-command flakes";
 
@@ -36,6 +40,7 @@
           "numi"
           "slack"
           "spotify"
+          "terraform"
           "zoom"
         ];
 
@@ -76,7 +81,10 @@
           # onActivation.cleanup = "uninstall";
 
           taps = [ ];
-          brews = [ "cowsay" ];
+          brews = [
+            "cowsay"
+            "libpq" # for ruby `pg` gems through mise
+          ];
           casks = [
             "font-jetbrains-mono-nerd-font"
             "ghostty"

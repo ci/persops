@@ -6,6 +6,7 @@
     (import ./modules/tmux.nix)
     (import ./modules/ghostty.nix)
     (import ./modules/starship.nix)
+    (import ./modules/mise.nix)
   ];
 
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process
@@ -15,8 +16,49 @@
     pkgs.spotify
 
     # dev
-    pkgs.overmind
+    pkgs.aider-chat
     pkgs.dbeaver-bin
+    pkgs.llm
+    pkgs.overmind
+    pkgs.shellcheck
+
+    # dev - languages
+    pkgs.elixir_1_18
+    pkgs.go
+
+    (pkgs.python312.withPackages (ps: with ps; [
+      aiohttp
+      beautifulsoup4
+      ipython
+      jupyter
+      matplotlib
+      numpy
+      pandas
+      pwntools
+      requests
+      ropgadget
+      setuptools
+      z3
+    ]))
+
+    (pkgs.ruby_3_4.withPackages (ps: with ps; [
+      htmlbeautifier
+      irb
+      pry
+      pwntools
+      rails
+      rake
+      rspec
+      rubocop
+      solargraph
+    ]))
+
+    # k8s stuff
+    pkgs.kubernetes-helm
+    pkgs.terraform
+    pkgs.kubectl
+    pkgs.kubectx
+    pkgs.k9s
 
     # chat
     pkgs.discord
@@ -32,6 +74,7 @@
     # sec stuff
     pkgs.audacity
     pkgs.avalonia-ilspy
+    pkgs.ghidra-bin
 
     # # example 'fine-tuning' package
     # (pkgs.nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
