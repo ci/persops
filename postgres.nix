@@ -10,6 +10,9 @@ in
   # need to use nix-darwin instead of home-manager on OSX
   # for the service functionality (through launchctl), since
   # home-manager doesn't do that
+  #
+  # also, .dev version is used for packages installed through
+  # mise or externally that require the pg client libs
   environment.systemPackages = [ pgpkg.dev ];
 
   # necessary for https://github.com/LnL7/nix-darwin/issues/339
