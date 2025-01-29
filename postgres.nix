@@ -31,6 +31,10 @@ in
     enable = true;
     package = pgpkg;
     dataDir = pgdir;
+    extraPlugins = with pgpkg.pkgs; [
+      postgis
+      pgvector
+    ];
     # replication for pg_basebackup
     authentication = pkgs.lib.mkOverride 10 ''
       #type database  DBuser  auth-method
