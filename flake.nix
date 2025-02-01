@@ -87,12 +87,12 @@
           ];
           casks = [
             "font-jetbrains-mono-nerd-font"
-            "ghostty"
-            "homerow"
+            "ghostty" # best terminal atm
+            "homerow" # everywhere-navigation
             "keybase" # keybase-gui doesn't work on OSX yet
-            "kindavim"
-            # sec stuff
-            "sonic-visualiser"
+            "kindavim" # vim-ify everything
+            "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
+            "sonic-visualiser" # audio stegano
           ];
         };
     };
