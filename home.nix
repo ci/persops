@@ -26,6 +26,8 @@
     pkgs.elixir_1_18
     pkgs.go
 
+    pkgs.flutter
+
     (pkgs.python312.withPackages (ps: with ps; [
       aiohttp
       beautifulsoup4
@@ -42,6 +44,7 @@
     ]))
 
     (pkgs.ruby_3_4.withPackages (ps: with ps; [
+      cocoapods
       htmlbeautifier
       irb
       pry
