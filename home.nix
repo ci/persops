@@ -11,24 +11,33 @@
 
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process
 
-  home.packages = [
+  home.packages = with pkgs; [
     # misc
-    pkgs.spotify
+    spotify
 
     # dev
-    pkgs.aider-chat
-    pkgs.dbeaver-bin
-    pkgs.llm
-    pkgs.overmind
-    pkgs.shellcheck
+    aider-chat
+    dbeaver-bin
+    llm
+    overmind
+    shellcheck
+    fzf
+    ripgrep
+    fd
+    eza
+    wget
+    curl
+    git
+    jq
+    htop
 
     # dev - languages
-    pkgs.elixir_1_18
-    pkgs.go
+    beam.packages.erlang_27.elixir_1_18
+    go
 
-    pkgs.flutter
+    flutter
 
-    (pkgs.python312.withPackages (ps: with ps; [
+    (python312.withPackages (ps: with ps; [
       aiohttp
       beautifulsoup4
       ipython
@@ -43,7 +52,7 @@
       z3
     ]))
 
-    (pkgs.ruby_3_4.withPackages (ps: with ps; [
+    (ruby_3_4.withPackages (ps: with ps; [
       cocoapods
       htmlbeautifier
       irb
@@ -57,33 +66,33 @@
     ]))
 
     # k8s stuff
-    pkgs.kubernetes-helm
-    pkgs.terraform
-    pkgs.kubectl
-    pkgs.kubectx
-    pkgs.k9s
+    kubernetes-helm
+    terraform
+    kubectl
+    kubectx
+    k9s
 
     # chat
-    pkgs.discord
-    # pkgs.signal-desktop # broken in current version? mismatching sha
-    pkgs.slack
-    pkgs.zoom-us
+    discord
+    # signal-desktop # broken in current version? mismatching sha
+    slack
+    zoom-us
 
     # osx specifics
-    pkgs.mos # reverse mouse direction only for mouse not touchpad
-    pkgs.hexfiend
-    pkgs.numi
+    mos # reverse mouse direction only for mouse not touchpad
+    hexfiend
+    numi
 
     # sec stuff
-    pkgs.audacity
-    pkgs.avalonia-ilspy
-    pkgs.ghidra-bin
+    audacity
+    avalonia-ilspy
+    ghidra-bin
 
     # # example 'fine-tuning' package
-    # (pkgs.nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
+    # (nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
 
     # example shell-script wrapper
-    # (pkgs.writeShellScriptBin "my-hello" ''
+    # (writeShellScriptBin "my-hello" ''
     #   echo "Hello, ${config.home.username}!"
     # '')
   ];

@@ -91,6 +91,7 @@
             "homerow" # everywhere-navigation
             "keybase" # keybase-gui doesn't work on OSX yet
             "kindavim" # vim-ify everything
+            "readdle-spark" # trialing out email client
             "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
             "sonic-visualiser" # audio stegano
           ];
