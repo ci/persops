@@ -15,11 +15,14 @@
       tmuxPlugins.tmux-fzf
       {
         plugin = tmuxPlugins.catppuccin;
-        extraConfig = '' 
+        extraConfig = ''
           set -g @catppuccin_flavour 'mocha'
           set -g @catppuccin_date_time_text "%H:%M"
           set -g @catppuccin_status_justify "centre"
           set -g @catppuccin_status_modules_right "date_time application uptime cpu battery"
+          set -g @catppuccin_window_default_text "#W"
+          set -g @catppuccin_window_text "#W"
+          set -g @catppuccin_window_current_text "#W"
         '';
       }
       tmuxPlugins.battery
