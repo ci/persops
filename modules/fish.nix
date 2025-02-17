@@ -85,6 +85,8 @@
       set -x LESS '--quit-if-one-screen --ignore-case --status-column --LONG-PROMPT -R --HILITE-UNREAD --tabs=4 --no-init --window=-4'
       set -x FZF_DEFAULT_OPTS '--height "40%" --reverse --ansi --border --inline-info --tabstop=4'
 
+      set -gx PATH $PATH /opt/homebrew/bin
+
       fish_config theme choose "Catppuccin Mocha"
     '';
   };
