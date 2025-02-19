@@ -17,19 +17,20 @@
 
     # dev
     aider-chat
+    bun
+    curl
     dbeaver-bin
+    eza
+    fd
+    fzf
+    git
+    htop
+    jq
     llm
     overmind
-    shellcheck
-    fzf
     ripgrep
-    fd
-    eza
+    shellcheck
     wget
-    curl
-    git
-    jq
-    htop
 
     # dev - languages
     beam.packages.erlang_27.elixir_1_18
@@ -64,6 +65,10 @@
       rubocop
       solargraph
     ]))
+
+    nodejs
+    nodePackages.npm
+    nodePackages.yarn
 
     # k8s stuff
     kubernetes-helm
