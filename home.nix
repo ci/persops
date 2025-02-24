@@ -26,6 +26,8 @@
     git
     htop
     jq
+    jsonnet
+    jsonnet-bundler
     llm
     overmind
     ripgrep
@@ -70,12 +72,17 @@
     nodePackages.npm
     nodePackages.yarn
 
-    # k8s stuff
+    # containers, k8s, helm stuff
+    colima # container runtime goodies on OSX, enabling docker client
+    docker
+    docker-compose
+    docker-credential-helpers
     kubernetes-helm
     terraform
     kubectl
     kubectx
     k9s
+    tanka
 
     # chat
     discord
