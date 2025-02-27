@@ -9,5 +9,10 @@
     theme = catppuccin-mocha
     font-size = 14
     font-family = "JetBrainsMono NFM"
+    maximize = true
+    fullscreen = true
+    window-decoration = false
+    macos-titlebar-style = "hidden"
+    macos-non-native-fullscreen = "visible-menu"
   '';
 }
