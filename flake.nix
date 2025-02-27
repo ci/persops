@@ -86,6 +86,7 @@
             "libpq" # for ruby `pg` gems through mise
           ];
           casks = [
+            "claude" # codesonnet ftw
             "font-jetbrains-mono-nerd-font"
             "ghostty" # best terminal atm
             "homerow" # everywhere-navigation
@@ -94,6 +95,7 @@
             "readdle-spark" # trialing out email client
             "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
             "sonic-visualiser" # audio stegano
+            "vivaldi" # tryna migrate from arc
           ];
         };
     };
