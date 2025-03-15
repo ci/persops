@@ -20,8 +20,6 @@
           ./postgres.nix
         ];
 
-        services.nix-daemon.enable = true;
-
         # Necessary for using flakes on this system.
         nix.settings.experimental-features = "nix-command flakes";
 
@@ -53,12 +51,14 @@
             shell = pkgs.fish;
         };
 
+        ids.gids.nixbld = 350;
+
         # Create fish setup that loads the nix-darwin environment.
         programs.zsh.enable = true;
         programs.fish.enable = true;
 
         # Use TouchID for sudo
-        security.pam.enableSudoTouchIdAuth = true;
+        security.pam.services.sudo_local.touchIdAuth = true;
 
         environment = {
             systemPackages = [
@@ -92,6 +92,7 @@
             "homerow" # everywhere-navigation
             "keybase" # keybase-gui doesn't work on OSX yet
             "kindavim" # vim-ify everything
+            "ollama" # through brew since nixos is just client for darwin
             "readdle-spark" # trialing out email client
             "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
             "sonic-visualiser" # audio stegano

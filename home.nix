@@ -48,6 +48,7 @@
       matplotlib
       numpy
       pandas
+      pipx
       pwntools
       requests
       ropgadget
@@ -66,6 +67,7 @@
       rspec
       rubocop
       solargraph
+      zsteg
     ]))
 
     nodejs
@@ -85,6 +87,7 @@
     tanka
 
     # chat
+    element-desktop
     discord
     # signal-desktop # broken in current version? mismatching sha
     slack
