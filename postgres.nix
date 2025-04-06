@@ -1,7 +1,7 @@
 { config, pkgs, ... }:
 
 let
-  pgpkg = pkgs.postgresql_14;
+  pgpkg = pkgs.postgresql_15;
   pgdir = "/var/lib/postgresql/${pgpkg.psqlSchema}";
 
 in
@@ -28,9 +28,10 @@ in
   };
 
   services.postgresql = {
-    enable = true;
+    enable = true; # set to false when upgrading
     package = pgpkg;
     dataDir = pgdir;
+    initdbArgs = ["-U cat" "--encoding=UTF8"];
     extraPlugins = with pgpkg.pkgs; [
       postgis
       pgvector
