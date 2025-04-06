@@ -16,7 +16,7 @@
     spotify
 
     # dev
-    aider-chat
+    # aider-chat
     bun
     curl
     dbeaver-bin
@@ -39,6 +39,8 @@
     go
 
     flutter
+
+    uv
 
     (python312.withPackages (ps: with ps; [
       aiohttp

@@ -86,6 +86,7 @@
       set -x FZF_DEFAULT_OPTS '--height "40%" --reverse --ansi --border --inline-info --tabstop=4'
 
       set -gx PATH $PATH /opt/homebrew/bin
+      set -gx PATH $PATH $HOME/.local/bin
 
       fish_config theme choose "Catppuccin Mocha"
     '';
