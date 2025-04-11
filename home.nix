@@ -86,6 +86,7 @@
     kubectl
     kubectx
     k9s
+    opentofu
     tanka
 
     # chat
