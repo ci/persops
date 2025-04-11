@@ -7,6 +7,7 @@
     (import ./modules/ghostty.nix)
     (import ./modules/starship.nix)
     (import ./modules/mise.nix)
+    (import ./modules/direnv.nix)
   ];
 
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process
