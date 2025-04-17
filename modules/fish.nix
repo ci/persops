@@ -10,8 +10,8 @@
       ee = "emacsclient -nw"; # -c
       mux = "tmuxinator";
       k = "kubectl";
-      l = "exa --classify --group-directories-first";
-      ll = "exa --git --long --header --classify --group-directories-first";
+      l = "eza --classify --group-directories-first";
+      ll = "eza --git --long --header --classify --group-directories-first";
       nixrb = "darwin-rebuild switch --flake ~/p/persops/";
     };
     shellAbbrs = {

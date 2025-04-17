@@ -74,11 +74,14 @@
       zsteg
     ]))
 
+    deno
+
     nodejs
     nodePackages.npm
     nodePackages.yarn
 
     # containers, k8s, helm stuff
+    ansible
     colima # container runtime goodies on OSX, enabling docker client
     docker
     docker-compose

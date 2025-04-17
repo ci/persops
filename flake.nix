@@ -96,7 +96,9 @@
             "readdle-spark" # trialing out email client
             "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
             "sonic-visualiser" # audio stegano
+            "tailscale" # wireguard mesh goodies
             "vivaldi" # tryna migrate from arc
+            "windsurf" # codeium successor
           ];
         };
     };
