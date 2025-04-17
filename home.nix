@@ -8,6 +8,7 @@
     (import ./modules/starship.nix)
     (import ./modules/mise.nix)
     (import ./modules/direnv.nix)
+    (import ./modules/nvim.nix)
   ];
 
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process
@@ -128,9 +129,10 @@
     # '';
   };
 
-  home.sessionVariables = {
-    EDITOR = "emacsclient";
-  };
+  # switching to nvim temporarily
+  # home.sessionVariables = {
+  #   EDITOR = "emacsclient";
+  # };
 
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
