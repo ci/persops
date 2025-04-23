@@ -33,6 +33,7 @@
     llm
     overmind
     ripgrep
+    sad
     shellcheck
     wget
 
