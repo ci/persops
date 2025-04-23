@@ -84,6 +84,7 @@
           brews = [
             "cowsay"
             "libpq" # for ruby `pg` gems through mise
+            "tmuxinator" # instead of tmux.tmuxinator.enable
           ];
           casks = [
             "claude" # codesonnet ftw

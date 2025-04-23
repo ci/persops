@@ -12,7 +12,8 @@
       k = "kubectl";
       l = "eza --classify --group-directories-first";
       ll = "eza --git --long --header --classify --group-directories-first";
-      nixrb = "darwin-rebuild switch --flake ~/p/persops/";
+      # using above in shellInit to do it non-interactively instead
+      # nixrb = "darwin-rebuild switch --flake ~/p/persops/";
     };
     shellAbbrs = {
       g = "git";
@@ -89,6 +90,9 @@
       set -gx PATH $PATH $HOME/.local/bin
 
       fish_config theme choose "Catppuccin Mocha"
+
+      # need this non-interactively to allow tmux to use it
+      alias nixrb "darwin-rebuild switch --flake ~/p/persops/"
     '';
   };
   xdg.configFile."fish/themes/Catppuccin Mocha.theme".source = pkgs.fetchFromGitHub {

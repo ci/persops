@@ -1,0 +1,36 @@
+default_session = "default"
+display_full_path = true
+excluded_dirs = [
+  "ds",
+  "foss",
+  "ai3-react-native",
+  "TNI",
+  "node_modules",
+  ".venv",
+  "target",
+  ".elixir_ls",
+  "_build",
+  "deps",
+  ".git",
+  "dist",
+  "assets",
+  "public",
+  "vendor",
+  ".sass-cache",
+  "wp-content",
+  "tmp",
+  "cache",
+  ".next",
+  ".vinxi",
+  ".output",
+  ".react-router",
+  ".expo"
+]
+
+[[search_dirs]]
+path = "/Users/cat/p"
+depth = 10
+
+[[search_dirs]]
+path = "/Users/cat/ctf"
+depth = 1

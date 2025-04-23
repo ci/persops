@@ -5,10 +5,12 @@
     terminal = "tmux-256color";
     sensibleOnTop = false;
     historyLimit = 100000;
-    tmuxinator.enable = true;
+    # maintained through brew so far until 3.3.4 makes it into nix-unstable
+    # tmuxinator.enable = true;
     plugins = with pkgs;
     [
       tmuxPlugins.tmux-thumbs
+      tmuxPlugins.vim-tmux-navigator
       tmuxPlugins.sensible
       tmuxPlugins.pain-control
       tmuxPlugins.yank
@@ -28,7 +30,7 @@
           set -g status-justify "centre"
           set -g status-right-length 100
           set -g status-left-length 100
-          set -g status-left ""
+          set -g status-left "#(tms sessions) "
           set -ag status-right "#{E:@catppuccin_status_date_time}"
           set -g status-right "#{E:@catppuccin_status_application}"
           set -ag status-right "#{E:@catppuccin_status_uptime}"
@@ -57,6 +59,12 @@
       #     '';
       # }
     ];
-    extraConfig = builtins.readFile ./tmux.conf;
+    extraConfig = builtins.readFile ./tmux/tmux.conf;
   };
+
+  home.packages = with pkgs; [
+    tmux-sessionizer
+  ];
+
+  xdg.configFile."tms/config.toml".source = ./tmux/tms.toml;
 }
