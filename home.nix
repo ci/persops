@@ -1,9 +1,10 @@
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
 {
   imports = [
     (import ./modules/fish.nix)
     (import ./modules/tmux.nix)
+    (import ./modules/emacs/home.nix)
     (import ./modules/ghostty.nix)
     (import ./modules/starship.nix)
     (import ./modules/mise.nix)
@@ -22,6 +23,7 @@
     bun
     curl
     dbeaver-bin
+    delta
     eza
     fd
     fzf

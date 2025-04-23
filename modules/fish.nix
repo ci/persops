@@ -6,14 +6,15 @@
       gdp = "git diff | pbcopy";
       gdpa = "pbpaste | git apply";
       sql2md = "pg_format --nocomment - | xargs -0 printf \"\`\`\`sql\\n%s\`\`\`\" | pbcopy";
-      emacsclient = "/opt/homebrew/bin/emacs"; # EmacsForOSX: /Applications/Emacs.app/Contents/MacOS/bin/emacsclient
-      ee = "emacsclient -nw"; # -c
+      # emacsclient = "/opt/homebrew/bin/emacs"; # EmacsForOSX: /Applications/Emacs.app/Contents/MacOS/bin/emacsclient
+      ee = "emacsclient -nw -c";
       mux = "tmuxinator";
       k = "kubectl";
       l = "eza --classify --group-directories-first";
       ll = "eza --git --long --header --classify --group-directories-first";
       # using above in shellInit to do it non-interactively instead
       # nixrb = "darwin-rebuild switch --flake ~/p/persops/";
+      magit = "ee -e '(progn (magit-status) (delete-other-windows))'";
     };
     shellAbbrs = {
       g = "git";

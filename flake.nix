@@ -17,7 +17,8 @@
   let
     configuration = {pkgs, lib, ... }: {
         imports = [
-          ./postgres.nix
+          ./modules/postgres.nix
+          ./modules/emacs/system.nix
         ];
 
         # Necessary for using flakes on this system.
