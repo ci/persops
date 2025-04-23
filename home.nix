@@ -10,6 +10,7 @@
     (import ./modules/mise.nix)
     (import ./modules/direnv.nix)
     (import ./modules/nvim.nix)
+    (import ./modules/programming.nix)
   ];
 
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process
@@ -38,50 +39,6 @@
     sad
     shellcheck
     wget
-
-    # dev - languages
-    beam.packages.erlang_27.elixir_1_18
-    go
-
-    flutter
-
-    uv
-
-    (python312.withPackages (ps: with ps; [
-      aiohttp
-      beautifulsoup4
-      ipython
-      jupyter
-      matplotlib
-      numpy
-      pandas
-      pipx
-      pwntools
-      requests
-      ropgadget
-      setuptools
-      z3
-    ]))
-
-    (ruby_3_4.withPackages (ps: with ps; [
-      cocoapods
-      htmlbeautifier
-      irb
-      pry
-      pwntools
-      rails
-      rake
-      rspec
-      rubocop
-      solargraph
-      zsteg
-    ]))
-
-    deno
-
-    nodejs
-    nodePackages.npm
-    nodePackages.yarn
 
     # containers, k8s, helm stuff
     ansible
