@@ -1,6 +1,5 @@
 return {
   "nvim-treesitter/nvim-treesitter",
-  build = ":TSUpdate",
   opts = {
     ensure_installed = {
       "bash",
@@ -61,8 +60,5 @@ return {
       "yaml",
       "zig",
     },
-    -- sync_install = false,
-    -- ignore_install = { "javascript" },
-    -- auto_install = true,
   },
 }
