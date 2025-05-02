@@ -18,4 +18,8 @@ return {
       },
     })
   end,
+  keys = {
+    { "<leader>bct", "<cmd>CloakToggle<cr>", desc = "Toggle cloak mode" },
+    { "<leader>bcc", "<cmd>CloakPreviewLine<cr>", desc = "Preview current line with cloak" },
+  },
 }
