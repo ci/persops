@@ -37,16 +37,19 @@ in
     (python312.withPackages (ps: with ps; [
       aiohttp
       beautifulsoup4
+      build
       ipython
       jupyter
       matplotlib
       numpy
       pandas
+      pip
       pipx
       pwntools
       requests
       ropgadget
       setuptools
+      twine
       z3
     ]))
     uv

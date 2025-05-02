@@ -96,6 +96,7 @@
             "kindavim" # vim-ify everything
             "ollama" # through brew since nixos is just client for darwin
             "readdle-spark" # trialing out email client
+            "responsively" # browser for dev
             "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
             "sonic-visualiser" # audio stegano
             "tailscale" # wireguard mesh goodies
