@@ -23,6 +23,7 @@
     # dev
     # aider-chat
     bun
+    cloudflared
     curl
     dbeaver-bin
     delta

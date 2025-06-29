@@ -42,10 +42,12 @@ in
       jupyter
       matplotlib
       numpy
+      openpyxl
       pandas
       pip
       pipx
       pwntools
+      pydantic
       requests
       ropgadget
       setuptools

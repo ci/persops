@@ -85,6 +85,8 @@
           brews = [
             "cowsay"
             "libpq" # for ruby `pg` gems through mise
+            "sshpass" # ansible ssh automation
+            "qemu" # virtualization goodies
             "tmuxinator" # instead of tmux.tmuxinator.enable
           ];
           casks = [
@@ -94,12 +96,14 @@
             "homerow" # everywhere-navigation
             "keybase" # keybase-gui doesn't work on OSX yet
             "kindavim" # vim-ify everything
+            "linear-linear" # linear app
             "ollama" # through brew since nixos is just client for darwin
             "readdle-spark" # trialing out email client
             "responsively" # browser for dev
             "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
             "sonic-visualiser" # audio stegano
             "tailscale" # wireguard mesh goodies
+            "vagrant" # + qemu = nice
             "vivaldi" # tryna migrate from arc
             "windsurf" # codeium successor
           ];
