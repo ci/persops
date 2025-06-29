@@ -15,6 +15,8 @@
       # using above in shellInit to do it non-interactively instead
       # nixrb = "darwin-rebuild switch --flake ~/p/persops/";
       magit = "ee -e '(progn (magit-status) (delete-other-windows))'";
+      claude = "/Users/cat/.claude/local/claude";
+      opencode = "/Users/cat/.opencode/local/opencode";
     };
     shellAbbrs = {
       g = "git";
