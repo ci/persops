@@ -35,12 +35,14 @@
     jq
     jsonnet
     jsonnet-bundler
+    lazygit
     llm
     overmind
     ripgrep
     sad
     shellcheck
     wget
+    yazi
 
     # containers, k8s, helm stuff
     ansible
