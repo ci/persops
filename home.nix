@@ -5,6 +5,7 @@
     (import ./modules/fish.nix)
     (import ./modules/tmux.nix)
     (import ./modules/git/home.nix)
+    (import ./modules/aerospace/aerospace.nix)
     (import ./modules/emacs/home.nix)
     (import ./modules/ghostty.nix)
     (import ./modules/starship.nix)
