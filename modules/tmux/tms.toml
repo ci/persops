@@ -2,7 +2,7 @@ default_session = "default"
 display_full_path = true
 excluded_dirs = [
   "ds",
-  "foss",
+  #"foss",
   "ai3-react-native",
   "TNI",
   "node_modules",
