@@ -106,6 +106,7 @@
             "vagrant" # + qemu = nice
             "vivaldi" # tryna migrate from arc
             "windsurf" # codeium successor
+            "zen" # tired of switching browsers
           ];
         };
     };

@@ -81,6 +81,10 @@ on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
     run = 'move-node-to-workspace 1'
 
 [[on-window-detected]]
+    if.app-id = 'app.zen-browser.zen'
+    run = 'move-node-to-workspace 1'
+
+[[on-window-detected]]
     if.app-id = 'com.tinyspeck.slackmacgap'
     run = 'move-node-to-workspace 2'
 
