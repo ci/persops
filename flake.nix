@@ -107,6 +107,7 @@
             "vivaldi" # tryna migrate from arc
             "windsurf" # codeium successor
             "zen" # tired of switching browsers
+            "zed" # one-letter away ^ - NewEditorAgain?
           ];
         };
     };
