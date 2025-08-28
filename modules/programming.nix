@@ -57,7 +57,7 @@ in
     uv
 
     deno
-    nodejs
+    # nodejs
     nodePackages.npm
     nodePackages.yarn
   ];

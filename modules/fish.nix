@@ -95,7 +95,7 @@
       fish_config theme choose "Catppuccin Mocha"
 
       # need this non-interactively to allow tmux to use it
-      alias nixrb "darwin-rebuild switch --flake ~/p/persops/"
+      alias nixrb "sudo darwin-rebuild switch --flake ~/p/persops/"
     '';
   };
   xdg.configFile."fish/themes/Catppuccin Mocha.theme".source = pkgs.fetchFromGitHub {

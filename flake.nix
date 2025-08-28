@@ -44,6 +44,7 @@
         ];
 
         # Declare the user that will be running `nix-darwin`.
+        system.primaryUser = "cat";
         users.knownUsers = [ "cat" ];
         users.users.cat = {
             uid = 501;
@@ -63,7 +64,7 @@
 
         environment = {
             systemPackages = [
-              pkgs.neofetch
+              # pkgs.neofetch # recent issues building python ueberzug
               pkgs.pam-reattach
               pkgs.pam-watchid
             ];
