@@ -28,6 +28,7 @@
     curl
     dbeaver-bin
     delta
+    duf
     eza
     fd
     fzf
@@ -38,7 +39,10 @@
     jsonnet-bundler
     lazygit
     llm
+    nushell
+    ouch
     overmind
+    pnpm
     ripgrep
     sad
     shellcheck
