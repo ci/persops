@@ -91,6 +91,8 @@
 
       set -gx PATH $PATH /opt/homebrew/bin
       set -gx PATH $PATH $HOME/.local/bin
+      
+      set -gx NVIM_GEMINI_API_KEY (cat ~/.config/gemini.token 2>/dev/null)
 
       fish_config theme choose "Catppuccin Mocha"
 
