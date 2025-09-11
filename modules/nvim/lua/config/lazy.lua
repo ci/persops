@@ -46,7 +46,7 @@ require("lazy").setup({
     { import = "lazyvim.plugins.extras.lang.zig" },
     { import = "lazyvim.plugins.extras.dap.core" },
     { import = "lazyvim.plugins.extras.util.mini-hipatterns" },
-    -- { import = "lazyvim.plugins.extras.ai.copilot" },
+    { import = "lazyvim.plugins.extras.ai.copilot" },
     { import = "lazyvim.plugins.extras.vscode" },
     -- TODO: maybe following would be helpful in the future:
     -- https://github.com/chrishrb/gx.nvim
