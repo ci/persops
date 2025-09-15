@@ -84,6 +84,7 @@
 
           taps = [ ];
           brews = [
+            "codex"
             "cowsay"
             "libpq" # for ruby `pg` gems through mise
             "sshpass" # ansible ssh automation
