@@ -46,6 +46,7 @@
     ripgrep
     sad
     shellcheck
+    tree-sitter
     wget
     yazi
 

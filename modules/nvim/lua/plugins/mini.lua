@@ -1,6 +1,6 @@
 return {
   {
-    "echasnovski/mini.cursorword",
+    "nvim-mini/mini.cursorword",
     version = false,
     event = "LazyFile",
     config = function(_, opts)

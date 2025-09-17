@@ -50,7 +50,7 @@ require("lazy").setup({
     { import = "lazyvim.plugins.extras.vscode" },
     -- TODO: maybe following would be helpful in the future:
     -- https://github.com/chrishrb/gx.nvim
-    -- https://github.com/echasnovski/mini.operators
+    -- https://github.com/nvim-mini/mini.operators
     { import = "plugins" },
   },
   defaults = {
