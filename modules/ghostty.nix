@@ -6,7 +6,7 @@
   xdg.configFile."ghostty/config".text = ''
     clipboard-read = allow
     clipboard-write = allow
-    theme = catppuccin-mocha
+    theme = "Catppuccin Mocha"
     font-size = 14
     font-family = "JetBrainsMono NFM"
     maximize = true
