@@ -6,7 +6,7 @@ return {
         settings = {
           typescript = {
             tsserver = {
-              maxTsServerMemory = 4096,
+              maxTsServerMemory = 6144,
               pluginPaths = {
                 "./node_modules",
                 "./chat/node_modules", -- monorepo problems
