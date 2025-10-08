@@ -29,6 +29,7 @@
     dbeaver-bin
     delta
     duf
+    dogdns
     eza
     fd
     fzf
@@ -52,7 +53,6 @@
 
     # containers, k8s, helm stuff
     ansible
-    colima # container runtime goodies on OSX, enabling docker client
     docker
     docker-compose
     docker-credential-helpers

@@ -99,6 +99,7 @@
             "keybase" # keybase-gui doesn't work on OSX yet
             "kindavim" # vim-ify everything
             "linear-linear" # linear app
+            "orbstack" # container goodies on OSX
             "ollama" # through brew since nixos is just client for darwin
             "readdle-spark" # trialing out email client
             "responsively" # browser for dev
@@ -108,6 +109,7 @@
             "vagrant" # + qemu = nice
             "vivaldi" # tryna migrate from arc
             "windsurf" # codeium successor
+            "yaak@beta" # postman much
             "zen" # tired of switching browsers
             "zed" # one-letter away ^ - NewEditorAgain?
           ];
