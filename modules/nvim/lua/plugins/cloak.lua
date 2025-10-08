@@ -1,6 +1,6 @@
 return {
   "laytan/cloak.nvim",
-  event = "VeryLazy",
+  lazy = false,
   config = function()
     require("cloak").setup({
       enabled = true,
@@ -11,7 +11,11 @@ return {
       cloak_telescope = true,
       patterns = {
         {
-          file_pattern = ".env*",
+          file_pattern = {
+            ".env*",
+            "wrangler.toml",
+            ".dev.vars",
+          },
           cloak_pattern = "=.+",
           replace = nil,
         },
