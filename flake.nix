@@ -84,7 +84,6 @@
 
           taps = [ ];
           brews = [
-            "codex"
             "cowsay"
             "libpq" # for ruby `pg` gems through mise
             "sshpass" # ansible ssh automation
@@ -93,6 +92,7 @@
           ];
           casks = [
             "claude" # codesonnet ftw
+            "codex"
             "font-jetbrains-mono-nerd-font"
             "ghostty" # best terminal atm
             "homerow" # everywhere-navigation
