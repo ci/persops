@@ -3,6 +3,13 @@ return {
   opts = {
     servers = {
       vtsls = {
+        experimental = {
+          maxInlayHintLength = 30,
+          completion = {
+            enableServerSideFuzzyMatch = true,
+            entriesLimit = 200,
+          },
+        },
         settings = {
           typescript = {
             inlayHints = {
