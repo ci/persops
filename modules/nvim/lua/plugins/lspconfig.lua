@@ -1,34 +1,16 @@
 return {
   "neovim/nvim-lspconfig",
   opts = {
+    -- make sure mason installs the server
     servers = {
+      tsserver = {
+        enabled = false,
+      },
+      ts_ls = {
+        enabled = false,
+      },
       vtsls = {
-        experimental = {
-          maxInlayHintLength = 30,
-          completion = {
-            enableServerSideFuzzyMatch = true,
-            entriesLimit = 200,
-          },
-        },
-        settings = {
-          typescript = {
-            inlayHints = {
-              enumMemberValues = { enabled = false },
-              functionLikeReturnTypes = { enabled = false },
-              parameterNames = { enabled = "literals" },
-              parameterTypes = { enabled = false },
-              propertyDeclarationTypes = { enabled = false },
-              variableTypes = { enabled = false },
-            },
-            tsserver = {
-              maxTsServerMemory = 6144,
-              pluginPaths = {
-                "./node_modules",
-                "./chat/node_modules", -- monorepo problems
-              },
-            },
-          },
-        },
+        enabled = false,
       },
     },
   },
