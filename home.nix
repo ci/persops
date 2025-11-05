@@ -23,6 +23,7 @@
 
     # dev
     # aider-chat
+    biome
     bun
     cloudflared
     curl
@@ -35,6 +36,7 @@
     fzf
     git
     htop
+    hyperfine
     jq
     jsonnet
     jsonnet-bundler
