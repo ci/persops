@@ -100,12 +100,12 @@
             "kindavim" # vim-ify everything
             "linear-linear" # linear app
             "orbstack" # container goodies on OSX
-            "ollama" # through brew since nixos is just client for darwin
+            "ollama-app" # through brew since nixos is just client for darwin
             "readdle-spark" # trialing out email client
             "responsively" # browser for dev
             "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
             "sonic-visualiser" # audio stegano
-            "tailscale" # wireguard mesh goodies
+            "tailscale-app" # wireguard mesh goodies
             "vagrant" # + qemu = nice
             "vivaldi" # tryna migrate from arc
             "windsurf" # codeium successor
