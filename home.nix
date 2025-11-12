@@ -23,6 +23,7 @@
 
     # dev
     # aider-chat
+    ast-grep
     biome
     bun
     cloudflared
@@ -49,6 +50,7 @@
     ripgrep
     sad
     shellcheck
+    statix
     tree-sitter
     wget
     yazi
