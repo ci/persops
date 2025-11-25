@@ -47,6 +47,7 @@
     ouch
     overmind
     pnpm
+    pscale
     ripgrep
     sad
     shellcheck

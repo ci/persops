@@ -91,7 +91,8 @@
             "tmuxinator" # instead of tmux.tmuxinator.enable
           ];
           casks = [
-            "claude" # codesonnet ftw
+            "claude" # claudedesktop goes brrr
+            "claude-code" # codesonnet ftw
             "codex"
             "font-jetbrains-mono-nerd-font"
             "ghostty" # best terminal atm

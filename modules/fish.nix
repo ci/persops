@@ -15,7 +15,6 @@
       # using above in shellInit to do it non-interactively instead
       # nixrb = "darwin-rebuild switch --flake ~/p/persops/";
       magit = "ee -e '(progn (magit-status) (delete-other-windows))'";
-      claude = "/Users/cat/.claude/local/claude";
       opencode = "/Users/cat/.opencode/local/opencode";
     };
     shellAbbrs = {
@@ -91,7 +90,7 @@
 
       set -gx PATH $PATH /opt/homebrew/bin
       set -gx PATH $PATH $HOME/.local/bin
-      
+
       set -gx NVIM_GEMINI_API_KEY (cat ~/.config/gemini.token 2>/dev/null)
 
       fish_config theme choose "Catppuccin Mocha"
