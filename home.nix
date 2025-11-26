@@ -1,6 +1,13 @@
 { pkgs, ... }:
 
-{
+let
+  yazi-flavors = pkgs.fetchFromGitHub {
+      owner = "yazi-rs";
+      repo = "flavors";
+      rev = "main";
+      sha256 = "twgXHeIj52EfpMpLrhxjYmwaPnIYah3Zk/gqCNTb2SQ=";
+  };
+in {
   imports = [
     (import ./modules/fish.nix)
     (import ./modules/tmux.nix)
@@ -17,7 +24,58 @@
 
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process
 
+  # Zoxide - smarter cd command (replaces z plugin)
+  programs.zoxide = {
+    enable = true;
+    enableFishIntegration = true;
+    options = [ "--cmd" "j" ];  # use 'j' as command to match previous z config
+  };
+
+  # Atuin - better shell history with sync
+  programs.atuin = {
+    enable = true;
+    enableFishIntegration = true;  # takes Ctrl+R
+    settings = {
+      ctrl_n_shortcuts = true;
+      filter_mode_shell_up_key_binding = "directory";  # up arrow = directory-scoped
+      inline_height = 20;
+      keymap_mode = "vim-insert";
+      show_preview = true;
+      style = "compact";
+    };
+  };
+
+  # Yazi - terminal file manager
+  programs.yazi = {
+    enable = true;
+    enableFishIntegration = true;  # 'y' shell wrapper for cd-on-exit
+    settings = {
+      mgr = {
+        show_hidden = true;
+        sort_by = "mtime";
+        sort_dir_first = true;
+        sort_reverse = true;
+      };
+    };
+    theme = {
+      flavor = {
+        dark = "catppuccin-mocha";
+      };
+    };
+    flavors = {
+      catppuccin-mocha = "${yazi-flavors}/catppuccin-mocha.yazi";
+    };
+  };
+
+  # nix-index - locate packages by file
+  programs.nix-index = {
+    enable = true;
+    enableFishIntegration = true;
+  };
+
   home.packages = with pkgs; [
+    # nix tooling
+    comma  # run programs without installing: , cowsay hello
     # misc
     spotify
 
@@ -54,7 +112,6 @@
     statix
     tree-sitter
     wget
-    yazi
 
     # containers, k8s, helm stuff
     ansible

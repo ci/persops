@@ -10,8 +10,11 @@
       ee = "emacsclient -nw -c";
       mux = "tmuxinator";
       k = "kubectl";
-      l = "eza --classify --group-directories-first";
-      ll = "eza --git --long --header --classify --group-directories-first";
+      ls = "eza --all --classify";
+      ll = "eza --all --group --header --group-directories-first --long --git";
+      lg = "eza --all --group --header --group-directories-first --long --git --git-ignore";
+      le = "eza --all --group --header --group-directories-first --long --extended";
+      lt = "eza --all --group --header --group-directories-first --tree --level 2";
       # using above in shellInit to do it non-interactively instead
       # nixrb = "darwin-rebuild switch --flake ~/p/persops/";
       magit = "ee -e '(progn (magit-status) (delete-other-windows))'";
@@ -36,9 +39,27 @@
       gf = "git fetch --tags --force --prune";
       be = "bundle exec";
       rcop = "bundle exec rubocop";
+      # git worktrees
+      gwl = "git worktree list";
+      gwa = "git worktree add";
+      gwr = "git worktree remove";
     };
     functions = {
       take = "mkdir -p $argv[1]; and cd $argv[1]";
+      gwf = {
+        description = "Create worktree for branch and cd into it";
+        body = ''
+          set branch $argv[1]
+          if test -z "$branch"
+            echo "Usage: gwf <branch-name>"
+            return 1
+          end
+          set repo_name (basename (git rev-parse --show-toplevel))
+          set worktree_path "../$repo_name-$branch"
+          git worktree add $worktree_path $branch
+          and cd $worktree_path
+        '';
+      };
       extract = {
         description = "Expand or extract bundled & compressed files";
         # https://github.com/oh-my-fish/plugin-extract/blob/master/functions/extract.fish
@@ -73,13 +94,14 @@
       { name = "done"; src = fishPlugins.done.src; }
       { name = "fzf"; src = fishPlugins.fzf.src; }
       { name = "puffer"; src = fishPlugins.puffer.src; }
-      { name = "z"; src = fishPlugins.z.src; }
     ];
     shellInit = ''
-      set -U Z_CMD "j"
-
       fish_hybrid_key_bindings 2>/dev/null
       fish_vi_cursor
+
+      # Fish fzf history on Ctrl+F (Ctrl+R is taken by atuin)
+      bind \cf __fzf_reverse_isearch
+      bind -M insert \cf __fzf_reverse_isearch
 
       set -x fish_cursor_default block
       set -x fish_cursor_insert line

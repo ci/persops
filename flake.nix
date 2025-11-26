@@ -24,6 +24,13 @@
         # Necessary for using flakes on this system.
         nix.settings.experimental-features = "nix-command flakes";
 
+        # Automatic garbage collection
+        nix.gc = {
+          automatic = true;
+          interval = { Weekday = 0; Hour = 2; Minute = 0; };  # Sunday 2am
+          options = "--delete-older-than 30d";
+        };
+
         system.configurationRevision = self.rev or self.dirtyRev or null;
 
         # Used for backwards compatibility. please read the changelog
