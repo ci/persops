@@ -92,16 +92,14 @@
     [
       { name = "colored-man-pages"; src = fishPlugins.colored-man-pages.src; }
       { name = "done"; src = fishPlugins.done.src; }
-      { name = "fzf"; src = fishPlugins.fzf.src; }
+      { name = "fzf-fish"; src = fishPlugins.fzf-fish.src; }
       { name = "puffer"; src = fishPlugins.puffer.src; }
     ];
     shellInit = ''
       fish_hybrid_key_bindings 2>/dev/null
       fish_vi_cursor
 
-      # Fish fzf history on Ctrl+F (Ctrl+R is taken by atuin)
-      bind \cf __fzf_reverse_isearch
-      bind -M insert \cf __fzf_reverse_isearch
+      fzf_configure_bindings --history=\cf
 
       set -x fish_cursor_default block
       set -x fish_cursor_insert line
