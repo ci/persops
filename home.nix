@@ -1,13 +1,4 @@
-{ pkgs, ... }:
-
-let
-  yazi-flavors = pkgs.fetchFromGitHub {
-      owner = "yazi-rs";
-      repo = "flavors";
-      rev = "main";
-      sha256 = "twgXHeIj52EfpMpLrhxjYmwaPnIYah3Zk/gqCNTb2SQ=";
-  };
-in {
+{ pkgs, ... }: {
   imports = [
     (import ./modules/fish.nix)
     (import ./modules/tmux.nix)
@@ -20,6 +11,7 @@ in {
     (import ./modules/direnv.nix)
     (import ./modules/nvim.nix)
     (import ./modules/programming.nix)
+    (import ./modules/yazi.nix)
   ];
 
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process
@@ -46,28 +38,6 @@ in {
       keymap_mode = "vim-insert";
       show_preview = true;
       style = "compact";
-    };
-  };
-
-  # Yazi - terminal file manager
-  programs.yazi = {
-    enable = true;
-    enableFishIntegration = true;  # 'y' shell wrapper for cd-on-exit
-    settings = {
-      mgr = {
-        show_hidden = true;
-        sort_by = "mtime";
-        sort_dir_first = true;
-        sort_reverse = true;
-      };
-    };
-    theme = {
-      flavor = {
-        dark = "catppuccin-mocha";
-      };
-    };
-    flavors = {
-      catppuccin-mocha = "${yazi-flavors}/catppuccin-mocha.yazi";
     };
   };
 
@@ -98,6 +68,7 @@ in {
     fd
     fzf
     git
+    glow
     htop
     hyperfine
     jq
