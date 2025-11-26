@@ -35,10 +35,14 @@ in {
   programs.atuin = {
     enable = true;
     enableFishIntegration = true;  # takes Ctrl+R
+    flags = [
+      "--disable-up-arrow"
+    ];
     settings = {
       ctrl_n_shortcuts = true;
       filter_mode_shell_up_key_binding = "directory";  # up arrow = directory-scoped
       inline_height = 20;
+      invert = true;
       keymap_mode = "vim-insert";
       show_preview = true;
       style = "compact";
