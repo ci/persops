@@ -1,5 +1,6 @@
 return {
   "olimorris/codecompanion.nvim",
+  tag = "v17.33.0",
   opts = {
     adapters = {
       acp = {
@@ -15,15 +16,15 @@ return {
     strategies = {
       chat = {
         adapter = "claude_code",
-        model = "claude-opus-4.1",
+        model = "claude-opus-4.5",
       },
       inline = {
         adapter = "claude_code",
-        model = "claude-opus-4.1",
+        model = "claude-opus-4.5",
       },
       cmd = {
         adapter = "claude_code",
-        model = "claude-opus-4.1",
+        model = "claude-opus-4.5",
       },
     },
   },

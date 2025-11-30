@@ -1,6 +1,7 @@
 return {
   "nvim-treesitter/nvim-treesitter",
   branch = "master",
+  commit = "b50774079aa3de80a06dce1634e7e1aa26d25848", -- pre-notification to update
   opts = {
     ensure_installed = {
       "bash",
