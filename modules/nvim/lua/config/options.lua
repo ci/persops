@@ -3,3 +3,5 @@
 -- Add any additional options here
 vim.g.lazyvim_prettier_needs_config = false
 vim.g.tmux_navigator_disable_when_zoomed = 1
+
+vim.g.ai_cmp = false -- use inline suggestions instead of cmp
