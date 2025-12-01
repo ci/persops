@@ -4,7 +4,7 @@
     (import ./modules/tmux.nix)
     (import ./modules/git/home.nix)
     (import ./modules/aerospace/aerospace.nix)
-    (import ./modules/emacs/home.nix)
+    # (import ./modules/emacs/home.nix) # unused for now
     (import ./modules/ghostty.nix)
     (import ./modules/starship.nix)
     (import ./modules/mise.nix)
@@ -41,6 +41,10 @@
     };
   };
 
+  programs.nh = {
+    enable = true;
+  };
+
   # nix-index - locate packages by file
   programs.nix-index = {
     enable = true;
@@ -61,8 +65,9 @@
     cloudflared
     curl
     dbeaver-bin
-    duf
+    difftastic
     dogdns
+    duf
     eza
     fd
     fzf
