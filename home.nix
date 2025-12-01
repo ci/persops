@@ -66,6 +66,7 @@
     eza
     fd
     fzf
+    fx
     glow
     htop
     hyperfine
@@ -73,10 +74,13 @@
     jsonnet
     jsonnet-bundler
     llm
+    navi
     nushell
     ouch
     overmind
+    pgcli
     pnpm
+    posting
     pscale
     ripgrep
     sad
