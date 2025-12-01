@@ -61,20 +61,17 @@
     cloudflared
     curl
     dbeaver-bin
-    delta
     duf
     dogdns
     eza
     fd
     fzf
-    git
     glow
     htop
     hyperfine
     jq
     jsonnet
     jsonnet-bundler
-    lazygit
     llm
     nushell
     ouch

@@ -3,6 +3,7 @@
     enable = true;
     shellAliases = {
       agr = "agrind";
+      git = "git-branchless wrap --";
       gdp = "git diff | pbcopy";
       gdpa = "pbpaste | git apply";
       sql2md = "pg_format --nocomment - | xargs -0 printf \"\`\`\`sql\\n%s\`\`\`\" | pbcopy";
