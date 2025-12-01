@@ -14,5 +14,6 @@
     window-decoration = false
     macos-titlebar-style = "hidden"
     macos-non-native-fullscreen = "visible-menu"
+    macos-option-as-alt = true
   '';
 }

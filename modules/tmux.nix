@@ -10,7 +10,6 @@
     plugins = with pkgs;
     [
       tmuxPlugins.tmux-thumbs
-      tmuxPlugins.vim-tmux-navigator
       tmuxPlugins.sensible
       tmuxPlugins.pain-control
       tmuxPlugins.yank
