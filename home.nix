@@ -61,6 +61,7 @@
     # aider-chat
     ast-grep
     biome
+    btop
     bun
     cloudflared
     curl
