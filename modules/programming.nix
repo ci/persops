@@ -2,14 +2,6 @@
 
 let
   myRuby = pkgs.ruby_3_4;
-
-  # to update, nix run nixpkgs#bundix -- --gemset in ./ruby
-  customGems = pkgs.bundlerApp {
-    pname  = "kamal";
-    exes   = [ "kamal" ]; # all exes get installed
-    gemdir = ./ruby;
-    ruby   = myRuby;
-  };
 in
 {
   home.packages = with pkgs; [
@@ -27,7 +19,7 @@ in
       zsteg
     ]))
 
-    customGems
+    kamal
 
     beam.packages.erlang_27.elixir_1_18
     go
