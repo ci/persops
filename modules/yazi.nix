@@ -1,5 +1,6 @@
-{ pkgs, nix-yazi-plugins, system, ... }:
+{ pkgs, inputs, system, ... }:
 let
+  yazi-plugins = inputs.nix-yazi-plugins.legacyPackages.${system};
   yazi-flavors = pkgs.fetchFromGitHub {
       owner = "yazi-rs";
       repo = "flavors";
@@ -8,7 +9,7 @@ let
   };
 in {
   imports = [
-    nix-yazi-plugins.legacyPackages.${system}.homeManagerModules.default
+    yazi-plugins.homeManagerModules.default
   ];
 
   programs.yazi = {

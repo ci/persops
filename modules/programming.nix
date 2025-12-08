@@ -54,5 +54,7 @@ in
     nodePackages.yarn
 
     lefthook
+
+    zig_0_14
   ];
 }

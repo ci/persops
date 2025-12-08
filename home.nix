@@ -1,17 +1,17 @@
 { pkgs, ... }: {
   imports = [
-    (import ./modules/fish.nix)
-    (import ./modules/tmux.nix)
-    (import ./modules/git/home.nix)
-    (import ./modules/aerospace/aerospace.nix)
-    # (import ./modules/emacs/home.nix) # unused for now
-    (import ./modules/ghostty.nix)
-    (import ./modules/starship.nix)
-    (import ./modules/mise.nix)
-    (import ./modules/direnv.nix)
-    (import ./modules/nvim.nix)
-    (import ./modules/programming.nix)
-    (import ./modules/yazi.nix)
+    ./modules/fish.nix
+    ./modules/tmux.nix
+    ./modules/git/home.nix
+    ./modules/aerospace/aerospace.nix
+    # ./modules/emacs/home.nix # unused for now
+    ./modules/ghostty.nix
+    ./modules/starship.nix
+    ./modules/mise.nix
+    ./modules/direnv.nix
+    ./modules/nvim.nix
+    ./modules/programming.nix
+    ./modules/yazi.nix
   ];
 
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process
