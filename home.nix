@@ -1,4 +1,4 @@
-{ pkgs, ... }: {
+{ lib, pkgs, ... }: {
   imports = [
     ./modules/fish.nix
     ./modules/tmux.nix
@@ -115,11 +115,6 @@
     slack
     zoom-us
 
-    # osx specifics
-    mos # reverse mouse direction only for mouse not touchpad
-    hexfiend
-    numi
-
     # sec stuff
     audacity
     avalonia-ilspy
@@ -132,6 +127,11 @@
     # (writeShellScriptBin "my-hello" ''
     #   echo "Hello, ${config.home.username}!"
     # '')
+  ] ++ lib.optionals pkgs.stdenv.isDarwin [
+    # osx specifics
+    mos # reverse mouse direction only for mouse not touchpad
+    hexfiend
+    numi
   ];
 
   # manage dotfiles directly

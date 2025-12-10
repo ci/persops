@@ -19,6 +19,8 @@ in
       zsteg
     ]))
 
+    gcc
+
     kamal
 
     beam.packages.erlang_27.elixir_1_18

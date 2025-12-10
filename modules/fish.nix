@@ -1,4 +1,7 @@
-{ pkgs, ... }: {
+{ config, pkgs, ... }:
+let
+  inherit (pkgs.stdenv) isLinux isDarwin;
+in {
   programs.fish = {
     enable = true;
     shellAliases = {
@@ -16,11 +19,14 @@
       lg = "eza --all --group --header --group-directories-first --long --git --git-ignore";
       le = "eza --all --group --header --group-directories-first --long --extended";
       lt = "eza --all --group --header --group-directories-first --tree --level 2";
-      # using above in shellInit to do it non-interactively instead
-      # nixrb = "darwin-rebuild switch --flake ~/p/persops/";
       magit = "ee -e '(progn (magit-status) (delete-other-windows))'";
-      opencode = "/Users/cat/.opencode/local/opencode";
-    };
+      opencode = "${config.home.homeDirectory}/.opencode/local/opencode";
+    } // (if isLinux then {
+        # just to keep it consistent
+        pbcopy = "xclip";
+        pbpaste = "xclip -o";
+      } else {});
+
     shellAbbrs = {
       g = "git";
       ga = "git add";
@@ -61,41 +67,14 @@
           and cd $worktree_path
         '';
       };
-      extract = {
-        description = "Expand or extract bundled & compressed files";
-        # https://github.com/oh-my-fish/plugin-extract/blob/master/functions/extract.fish
-        body = ''
-          set --local ext (echo $argv[1] | awk -F. '{print $NF}')
-          switch $ext
-            case tar  # non-compressed, just bundled
-              tar -xvf $argv[1]
-            case gz
-              if test (echo $argv[1] | awk -F. '{print $(NF-1)}') = tar  # tar bundle compressed with gzip
-                tar -zxvf $argv[1]
-              else  # single gzip
-                gunzip $argv[1]
-              end
-            case tgz  # same as tar.gz
-              tar -zxvf $argv[1]
-            case bz2  # tar compressed with bzip2
-              tar -jxvf $argv[1]
-            case rar
-              unrar x $argv[1]
-            case zip
-              unzip $argv[1]
-            case '*'
-              echo "unknown extension"
-          end
-        '';
-      };
     };
     plugins = with pkgs;
-    [
-      { name = "colored-man-pages"; src = fishPlugins.colored-man-pages.src; }
-      { name = "done"; src = fishPlugins.done.src; }
-      { name = "fzf-fish"; src = fishPlugins.fzf-fish.src; }
-      { name = "puffer"; src = fishPlugins.puffer.src; }
-    ];
+      [
+        { name = "colored-man-pages"; src = fishPlugins.colored-man-pages.src; }
+        { name = "done"; src = fishPlugins.done.src; }
+        { name = "fzf-fish"; src = fishPlugins.fzf-fish.src; }
+        { name = "puffer"; src = fishPlugins.puffer.src; }
+      ];
     shellInit = ''
       fish_hybrid_key_bindings 2>/dev/null
       fish_vi_cursor
@@ -109,16 +88,15 @@
       set -x LESS '--quit-if-one-screen --ignore-case --status-column --LONG-PROMPT -R --HILITE-UNREAD --tabs=4 --no-init --window=-4'
       set -x FZF_DEFAULT_OPTS '--height "40%" --reverse --ansi --border --inline-info --tabstop=4'
 
-      set -gx PATH $PATH /opt/homebrew/bin
-      set -gx PATH $PATH $HOME/.local/bin
-
-      set -gx NVIM_GEMINI_API_KEY (cat ~/.config/gemini.token 2>/dev/null)
-
       fish_config theme choose "Catppuccin Mocha"
+    '' + (if isDarwin then ''
+      set -gx PATH $PATH /opt/homebrew/bin
 
       # need this non-interactively to allow tmux to use it
       alias nixrb "sudo darwin-rebuild switch --flake ~/p/persops/"
-    '';
+    '' else ''
+      alias nixrb "sudo nixos-rebuild switch --flake /nix-config"
+    '');
   };
   xdg.configFile."fish/themes/Catppuccin Mocha.theme".source = pkgs.fetchFromGitHub {
     owner = "catppuccin";

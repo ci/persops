@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, user, ... }:
 
 let
   emacsWithPackages = with pkgs; ((pkgs.emacsPackagesFor pkgs.emacs-nox).withPackages (epkgs: with epkgs; [
@@ -11,6 +11,6 @@ in
   services.emacs = {
     enable = true;
     package = emacsWithPackages;
-    additionalPath = ["/Users/cat/.nix-profile/bin" "/etc/profiles/per-user/cat/bin"];
+    additionalPath = ["/Users/${user}/.nix-profile/bin" "/etc/profiles/per-user/${user}/bin"];
   };
 }

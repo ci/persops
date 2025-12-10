@@ -1,4 +1,4 @@
-{ pkgs, ... }: {
+{ config, pkgs, ... }: {
   programs.tmux = {
     enable = true;
     shell = "${pkgs.fish}/bin/fish";
@@ -65,5 +65,43 @@
     tmux-sessionizer
   ];
 
-  xdg.configFile."tms/config.toml".source = ./tmux/tms.toml;
+  # gotta exclude a bunch of unnecessary stuff to
+  # prevent from trying to crawl them in the first place
+  xdg.configFile."tms/config.toml".text = ''
+    default_session = "default"
+    display_full_path = true
+    excluded_dirs = [
+      "ds",
+      "ai3-react-native",
+      "TNI",
+      "node_modules",
+      ".venv",
+      "target",
+      ".elixir_ls",
+      "_build",
+      "deps",
+      ".git",
+      "dist",
+      "assets",
+      "public",
+      "vendor",
+      ".sass-cache",
+      "wp-content",
+      "tmp",
+      "cache",
+      ".next",
+      ".vinxi",
+      ".output",
+      ".react-router",
+      ".expo"
+    ]
+
+    [[search_dirs]]
+    path = "${config.home.homeDirectory}/p"
+    depth = 10
+
+    [[search_dirs]]
+    path = "${config.home.homeDirectory}/ctf"
+    depth = 1
+  '';
 }

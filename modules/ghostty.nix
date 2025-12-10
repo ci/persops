@@ -15,5 +15,6 @@
     macos-titlebar-style = "hidden"
     macos-non-native-fullscreen = "visible-menu"
     macos-option-as-alt = true
+    shell-integration-features = ssh-terminfo,ssh-env
   '';
 }

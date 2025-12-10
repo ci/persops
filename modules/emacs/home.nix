@@ -11,7 +11,7 @@
     };
 
     # mkOutOfStoreSymlink to allow spacemacs to update those files locally
-    ".spacemacs".source = config.lib.file.mkOutOfStoreSymlink "/Users/cat/p/persops/modules/emacs/spacemacs";
-    ".spacemacs.env".source = config.lib.file.mkOutOfStoreSymlink "/Users/cat/p/persops/modules/emacs/spacemacs.env";
+    ".spacemacs".source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/p/persops/modules/emacs/spacemacs";
+    ".spacemacs.env".source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/p/persops/modules/emacs/spacemacs.env";
   };
 }

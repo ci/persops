@@ -28,21 +28,26 @@
   };
 
   outputs = { self, nix-darwin, nixpkgs, home-manager, ... }@inputs:
-  let
-    overlays = [
-      inputs.jujutsu.overlays.default
-      inputs.zig.overlays.default
-    ];
+    let
+      overlays = [
+        inputs.jujutsu.overlays.default
+        inputs.zig.overlays.default
+      ];
 
-    mkSystem = import ./lib/mksystem.nix {
-      inherit self overlays nixpkgs inputs;
+      mkSystem = import ./lib/mksystem.nix {
+        inherit self overlays nixpkgs inputs;
+      };
+    in
+      {
+      darwinConfigurations."aglaea" = mkSystem "aglaea" {
+        system = "aarch64-darwin";
+        user = "cat";
+        darwin = true;
+      };
+
+      nixosConfigurations."amalthea" = mkSystem "amalthea" {
+        system = "x86_64-linux";
+        user   = "cat";
+      };
     };
-  in
-  {
-    darwinConfigurations."aglaea" = mkSystem "aglaea" {
-      system = "aarch64-darwin";
-      user = "cat";
-      darwin = true;
-    };
-  };
 }
