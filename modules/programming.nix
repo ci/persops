@@ -46,7 +46,7 @@ in
       ropgadget
       setuptools
       twine
-      z3
+      z3-solver
     ]))
     uv
 

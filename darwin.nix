@@ -29,6 +29,7 @@
       "readdle-spark" # trialing out email client
       "responsively" # browser for dev
       "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
+      "spotify" # muuuusic
       "sonic-visualiser" # audio stegano
       "tailscale-app" # wireguard mesh goodies
       "vagrant" # + qemu = nice
@@ -41,24 +42,8 @@
   };
     # casks  = [
     #   "1password"
-    #   "claude"
     #   "cleanshot"
-    #   "discord"
-    #   "fantastical"
-    #   "google-chrome"
-    #   "hammerspoon"
-    #   "imageoptim"
-    #   "istat-menus"
-    #   "monodraw"
     #   "raycast"
-    #   "rectangle"
-    #   "screenflow"
-    #   "slack"
-    #   "spotify"
-    # ];
-    #
-    # brews = [
-    #   "gnupg"
     # ];
 
   # Declare the user that will be running `nix-darwin`.
