@@ -41,3 +41,6 @@ r/switch:
 	ssh -p$(NIXPORT) $(NIXUSER)@$(NIXADDR) " \
 		sudo nixos-rebuild switch --flake \"/nix-config#${NIXNAME}\" \
 	"
+
+r/rdp:
+	xfreerdp /u:$(NIXUSER) /p:$(shell op items get wdl6vo3pd4vmnf2jz7ydhedspu --fields password) /v:$(NIXADDR) /size:1920x1080

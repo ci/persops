@@ -1,26 +1,11 @@
 # i3 (X11)
-{ pkgs, ... }: {
+{ lib, pkgs, ... }: {
   specialisation.i3.configuration = {
-    # We need an XDG portal for various applications to work properly,
-    # such as Flatpak applications.
-    xdg.portal = {
-      enable = true;
-      extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-      config.common.default = "*";
-    };
-
     services.xserver = {
       enable = true;
-      xkb.layout = "us";
-      dpi = 220;
-
-      desktopManager = {
-        xterm.enable = false;
-        wallpaper.mode = "fill";
-      };
+      desktopManager.xfce.enable = lib.mkForce false;
 
       displayManager = {
-        defaultSession = "none+i3";
         lightdm.enable = true;
       };
 
@@ -28,5 +13,7 @@
         i3.enable = true;
       };
     };
+
+    services.displayManager.defaultSession = lib.mkForce "none+i3";
   };
 }

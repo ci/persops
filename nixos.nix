@@ -1,6 +1,14 @@
 { pkgs, user, ... }:
 
 {
+  # We need an XDG portal for various applications to work properly,
+  # such as Flatpak applications.
+  xdg.portal = {
+    enable = true;
+    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+    config.common.default = "*";
+  };
+
   environment = {
     # https://github.com/nix-community/home-manager/pull/2408
     pathsToLink = [ "/share/fish" ];
@@ -78,6 +86,29 @@
       settings.PermitRootLogin = "no";
     };
 
+    xrdp = {
+      enable = true;
+      defaultWindowManager = "startxfce4";
+      openFirewall = true;
+    };
+
+    # Shared X11 configuration for specialisations
+    xserver = {
+      enable = true;
+      xkb.layout = "us";
+      dpi = 220;
+
+      desktopManager = {
+        xterm.enable = false;
+        wallpaper.mode = "fill";
+        xfce.enable = true;
+      };
+
+      displayManager.lightdm.enable = true;
+    };
+
+    displayManager.defaultSession = "xfce";
+
     # Enable tailscale. We manually authenticate when we want with
     # "sudo tailscale up". If you don't use tailscale, you should comment
     # out or delete all of this.
@@ -106,4 +137,3 @@
     AllowSuspendThenHibernate=no
   '';
 }
-

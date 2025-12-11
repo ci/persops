@@ -73,6 +73,7 @@
     duf
     eza
     fd
+    freerdp
     fzf
     fx
     glow
