@@ -23,14 +23,18 @@
     ];
   };
 
-  # support for dynamically linked executables, i.e. ones through uvx / bunx etc
-  programs.nix-ld.enable = true;
-  programs.nix-ld.libraries = with pkgs; [
-    # additional libraries to be linked, not through environment.systemPackages
-  ];
+  programs = {
+    # support for dynamically linked executables, i.e. ones through uvx / bunx etc
+    nix-ld.enable = true;
+    nix-ld.libraries = with pkgs; [
+      # additional libraries to be linked, not through environment.systemPackages
+    ];
 
-  # Since we're using fish as our shell
-  programs.fish.enable = true;
+    # Since we're using fish as our shell
+    fish.enable = true;
+
+    mosh.enable = true;
+  };
 
   users.mutableUsers = false;
   users.users.${user} = {

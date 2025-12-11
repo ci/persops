@@ -82,6 +82,7 @@
     jsonnet
     jsonnet-bundler
     llm
+    mosh
     navi
     nushell
     ouch
