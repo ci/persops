@@ -73,6 +73,7 @@
     duf
     eza
     fd
+    file
     freerdp
     fzf
     fx
@@ -87,6 +88,7 @@
     navi
     nushell
     ouch
+    outfieldr
     overmind
     pgcli
     pnpm
