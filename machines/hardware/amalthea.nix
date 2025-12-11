@@ -14,35 +14,6 @@
       kernelModules = [ ];
 
       luks.devices."luks-e12696b1-da5d-4aa3-8cda-ac2f90745068".device = "/dev/disk/by-uuid/e12696b1-da5d-4aa3-8cda-ac2f90745068";
-
-      network = {
-        enable = true;
-
-        ssh = {
-          enable = true;
-          port = 2222; # separate from normal sshd
-
-          authorizedKeys = [
-            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFP05x9Bg50efrFPX0NXfV45RwcsYmgpKUKTnR2Ee7LA cat"
-          ];
-
-          hostKeys = [
-            "/etc/secrets/initrd/ssh_host_ed25519_key"
-          ];
-        };
-
-        flushBeforeStage2 = true;
-
-        postCommands = ''
-      cat > /root/.profile <<'EOF'
-      echo
-      echo "To unlock root, run:"
-      echo "  cryptsetup luksOpen /dev/disk/by-uuid/e12696b1-da5d-4aa3-8cda-ac2f90745068 cryptroot"
-      echo
-      exec /bin/sh
-      EOF
-      '';
-      };
     };
     kernelModules = [ "kvm-amd" ];
     extraModulePackages = [ ];

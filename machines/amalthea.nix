@@ -23,6 +23,47 @@
     loader.efi.canTouchEfiVariables = true;
 
     kernelPackages = pkgs.linuxPackages_latest;
+    # Ensure stage1 brings up networking even though NetworkManager
+    # disables networking.useDHCP in stage2.
+    kernelParams = [ "ip=dhcp" ];
+
+    # Remote unlock over SSH in initrd. Keep this out of the generated
+    # hardware file so it doesn't get clobbered.
+    initrd = {
+      verbose = true;
+      # Realtek RTL8125 (enp2s0) needs r8169 in stage1 for networking/SSH.
+      availableKernelModules = [ "r8169" ];
+      kernelModules = [ "r8169" ];
+
+      network = {
+        enable = true;
+
+        ssh = {
+          enable = true;
+          port = 2222; # separate from normal sshd
+
+          authorizedKeys = [
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFP05x9Bg50efrFPX0NXfV45RwcsYmgpKUKTnR2Ee7LA cat"
+          ];
+
+          hostKeys = [
+            "/etc/secrets/initrd/ssh_host_ed25519_key"
+          ];
+        };
+
+        flushBeforeStage2 = true;
+
+        postCommands = ''
+      cat > /root/.profile <<'EOF'
+      echo
+      echo "To unlock root, run:"
+      echo "  cryptsetup luksOpen /dev/disk/by-uuid/e12696b1-da5d-4aa3-8cda-ac2f90745068 luks-e12696b1-da5d-4aa3-8cda-ac2f90745068"
+      echo
+      exec /bin/sh
+      EOF
+      '';
+      };
+    };
   };
 
   networking.hostName = "amalthea";
