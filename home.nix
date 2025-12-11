@@ -99,6 +99,7 @@
     shellcheck
     statix
     tree-sitter
+    wakeonlan
     wget
 
     # containers, k8s, helm stuff

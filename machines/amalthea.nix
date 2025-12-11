@@ -25,7 +25,15 @@
     kernelPackages = pkgs.linuxPackages_latest;
     # Ensure stage1 brings up networking even though NetworkManager
     # disables networking.useDHCP in stage2.
-    kernelParams = [ "ip=dhcp" ];
+    kernelParams = [
+      "ip=dhcp"
+      # Work around nouveau GSP shutdown hangs on recent kernels.
+      "nouveau.config=NvGspRm=0"
+    ];
+
+    extraModprobeConfig = ''
+      options nouveau config=NvGspRm=0
+    '';
 
     # Remote unlock over SSH in initrd. Keep this out of the generated
     # hardware file so it doesn't get clobbered.
@@ -68,6 +76,13 @@
 
   networking.hostName = "amalthea";
   networking.networkmanager.enable = true;
+
+  # Enable Wake-on-LAN on the wired NIC so the machine can be woken
+  # from sleep/soft-off (S3/S5) via a magic packet.
+  networking.interfaces.enp2s0.wakeOnLan = {
+    enable = true;
+    policy = [ "magic" ];
+  };
 
   # Enable CUPS to print documents.
   services.printing.enable = true;
