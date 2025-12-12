@@ -37,6 +37,10 @@
       killall
       xclip
 
+      # Webcam tooling/viewer (works over XRDP/X11).
+      cheese
+      v4l-utils
+
       # For hypervisors that support auto-resizing, this script forces it.
       # I've noticed not everyone listens to the udev events so this is a hack.
       (writeShellScriptBin "xrandr-auto" ''
@@ -70,7 +74,7 @@
   users.users.${user} = {
     isNormalUser = true;
     home = "/home/${user}";
-    extraGroups = [ "networkmanager" "docker" "wheel" ];
+    extraGroups = [ "networkmanager" "docker" "wheel" "video" ];
     shell = pkgs.fish;
     hashedPassword = "$6$PMNZvv84d34ZY2BK$CEhbBGRm79WxIxFE5j4aY6l1/2HPqSjvFEXEhbgYJHaMoR9.A2/HHq2ninahWRVMaPQKQc8xfE7AZkf4Bm3CD/";
     openssh.authorizedKeys.keys = [
