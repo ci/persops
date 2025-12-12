@@ -1,6 +1,17 @@
 { pkgs, user, ... }:
 
 {
+  nix.settings = {
+    substituters = [
+      "https://codex-cli.cachix.org"
+      "https://claude-code.cachix.org"
+    ];
+    trusted-public-keys = [
+      "codex-cli.cachix.org-1:1Br3H1hHoRYG22n//cGKJOk3cQXgYobUel6O8DgSing="
+      "claude-code.cachix.org-1:YeXf2aNu7UTX8Vwrze0za1WEDS+4DuI2kVeWEE4fsRk="
+    ];
+  };
+
   homebrew = {
     enable = true;
     # in the future: manage only through nix.. still have a few to 'port' over
@@ -16,8 +27,6 @@
     ];
     casks = [
       "claude" # claudedesktop goes brrr
-      "claude-code" # codesonnet ftw
-      "codex"
       "font-jetbrains-mono-nerd-font"
       "ghostty" # best terminal atm
       "homerow" # everywhere-navigation

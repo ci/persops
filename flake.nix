@@ -19,6 +19,14 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    codex-cli-nix = {
+      url = "github:sadjow/codex-cli-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    claude-code-nix = {
+      url = "github:sadjow/claude-code-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nix-yazi-plugins = {
       url = "github:lordkekz/nix-yazi-plugins";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -32,6 +40,8 @@
       overlays = [
         inputs.jujutsu.overlays.default
         inputs.zig.overlays.default
+        inputs."codex-cli-nix".overlays.default
+        inputs."claude-code-nix".overlays.default
       ];
 
       mkSystem = import ./lib/mksystem.nix {

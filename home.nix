@@ -58,6 +58,8 @@
   home.packages = with pkgs; [
     # nix tooling
     comma  # run programs without installing: , cowsay hello
+    codex
+    claude-code
 
     # dev
     # aider-chat
