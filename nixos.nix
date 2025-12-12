@@ -93,6 +93,9 @@
     };
   };
 
+  # Keep the virtual console (TTY) keymap in sync with X11.
+  console.useXkbConfig = true;
+
   # Virtualization settings
   virtualisation.docker.enable = true;
 
