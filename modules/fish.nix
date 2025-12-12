@@ -20,7 +20,6 @@ in {
       le = "eza --all --group --header --group-directories-first --long --extended";
       lt = "eza --all --group --header --group-directories-first --tree --level 2";
       magit = "ee -e '(progn (magit-status) (delete-other-windows))'";
-      opencode = "${config.home.homeDirectory}/.opencode/local/opencode";
     } // (if isLinux then {
         # just to keep it consistent
         pbcopy = "xclip";

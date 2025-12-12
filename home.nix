@@ -1,4 +1,7 @@
-{ lib, pkgs, ... }: {
+{ lib, pkgs, inputs, ... }:
+let
+  llmAgents = inputs.llm-agents.packages.${pkgs.system};
+in {
   imports = [
     ./modules/fish.nix
     ./modules/tmux.nix
@@ -59,8 +62,19 @@
   home.packages = with pkgs; [
     # nix tooling
     comma  # run programs without installing: , cowsay hello
+
+    # ai stuff
+    llmAgents.amp
+    llmAgents.beads
     codex
     claude-code
+    llmAgents.claude-code-acp
+    llmAgents.claude-plugins
+    llmAgents.codex-acp
+    llmAgents.copilot-cli
+    llmAgents.cursor-agent
+    llmAgents.gemini-cli
+    llmAgents.opencode
 
     # dev
     # aider-chat
