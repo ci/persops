@@ -35,7 +35,7 @@
       url = "github:lordkekz/nix-yazi-plugins";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    jujutsu.url = "github:martinvonz/jj";
+    jujutsu.url = "github:jj-vcs/jj";
     zig.url = "github:mitchellh/zig-overlay";
   };
 

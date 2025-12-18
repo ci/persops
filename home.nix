@@ -100,6 +100,8 @@ in {
     jq
     jsonnet
     jsonnet-bundler
+    jujutsu
+    jjui
     llm
     mosh
     navi
