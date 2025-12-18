@@ -13,7 +13,7 @@
     ./modules/nvim.nix
     ./modules/programming.nix
     ./modules/yazi.nix
-    ./modules/ai.nix
+    ./modules/ai/home.nix
   ];
 
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process

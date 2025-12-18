@@ -26,6 +26,11 @@ in {
       "opencode-openai-codex-auth@4.1.1"
       "opencode-antigravity-auth@1.1.2"
     ];
+    keybinds = {
+      leader = "ctrl+x";
+      messages_half_page_up = "ctrl+u";
+      messages_half_page_down = "ctrl+d";
+    };
   };
 
   # Oh My OpenCode configuration
@@ -35,4 +40,8 @@ in {
       explore = { model = "anthropic/claude-haiku-4-5"; };
     };
   };
+
+  # OpenCode commands
+  xdg.configFile."opencode/command/commit.md".source = ./commands/commit.md;
+  xdg.configFile."opencode/command/rmslop.md".source = ./commands/rmslop.md;
 }
