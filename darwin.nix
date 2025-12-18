@@ -29,6 +29,7 @@
       "tmuxinator" # instead of tmux.tmuxinator.enable
     ];
     casks = [
+      "conductor" # trialing these out
       "claude" # claudedesktop goes brrr
       "font-jetbrains-mono-nerd-font"
       "ghostty" # best terminal atm
@@ -36,6 +37,7 @@
       "keybase" # keybase-gui doesn't work on OSX yet
       "kindavim" # vim-ify everything
       "linear-linear" # linear app
+      "opencode-desktop" # let's compare to conductor
       "orbstack" # container goodies on OSX
       "ollama-app" # through brew since nixos is just client for darwin
       "readdle-spark" # trialing out email client

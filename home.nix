@@ -1,7 +1,4 @@
-{ lib, pkgs, inputs, ... }:
-let
-  llmAgents = inputs.llm-agents.packages.${pkgs.system};
-in {
+{ lib, pkgs, ... }: {
   imports = [
     ./modules/fish.nix
     ./modules/tmux.nix
@@ -16,6 +13,7 @@ in {
     ./modules/nvim.nix
     ./modules/programming.nix
     ./modules/yazi.nix
+    ./modules/ai.nix
   ];
 
   home.stateVersion = "23.05"; # don't really update - read release notes, figure out process
@@ -63,19 +61,6 @@ in {
     # nix tooling
     comma  # run programs without installing: , cowsay hello
 
-    # ai stuff
-    llmAgents.amp
-    llmAgents.beads
-    codex
-    claude-code
-    llmAgents.claude-code-acp
-    llmAgents.claude-plugins
-    llmAgents.codex-acp
-    llmAgents.copilot-cli
-    llmAgents.cursor-agent
-    llmAgents.gemini-cli
-    llmAgents.opencode
-
     # dev
     # aider-chat
     ast-grep
@@ -102,7 +87,6 @@ in {
     jsonnet-bundler
     jujutsu
     jjui
-    llm
     mosh
     navi
     nushell
