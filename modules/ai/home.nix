@@ -1,4 +1,4 @@
-{ lib, pkgs, inputs, ... }:
+{ pkgs, inputs, ... }:
 let
   llmAgents = inputs.llm-agents.packages.${pkgs.system};
 in {
@@ -11,11 +11,12 @@ in {
     llmAgents.claude-code-acp
     llmAgents.claude-plugins
     llmAgents.codex-acp
-    llmAgents.copilot-cli
+    # llmAgents.copilot-cli
     llmAgents.cursor-agent
-    llmAgents.gemini-cli
+    # disabled temp: https://github.com/numtide/llm-agents.nix/issues/1644
+    # llmAgents.gemini-cli
     llmAgents.opencode
-    llm
+    # llm
   ];
 
   # OpenCode configuration
