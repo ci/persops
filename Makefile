@@ -32,6 +32,7 @@ r/copy:
 	rsync -av -e 'ssh -p$(NIXPORT)' \
 		--exclude='.git/' \
 		--exclude='.jj/' \
+		--exclude='.beads/' \
 		--rsync-path="sudo rsync" \
 		$(MAKEFILE_DIR)/ $(NIXUSER)@$(NIXADDR):/nix-config
 
