@@ -5,7 +5,6 @@ in {
   # AI agent packages
   home.packages = with pkgs; [
     llmAgents.amp
-    llmAgents.beads
     codex
     claude-code
     llmAgents.claude-code-acp
