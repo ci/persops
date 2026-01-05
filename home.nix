@@ -99,6 +99,7 @@
     pscale
     ripgrep
     sad
+    actionlint
     shellcheck
     statix
     tree-sitter
