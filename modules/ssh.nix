@@ -11,10 +11,8 @@ in
     {
       enable = true;
 
-      extraConfig = ''
-        # Load private host entries / overrides if present.
-        Include ~/.ssh/config.local
-      '';
+      # Load private host entries / overrides if present.
+      includes = [ "~/.ssh/config.local" ];
     } // (if isDarwin then {
       enableDefaultConfig = false;
 
