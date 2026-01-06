@@ -144,4 +144,28 @@ in {
   home.file.".claude/CLAUDE.md".source = ./AGENTS.md;
   home.file.".codex/AGENTS.md".source = ./AGENTS.md;
   xdg.configFile."opencode/AGENTS.md".source = ./AGENTS.md;
+
+  # Skills for agents
+  home.file.".claude/skills/dev-browser" = {
+    source = ./skills/dev-browser;
+    recursive = true;
+  };
+  home.file.".claude/skills/github-pr".source = ./skills/github-pr;
+  home.file.".claude/skills/jj-version-control".source = ./skills/jj-version-control;
+  home.file.".codex/skills/dev-browser" = {
+    source = ./skills/dev-browser;
+    recursive = true;
+  };
+  home.file.".codex/skills/github-pr".source = ./skills/github-pr;
+  home.file.".codex/skills/jj-version-control".source = ./skills/jj-version-control;
+
+  # Create writable directories for dev-browser skill (node_modules, profiles, tmp)
+  home.activation.createDevBrowserDirs = ''
+    mkdir -p "$HOME/.claude/skills/dev-browser/node_modules"
+    mkdir -p "$HOME/.claude/skills/dev-browser/profiles"
+    mkdir -p "$HOME/.claude/skills/dev-browser/tmp"
+    mkdir -p "$HOME/.codex/skills/dev-browser/node_modules"
+    mkdir -p "$HOME/.codex/skills/dev-browser/profiles"
+    mkdir -p "$HOME/.codex/skills/dev-browser/tmp"
+  '';
 }
