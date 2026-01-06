@@ -1,174 +1,166 @@
-## Issue Tracking with bd (beads)
+# persops - Nix-Based Dotfiles & System Configuration
 
-**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
+Personal configuration managing macOS (darwin) and NixOS systems via Nix flakes.
 
-### Why bd?
+## Commands
 
-- Dependency-aware: Track blockers and relationships between issues
-- Git-friendly: Auto-syncs to JSONL for version control
-- Agent-optimized: JSON output, ready work detection, discovered-from links
-- Prevents duplicate tracking systems and confusion
+| Command | Purpose |
+|---------|---------|
+| `make switch` | Apply configuration (auto-detects darwin/nixos) |
+| `make test` | Test build without applying |
+| `nix flake check` | Validate flake syntax |
+| `nix flake update` | Update all flake inputs |
 
-### Quick Start
-
-**Check for ready work:**
-
-```bash
-bd ready --json
-```
-
-**Create new issues:**
-
-```bash
-bd create "Issue title" -t bug|feature|task -p 0-4 --json
-bd create "Issue title" -p 1 --deps discovered-from:bd-123 --json
-bd create "Subtask" --parent <epic-id> --json  # Hierarchical subtask (gets ID like epic-id.1)
-```
-
-**Claim and update:**
-
-```bash
-bd update bd-42 --status in_progress --json
-bd update bd-42 --priority 1 --json
-```
-
-**Complete work:**
-
-```bash
-bd close bd-42 --reason "Completed" --json
-```
-
-### Issue Types
-
-- `bug` - Something broken
-- `feature` - New functionality
-- `task` - Work item (tests, docs, refactoring)
-- `epic` - Large feature with subtasks
-- `chore` - Maintenance (dependencies, tooling)
-
-### Priorities
-
-- `0` - Critical (security, data loss, broken builds)
-- `1` - High (major features, important bugs)
-- `2` - Medium (default, nice-to-have)
-- `3` - Low (polish, optimization)
-- `4` - Backlog (future ideas)
-
-### Workflow for AI Agents
-
-1. **Check ready work**: `bd ready` shows unblocked issues
-2. **Claim your task**: `bd update <id> --status in_progress`
-3. **Work on it**: Implement, test, document
-4. **Discover new work?** Create linked issue:
-   - `bd create "Found bug" -p 1 --deps discovered-from:<parent-id>`
-5. **Complete**: `bd close <id> --reason "Done"`
-6. **Commit together**: Always commit the `.beads/issues.jsonl` file together with the code changes so issue state stays in sync with code state
-
-### Writing Self-Contained Issues
-
-Issues must be fully self-contained - readable without any external context (plans, chat history, etc.). A future session should understand the issue completely from its description alone.
-
-**Required elements:**
-
-- **Summary**: What and why in 1-2 sentences
-- **Files to modify**: Exact paths (with line numbers if relevant)
-- **Implementation steps**: Numbered, specific actions
-- **Example**: Show before → after transformation when applicable
-
-**Optional but helpful:**
-
-- Edge cases or gotchas to watch for
-- Test references (point to test files or test_data examples)
-- Dependencies on other issues
-
-**Bad example:**
+## Repository Structure
 
 ```
-Implement the refactoring from the plan
+flake.nix           # Flake entry, inputs, system definitions
+darwin.nix          # macOS-specific config
+nixos.nix           # Linux-specific config
+home.nix            # Home-manager entry (shared)
+lib/mksystem.nix    # System builder helper
+machines/           # Per-machine configs (aglaea=mac, amalthea=linux)
+modules/            # Modular configurations
+├── fish.nix, tmux.nix, nvim.nix, ...
+├── nvim/lua/plugins/*.lua  # Neovim LazyVim plugins
+├── git/, ai/, aerospace/, ...
 ```
 
-**Good example:**
+## Nix Code Style
 
-```
-Add timeout parameter to fetchUser() in src/api/users.ts
+### Module Signature
 
-1. Add optional timeout param (default 5000ms)
-2. Pass to underlying fetch() call
-3. Update tests in src/api/users.test.ts
-
-Example: fetchUser(id) → fetchUser(id, { timeout: 3000 })
-Depends on: bd-abc123 (fetch wrapper refactor)
+```nix
+{ pkgs, lib, config, ... }:   # Standard - destructure what you need
+{ pkgs, user, self, ... }:    # With specialArgs
 ```
 
-### Dependencies: Think "Needs", Not "Before"
+### Formatting
 
-`bd dep add X Y` = "X needs Y" = Y blocks X
+- 2-space indentation
+- One attribute per line in sets
+- One item per line in package lists
 
-**TRAP**: Temporal words ("Phase 1", "before", "first") invert your thinking!
+### Key Patterns
 
-```
-WRONG: "Phase 1 before Phase 2" → bd dep add phase1 phase2
-RIGHT: "Phase 2 needs Phase 1" → bd dep add phase2 phase1
-```
+```nix
+# Conditional packages by platform
+{ lib, pkgs, ... }:
+let
+  inherit (pkgs.stdenv) isDarwin isLinux;
+in {
+  home.packages = with pkgs; [
+    ripgrep
+  ] ++ lib.optionals isDarwin [ mos ];
+}
 
-**Verify**: `bd blocked` - tasks blocked by prerequisites, not dependents.
+# Conditional config blocks
+xdg.configFile."aerospace/aerospace.toml" = lib.mkIf isDarwin {
+  source = ./aerospace.toml;
+};
 
-### Auto-Sync
+# External file references
+extraConfig = builtins.readFile ./tmux/tmux.conf;
+settings = pkgs.lib.importTOML ./starship.toml;
 
-bd automatically syncs with git:
+# JSON config generation
+xdg.configFile."app/config.json".text = builtins.toJSON { key = "value"; };
 
-- Exports to `.beads/issues.jsonl` after changes (5s debounce)
-- Imports from JSONL when newer (e.g., after `git pull`)
-- No manual export/import needed!
-
-### Managing AI-Generated Planning Documents
-
-AI assistants often create planning and design documents during development:
-
-- PLAN.md, IMPLEMENTATION.md, ARCHITECTURE.md
-- DESIGN.md, CODEBASE_SUMMARY.md, INTEGRATION_PLAN.md
-- TESTING_GUIDE.md, TECHNICAL_DESIGN.md, and similar files
-
-**Best Practice: Use a dedicated directory for these ephemeral files**
-
-**Recommended approach:**
-
-- Create a `history/` directory in the project root
-- Store ALL AI-generated planning/design docs in `history/`
-- Keep the repository root clean and focused on permanent project files
-- Only access `history/` when explicitly asked to review past planning
-
-**Example .gitignore entry (optional):**
-
-```
-# AI planning documents (ephemeral)
-history/
+# Package customization
+(python314.withPackages (ps: with ps; [ requests pandas ]))
 ```
 
-**Benefits:**
+### Module Organization
 
-- ✅ Clean repository root
-- ✅ Clear separation between ephemeral and permanent documentation
-- ✅ Easy to exclude from version control if desired
-- ✅ Preserves planning history for archeological research
-- ✅ Reduces noise when browsing the project
+- One tool/concern per module
+- Use `imports = [ ]` to compose
+- Store external configs (toml, conf) alongside .nix files
+- Use `xdg.configFile` for dotfiles, `home.file` for home directory
 
-### CLI Help
+### Comments
 
-Run `bd <command> --help` to see all available flags for any command.
-For example: `bd create --help` shows `--parent`, `--deps`, `--assignee`, etc.
+```nix
+brews = [
+  "libpq" # for ruby `pg` gems through mise
+];
+# TODO: pull this out into a shared file
+# signal-desktop # broken in current version? mismatching sha
+```
 
-### Important Rules
+## Lua Code Style (Neovim)
 
-- ✅ Use bd for ALL task tracking
-- ✅ Always use `--json` flag for programmatic use
-- ✅ Link discovered work with `discovered-from` dependencies
-- ✅ Check `bd ready` before asking "what should I work on?"
-- ✅ Store AI planning docs in `history/` directory
-- ✅ Run `bd <cmd> --help` to discover available flags
-- ❌ Do NOT create markdown TODO lists
-- ❌ Do NOT use external issue trackers
-- ❌ Do NOT duplicate tracking systems
-- ❌ Do NOT clutter repo root with planning documents
+LazyVim-based config in `modules/nvim/`. Formatter: stylua.
 
-For more details, see .beads/README.md
+### Plugin Files
+
+```lua
+-- modules/nvim/lua/plugins/example.lua
+return {
+  "author/plugin-name",
+  opts = {
+    setting = value,
+  },
+}
+```
+
+### Patterns
+
+```lua
+-- Conditional logic
+if vim.env.SSH_TTY then
+  vim.g.clipboard = "osc52"
+end
+
+-- Type annotations for LSP
+---@type snacks.dashboard.Item[]
+keys = { ... }
+
+-- Disable stylua for block
+-- stylua: ignore
+keys = { { icon = " ", key = "f" } }
+```
+
+## Common Tasks
+
+### Add a Package
+
+```nix
+# In home.nix or module
+home.packages = with pkgs; [ new-package ];
+```
+
+### Add Homebrew Cask (macOS)
+
+```nix
+# In darwin.nix
+homebrew.casks = [ "app-name" ];
+```
+
+### Add Fish Alias
+
+```nix
+# In modules/fish.nix
+shellAliases = { myalias = "command --flags"; };
+shellAbbrs = { abbr = "expanded"; };  # expands as typed
+```
+
+### Add New Machine
+
+1. Create `machines/<name>.nix`
+2. Add to `flake.nix`:
+
+```nix
+darwinConfigurations."<name>" = mkSystem "<name>" {
+  system = "aarch64-darwin";
+  user = "cat";
+  darwin = true;
+};
+```
+
+## Gotchas
+
+- **stateVersion**: Never change without reading release notes
+- **Homebrew**: Some packages still via homebrew (see darwin.nix)
+- **allowUnfree**: Enabled globally
+- **tmuxinator**: Via homebrew, not nix (version compat)
+- **Fish themes**: Catppuccin fetched from GitHub, pinned by sha256
