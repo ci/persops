@@ -139,4 +139,9 @@ in {
   # OpenCode commands
   xdg.configFile."opencode/command/commit.md".source = ./commands/commit.md;
   xdg.configFile."opencode/command/rmslop.md".source = ./commands/rmslop.md;
+
+  # Global agent instructions for Claude Code, Codex, and OpenCode
+  home.file.".claude/CLAUDE.md".source = ./AGENTS.md;
+  home.file.".codex/AGENTS.md".source = ./AGENTS.md;
+  xdg.configFile."opencode/AGENTS.md".source = ./AGENTS.md;
 }
