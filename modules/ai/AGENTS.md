@@ -48,7 +48,9 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Keep it observable (logs, panes, tails, MCP/browser tools).
 - Release: read `docs/RELEASING.md` (or find best checklist if missing).
 
-## Git
+## VCS
+
+### Git
 
 - Safe by default: `git status/diff/log`. Push only when user asks.
 - `git checkout` ok for PR review / explicit request.
@@ -61,6 +63,11 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - No amend unless asked.
 - Big review: `git --no-pager diff --color=never`.
 - Multi-agent: check `git status/diff` before edits; ship small commits.
+
+### JJ
+
+- `jj` over `git` where `.jj` exists.
+- consult jj skill once per session for context before usage.
 
 ## Language/Stack Notes
 
