@@ -52,6 +52,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 ### Git
 
+- IMPORTANT: **ALWAYS USE** `jj` instead of `git` if `.jj` dir exists.
 - Safe by default: `git status/diff/log`. Push only when user asks.
 - `git checkout` ok for PR review / explicit request.
 - Branch changes require user consent.
