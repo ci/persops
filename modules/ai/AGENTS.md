@@ -66,7 +66,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 ### JJ
 
-- `jj` over `git` where `.jj` exists.
+- IMPORTANT: always try to use `jj` instead of `git` if `.jj` dir exists.
 - consult jj skill once per session for context before usage.
 
 ## Language/Stack Notes
