@@ -36,3 +36,7 @@ keymap("n", "<leader>fyd", '<cmd>let @+ = expand("%:p:h")<CR>', { desc = "copy d
 keymap("n", "<leader>fyD", '<cmd>let @+ = expand("%:h")<CR>', { desc = "copy directory (relative)" })
 keymap("n", "<leader>fyn", '<cmd>let @+ = expand("%:t")<CR>', { desc = "copy filename" })
 keymap("n", "<leader>fyN", '<cmd>let @+ = expand("%:t:r")<CR>', { desc = "copy filename without extension" })
+
+keymap("n", "<leader>gj", function()
+  Snacks.terminal({ "jjui" }, { win = { style = "lazygit" } })
+end, { desc = "jjui" })
