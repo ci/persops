@@ -1,7 +1,15 @@
-{ pkgs, inputs, ... }:
+{ pkgs, inputs, lib, config, ... }:
 let
   llmAgents = inputs.llm-agents.packages.${pkgs.system};
+  isLinux = pkgs.stdenv.isLinux;
+  homeDir = config.home.homeDirectory;
+  clawdbotSecretsDir = "${homeDir}/.secrets";
+  clawdbotGatewayPort = 18789;
 in {
+  imports = [
+    inputs.nix-clawdbot.homeManagerModules.clawdbot
+  ];
+
   # AI agent packages
   home.packages = with pkgs; [
     llmAgents.amp
@@ -17,6 +25,108 @@ in {
     llmAgents.opencode
     # llm
   ];
+
+  programs.clawdbot = {
+    package = pkgs.clawdbot-gateway;
+    appPackage = if pkgs.stdenv.isDarwin then pkgs.clawdbot-app else null;
+    # Seed editable workspace docs from modules/ai/clawdbot-documents on first run (manual copy).
+    firstParty.peekaboo.enable = pkgs.stdenv.isDarwin;
+    firstParty.summarize.enable = pkgs.stdenv.isDarwin;
+    instances.default = {
+      enable = true;
+      gatewayPort = clawdbotGatewayPort;
+      systemd.enable = isLinux;
+      launchd.enable = false;
+      appDefaults.attachExistingOnly = true;
+
+      providers.telegram = {
+        enable = true;
+        botTokenFile = "${clawdbotSecretsDir}/telegram.bot.token";
+        allowFrom = [ 367809160 ];
+        groups = {
+          "*" = { requireMention = true; };
+        };
+      };
+
+      agent.model = "openai-codex/gpt-5.2";
+
+      configOverrides = {
+        agents = {
+          list = [
+            {
+              id = "main";
+              default = true;
+              identity = {
+                name = "Cat Prime";
+                theme = "warm, crisp, direct/precise";
+                emoji = "👻🐈‍⬛";
+              };
+            }
+          ];
+        };
+        gateway = {
+          bind = "loopback";
+          tailscale = { mode = "serve"; };
+        };
+
+        telegram = {
+          dmPolicy = "pairing";
+          groupPolicy = "disabled";
+        };
+        discord = {
+          enabled = true;
+          guilds = {
+            "1459993647964618843" = {
+              requireMention = true;
+              users = [
+                "303646090807214093"
+                "305098219501912078"
+                "ca7ir"
+                "periqles"
+              ];
+              channels = {
+                "general" = { allow = true; };
+              };
+            };
+          };
+        };
+        whatsapp = {
+          dmPolicy = "allowlist";
+          allowFrom = [
+            "+40763641549"
+          ];
+          groupPolicy = "allowlist";
+          groupAllowFrom = [
+            "+40763641549"
+            "+40787895941"
+          ];
+          groups = {
+            "120363403134225234@g.us" = { requireMention = true; };
+          };
+        };
+
+        skills = {
+          install = {
+            nodeManager = "bun";
+          };
+        };
+      };
+    };
+  };
+
+  # systemd user services don't inherit /run/current-system/sw/bin; add tailscale for gateway serve
+  systemd.user.services = lib.mkIf isLinux {
+    clawdbot-gateway.Service = {
+      Environment = lib.mkAfter [
+        "PATH=${lib.makeBinPath [ pkgs.tailscale ]}:/run/current-system/sw/bin:/run/wrappers/bin:${config.home.profileDirectory}/bin"
+      ];
+      EnvironmentFile = [
+        "-${clawdbotSecretsDir}/discord.bot.token"
+      ];
+    };
+  };
+
+
 
   # OpenCode configuration
   xdg.configFile."opencode/opencode.json".text = builtins.toJSON {

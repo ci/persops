@@ -25,7 +25,7 @@
 
   environment = {
     # https://github.com/nix-community/home-manager/pull/2408
-    pathsToLink = [ "/share/fish" ];
+    pathsToLink = [ "/share/fish" "/bin" ];
 
     # Add ~/.local/bin to PATH
     localBinInPath = true;
@@ -48,6 +48,14 @@
       '')
     ];
   };
+
+  system.activationScripts.linkCoreutilsBin = ''
+    mkdir -p /bin
+    for exe in ${pkgs.coreutils}/bin/*; do
+      name="$(basename "$exe")"
+      ln -sf "$exe" "/bin/$name"
+    done
+  '';
 
   programs = {
     # support for dynamically linked executables, i.e. ones through uvx / bunx etc
