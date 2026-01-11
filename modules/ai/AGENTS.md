@@ -10,7 +10,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - `~/p/persops`: private ops - nixos configs, dotfiles, scripts, etc.
 - PRs: use `gh pr view/diff` (no URLs).
 - “Make a note” => edit AGENTS.md (shortcut; not a blocker). Ignore `CLAUDE.md`.
-- Use `~/p/persops/modules/ai/AGENTS.md` for global, repo-specific; .ruler/*.md for repo-specific if exists, otherwise AGENTS.md.
+- Read: nothing manual — generated `AGENTS.md` (root) + `~/p/persops/modules/ai/AGENTS.md` are auto-injected into prompt. Edit: touch `.ruler/*.md` only when updating/regenerating AGENTS; then run `bunx @intellectronica/ruler apply`.
 - Bugs: add regression test when it fits.
 - Keep files <~500 LOC; split/refactor as needed.
 - Commits: Conventional Commits (`feat|fix|refactor|build|ci|chore|docs|style|perf|test`).
