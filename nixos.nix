@@ -36,6 +36,7 @@
       gnumake
       killall
       xclip
+      chromium
 
       # Webcam tooling/viewer (works over XRDP/X11).
       cheese

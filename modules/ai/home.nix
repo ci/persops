@@ -1,7 +1,13 @@
 { pkgs, inputs, lib, config, ... }:
 let
   llmAgents = inputs.llm-agents.packages.${pkgs.system};
+  summarizePackage = pkgs.callPackage ./summarize.nix {
+    nodejs = if pkgs ? nodejs_22 then pkgs.nodejs_22 else pkgs.nodejs;
+    pnpm = if pkgs ? pnpm_10 then pkgs.pnpm_10 else pkgs.pnpm;
+    pkgs = pkgs;
+  };
   isLinux = pkgs.stdenv.isLinux;
+  summarizeEnabled = true;
   homeDir = config.home.homeDirectory;
   clawdbotSecretsDir = "${homeDir}/.secrets";
   clawdbotGatewayPort = 18789;
@@ -23,11 +29,14 @@ in {
     # disabled temp: https://github.com/numtide/llm-agents.nix/issues/1644
     # llmAgents.gemini-cli
     llmAgents.opencode
+    yt-dlp
     # llm
+  ] ++ lib.optionals (summarizeEnabled && isLinux && pkgs.system == "x86_64-linux") [
+    summarizePackage
   ];
 
   programs.clawdbot = {
-    package = pkgs.clawdbot-gateway;
+    package = if isLinux then pkgs.clawdbot-gateway else pkgs.clawdbot-app;
     appPackage = if pkgs.stdenv.isDarwin then pkgs.clawdbot-app else null;
     # Seed editable workspace docs from modules/ai/clawdbot-documents on first run (manual copy).
     firstParty.peekaboo.enable = pkgs.stdenv.isDarwin;
@@ -109,6 +118,11 @@ in {
           install = {
             nodeManager = "bun";
           };
+        };
+      } // lib.optionalAttrs isLinux {
+        browser = {
+          executablePath = "/run/current-system/sw/bin/chromium";
+          headless = true;
         };
       };
     };
@@ -251,23 +265,85 @@ in {
   xdg.configFile."opencode/command/rmslop.md".source = ./commands/rmslop.md;
 
   # Global agent instructions for Claude Code, Codex, and OpenCode
-  home.file.".claude/CLAUDE.md".source = ./AGENTS.md;
-  home.file.".codex/AGENTS.md".source = ./AGENTS.md;
   xdg.configFile."opencode/AGENTS.md".source = ./AGENTS.md;
 
   # Skills for agents
-  home.file.".claude/skills/dev-browser" = {
-    source = ./skills/dev-browser;
-    recursive = true;
-  };
-  home.file.".claude/skills/github-pr".source = ./skills/github-pr;
-  home.file.".claude/skills/jj-version-control".source = ./skills/jj-version-control;
-  home.file.".codex/skills/dev-browser" = {
-    source = ./skills/dev-browser;
-    recursive = true;
-  };
-  home.file.".codex/skills/github-pr".source = ./skills/github-pr;
-  home.file.".codex/skills/jj-version-control".source = ./skills/jj-version-control;
+  home.file =
+    let
+      baseFiles = {
+        ".claude/CLAUDE.md".source = ./AGENTS.md;
+        ".codex/AGENTS.md".source = ./AGENTS.md;
+        ".summarize/config.json".text = builtins.toJSON {
+          model = {
+            mode = "auto";
+            rules = [
+              {
+                when = [ "video" ];
+                candidates = [ "google/gemini-3-flash-preview" ];
+              }
+              {
+                candidates = [ "cli/codex/gpt-5.2" ];
+              }
+            ];
+          };
+          media = { videoMode = "auto"; };
+        };
+      };
+      skillTargets = [
+        {
+          name = "dev-browser";
+          bases = [
+            ".claude/skills"
+            ".codex/skills"
+          ];
+          source = ./skills/dev-browser;
+          recursive = true;
+        }
+        {
+          name = "github-pr";
+          bases = [
+            ".claude/skills"
+            ".codex/skills"
+            ".clawdbot/skills"
+          ];
+          source = ./skills/github-pr;
+          recursive = true;
+        }
+        {
+          name = "jj-version-control";
+          bases = [
+            ".claude/skills"
+            ".codex/skills"
+            ".clawdbot/skills"
+          ];
+          source = ./skills/jj-version-control;
+          recursive = true;
+        }
+        {
+          name = "summarize";
+          bases = [
+            ".claude/skills"
+            ".codex/skills"
+            ".clawdbot/skills"
+          ];
+          source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize";
+          recursive = true;
+        }
+      ];
+      mkSkillEntry = base: skill: {
+        name = "${base}/${skill.name}";
+        value = {
+          source = skill.source;
+          recursive = skill.recursive;
+        };
+      };
+    in
+    baseFiles
+    // builtins.listToAttrs (
+      builtins.concatMap
+        (skill: map (base: mkSkillEntry base skill) skill.bases)
+        skillTargets
+    );
 
   # Create writable directories for dev-browser skill (node_modules, profiles, tmp)
   home.activation.createDevBrowserDirs = ''
