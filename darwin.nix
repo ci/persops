@@ -20,7 +20,9 @@
     # in the future: manage only through nix.. still have a few to 'port' over
     # onActivation.cleanup = "uninstall";
 
-    taps = [ ];
+    taps = [
+      "steipete/tap"
+    ];
     brews = [
       "cowsay"
       "libpq" # for ruby `pg` gems through mise
@@ -29,6 +31,7 @@
       "tmuxinator" # instead of tmux.tmuxinator.enable
     ];
     casks = [
+      "steipete/tap/codexbar"
       "conductor" # trialing these out
       "claude" # claudedesktop goes brrr
       "font-jetbrains-mono-nerd-font"

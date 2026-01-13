@@ -6,6 +6,7 @@ let
     pnpm = if pkgs ? pnpm_10 then pkgs.pnpm_10 else pkgs.pnpm;
     pkgs = pkgs;
   };
+  spogoPackage = pkgs.callPackage ./spogo.nix { };
   isLinux = pkgs.stdenv.isLinux;
   summarizeEnabled = true;
   homeDir = config.home.homeDirectory;
@@ -30,6 +31,7 @@ in {
     # llmAgents.gemini-cli
     llmAgents.opencode
     yt-dlp
+    spogoPackage
     # llm
   ] ++ lib.optionals (summarizeEnabled && isLinux && pkgs.system == "x86_64-linux") [
     summarizePackage
@@ -327,6 +329,16 @@ in {
             ".clawdbot/skills"
           ];
           source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize";
+          recursive = true;
+        }
+        {
+          name = "spotify-player";
+          bases = [
+            ".claude/skills"
+            ".codex/skills"
+            ".clawdbot/skills"
+          ];
+          source = ./skills/spotify-player;
           recursive = true;
         }
       ];
