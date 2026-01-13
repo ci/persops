@@ -341,6 +341,16 @@ in {
           source = ./skills/spotify-player;
           recursive = true;
         }
+        {
+          name = "openhue";
+          bases = [
+            ".claude/skills"
+            ".codex/skills"
+            ".clawdbot/skills"
+          ];
+          source = ./openhue;
+          recursive = true;
+        }
       ];
       mkSkillEntry = base: skill: {
         name = "${base}/${skill.name}";

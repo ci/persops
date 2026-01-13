@@ -90,6 +90,7 @@
     mosh
     navi
     nushell
+    openhue-cli
     ouch
     outfieldr
     overmind
