@@ -6,6 +6,7 @@ let
     pnpm = if pkgs ? pnpm_10 then pkgs.pnpm_10 else pkgs.pnpm;
     pkgs = pkgs;
   };
+  gifgrepPackage = pkgs.callPackage ./gifgrep.nix { };
   spogoPackage = pkgs.callPackage ./spogo.nix { };
   isLinux = pkgs.stdenv.isLinux;
   summarizeEnabled = true;
@@ -31,6 +32,7 @@ in {
     # llmAgents.gemini-cli
     llmAgents.opencode
     yt-dlp
+    gifgrepPackage
     spogoPackage
     # llm
   ] ++ lib.optionals (summarizeEnabled && isLinux && pkgs.system == "x86_64-linux") [
