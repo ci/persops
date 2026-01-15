@@ -85,6 +85,7 @@
     jq
     jsonnet
     jsonnet-bundler
+    kaggle
     jujutsu
     jjui
     mosh
