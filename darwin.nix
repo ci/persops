@@ -34,9 +34,11 @@
       "steipete/tap/codexbar"
       "conductor" # trialing these out
       "claude" # claudedesktop goes brrr
+      "cleanshot"
       "font-jetbrains-mono-nerd-font"
       "ghostty" # best terminal atm
       "homerow" # everywhere-navigation
+      "jordanbaird-ice"
       "keybase" # keybase-gui doesn't work on OSX yet
       "kindavim" # vim-ify everything
       "linear-linear" # linear app
