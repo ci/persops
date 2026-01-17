@@ -49,6 +49,10 @@ in {
       gwl = "git worktree list";
       gwa = "git worktree add";
       gwr = "git worktree remove";
+      # jj workspaces
+      jwl = "jj workspace list";
+      jwa = "jj workspace add";
+      jwr = "jj workspace forget";
     };
     functions = {
       take = "mkdir -p $argv[1]; and cd $argv[1]";
@@ -64,6 +68,30 @@ in {
           set worktree_path "../$repo_name-$branch"
           git worktree add $worktree_path $branch
           and cd $worktree_path
+        '';
+      };
+      jwf = {
+        description = "Create jj workspace and cd into it";
+        body = ''
+          set name $argv[1]
+          set revs $argv[2..-1]
+          if test -z "$name"
+            echo "Usage: jwf <name> [revset...]"
+            return 1
+          end
+          set repo_root (jj workspace root 2>/dev/null)
+          if test -z "$repo_root"
+            echo "Not in a jj workspace"
+            return 1
+          end
+          set repo_name (basename $repo_root)
+          set workspace_path "../$repo_name-$name"
+          if test (count $revs) -gt 0
+            jj workspace add --name $name -r $revs $workspace_path
+          else
+            jj workspace add --name $name $workspace_path
+          end
+          and cd $workspace_path
         '';
       };
     };
