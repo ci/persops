@@ -112,7 +112,6 @@
     ansible
     docker
     docker-compose
-    docker-credential-helpers
     kubernetes-helm
     terraform
     kubectl
@@ -142,6 +141,7 @@
     # '')
   ] ++ lib.optionals pkgs.stdenv.isDarwin [
     # osx specifics
+    docker-credential-helpers
     mos # reverse mouse direction only for mouse not touchpad
     hexfiend
     numi
