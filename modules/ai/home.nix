@@ -344,6 +344,16 @@ in {
           recursive = true;
         }
         {
+          name = "transcribe";
+          bases = [
+            ".claude/skills"
+            ".codex/skills"
+            ".clawdbot/skills"
+          ];
+          source = ./skills/transcribe;
+          recursive = true;
+        }
+        {
           name = "openhue";
           bases = [
             ".claude/skills"

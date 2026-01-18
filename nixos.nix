@@ -63,6 +63,7 @@
     nix-ld.enable = true;
     nix-ld.libraries = with pkgs; [
       # additional libraries to be linked, not through environment.systemPackages
+      stdenv.cc.cc.lib
     ];
 
     # Since we're using fish as our shell

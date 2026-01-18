@@ -1,5 +1,191 @@
 { pkgs, ... }:
 
+let
+  parakeetModel = "nvidia/parakeet-tdt-0.6b-v3";
+  transcribe = pkgs.writeShellScriptBin "transcribe" ''
+    set -euo pipefail
+
+    export LD_LIBRARY_PATH="/run/opengl-driver/lib:/run/opengl-driver-32/lib:${pkgs.stdenv.cc.cc.lib}/lib''${LD_LIBRARY_PATH:+:''${LD_LIBRARY_PATH}}"
+
+    venv_root="''${PARAKEET_VENV:-''${XDG_DATA_HOME:-$HOME/.local/share}/parakeet-venv-py312}"
+    python_bin="$venv_root/bin/python"
+    needs_install=0
+
+    if [ ! -x "$python_bin" ]; then
+      mkdir -p "$venv_root"
+      ${pkgs.uv}/bin/uv venv "$venv_root" --python ${pkgs.python312}/bin/python
+      needs_install=1
+    fi
+
+    if [ "$needs_install" -eq 0 ]; then
+      if ! "$python_bin" - <<'PY' >/dev/null 2>&1
+import torch  # noqa: F401
+import nemo.collections.asr  # noqa: F401
+PY
+      then
+        needs_install=1
+      fi
+    fi
+
+    if [ "$needs_install" -eq 1 ]; then
+      ${pkgs.uv}/bin/uv pip install --python "$python_bin" --index-url https://download.pytorch.org/whl/cu121 torch torchaudio
+      ${pkgs.uv}/bin/uv pip install --python "$python_bin" 'nemo_toolkit[asr]'
+    fi
+
+    exec "$python_bin" - "$@" <<'PY'
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+
+os.environ.setdefault("NEMO_LOG_LEVEL", "ERROR")
+os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+os.environ.setdefault("PYTHONWARNINGS", "ignore")
+
+quiet = os.environ.get("PARAKEET_QUIET", "1") != "0"
+if quiet:
+    class StreamFilter:
+        def __init__(self, underlying):
+            self._underlying = underlying
+            self._suppress_block = False
+
+        def write(self, data):
+            if not data:
+                return
+            for line in data.splitlines(True):
+                if self._suppress_block:
+                    if line.strip() == "":
+                        self._suppress_block = False
+                    continue
+                if line.startswith("[NeMo"):
+                    continue
+                if line.startswith("OneLogger:") or line.startswith("No exporters were provided."):
+                    continue
+                if line.strip().startswith("Train config") or line.strip().startswith("Validation config"):
+                    self._suppress_block = True
+                    continue
+                if line.lstrip().startswith("Loss tdt_kwargs"):
+                    continue
+                if "Transcribing:" in line:
+                    continue
+                self._underlying.write(line)
+
+        def flush(self):
+            self._underlying.flush()
+
+    sys.stderr = StreamFilter(sys.stderr)
+    sys.__stderr__ = sys.stderr
+    sys.stdout = StreamFilter(sys.stdout)
+    sys.__stdout__ = sys.stdout
+
+import logging
+import torch
+import nemo.collections.asr as nemo_asr
+try:
+    import nemo.utils.logging as nemo_logging
+except Exception:  # pragma: no cover - optional
+    nemo_logging = None
+
+logging.getLogger().setLevel(logging.ERROR)
+if nemo_logging is not None:
+    try:
+        nemo_logging.set_verbosity(logging.ERROR)
+    except Exception:
+        pass
+
+
+def convert_audio(input_path: str) -> str:
+    tmpdir = tempfile.mkdtemp(prefix="parakeet-")
+    output_path = os.path.join(tmpdir, "audio.wav")
+    cmd = [
+        "ffmpeg",
+        "-nostdin",
+        "-y",
+        "-i",
+        input_path,
+        "-ac",
+        "1",
+        "-ar",
+        "16000",
+        "-f",
+        "wav",
+        output_path,
+    ]
+    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return output_path
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Transcribe audio with NVIDIA Parakeet (NeMo)."
+    )
+    parser.add_argument("input", help="Path to audio file (.ogg/.wav/etc).")
+    parser.add_argument(
+        "--model",
+        default=os.environ.get("PARAKEET_MODEL", "${parakeetModel}"),
+        help="NeMo/HF model name or .nemo path.",
+    )
+    parser.add_argument(
+        "--device",
+        default="auto",
+        choices=["auto", "cpu", "cuda"],
+        help="Device to run on.",
+    )
+    parser.add_argument(
+        "--output",
+        help="Write transcript to file instead of stdout.",
+    )
+    args = parser.parse_args()
+
+    if args.device == "auto":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+    else:
+        device = args.device
+
+    wav_path = None
+    try:
+        wav_path = convert_audio(args.input)
+        model = nemo_asr.models.ASRModel.from_pretrained(model_name=args.model)
+        if device != "cpu":
+            model = model.to(device)
+        texts = model.transcribe([wav_path], batch_size=1)
+        if isinstance(texts, tuple):
+            texts = texts[0]
+        if isinstance(texts, list) and texts and isinstance(texts[0], list):
+            texts = texts[0]
+        if texts:
+            item = texts[0]
+            if isinstance(item, str):
+                transcript = item
+            elif hasattr(item, "text"):
+                transcript = item.text
+            elif isinstance(item, dict) and "text" in item:
+                transcript = item["text"]
+            else:
+                transcript = str(item)
+        else:
+            transcript = ""
+        if args.output:
+            with open(args.output, "w", encoding="utf-8") as handle:
+                handle.write(transcript)
+                handle.write("\n")
+        else:
+            sys.stdout.write(transcript + "\n")
+    finally:
+        if wav_path:
+            shutil.rmtree(os.path.dirname(wav_path), ignore_errors=True)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+PY
+  '';
+in
+
 {
   imports = [
     ./hardware/amalthea.nix
@@ -27,13 +213,7 @@
     # disables networking.useDHCP in stage2.
     kernelParams = [
       "ip=dhcp"
-      # Work around nouveau GSP shutdown hangs on recent kernels.
-      "nouveau.config=NvGspRm=0"
     ];
-
-    extraModprobeConfig = ''
-      options nouveau config=NvGspRm=0
-    '';
 
     # Remote unlock over SSH in initrd. Keep this out of the generated
     # hardware file so it doesn't get clobbered.
@@ -74,6 +254,8 @@
     };
   };
 
+  boot.blacklistedKernelModules = [ "nouveau" ];
+
   networking.hostName = "amalthea";
   networking.networkmanager.enable = true;
 
@@ -105,6 +287,26 @@
 
   # Enable touchpad support (enabled default in most desktopManager).
   # services.xserver.libinput.enable = true;
+
+  services.xserver.videoDrivers = [ "nvidia" ];
+
+  hardware.graphics = {
+    enable = true;
+    enable32Bit = true;
+  };
+
+  hardware.nvidia = {
+    modesetting.enable = true;
+    nvidiaSettings = true;
+    open = false;
+  };
+
+  environment.systemPackages = with pkgs; [
+    ffmpeg
+    transcribe
+    python312
+    uv
+  ];
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
