@@ -50,6 +50,7 @@
   };
 
   imports = [
+    ../modules/backup/restic-darwin.nix
     ../modules/postgres.nix
     ../modules/emacs/system.nix
   ];

@@ -190,6 +190,7 @@ in
   imports = [
     ./hardware/amalthea.nix
     ../modules/specialization/i3.nix
+    ../modules/backup/restic-nixos.nix
   ];
 
   nix = {
