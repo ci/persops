@@ -11,6 +11,10 @@ Personal configuration managing macOS (darwin) and NixOS systems via Nix flakes.
 | `nix flake check` | Validate flake syntax |
 | `nix flake update` | Update all flake inputs |
 
+## Ops Notes
+
+- After changes to clawdbot config or skills synced to clawdbot, restart the gateway on amalthea: `systemctl --user restart clawdbot-gateway`
+
 ## Repository Structure
 
 ```
