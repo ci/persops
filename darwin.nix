@@ -32,6 +32,7 @@
     ];
     casks = [
       "steipete/tap/codexbar"
+      "steipete/tap/repobar"
       "conductor" # trialing these out
       "claude" # claudedesktop goes brrr
       "cleanshot"
