@@ -1,4 +1,4 @@
-{ pkgs, currentSystemName, currentSystemUser, ... }:
+{ pkgs, lib, currentSystemName, currentSystemUser, ... }:
 
 let
   host = currentSystemName;
@@ -10,6 +10,14 @@ let
 in
 {
   environment.systemPackages = [ pkgs.restic ];
+  users.groups.restic = {};
+  users.users.${user}.extraGroups = lib.mkAfter [ "restic" ];
+  systemd.tmpfiles.rules = [
+    "z /etc/secrets/restic 0750 root restic -"
+    "z /etc/secrets/restic/password 0440 root restic -"
+    "z /etc/secrets/restic/repository 0440 root restic -"
+    "z /etc/secrets/restic/s3.env 0440 root restic -"
+  ];
 
   services.restic.backups = {
     home-hourly = {
