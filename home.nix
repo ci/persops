@@ -1,4 +1,18 @@
-{ lib, pkgs, ... }: {
+{ lib, pkgs, config, ... }:
+let
+  resticWrapperSrc = ./modules/backup/restic-wrapper.c;
+  resticWrapperBin = pkgs.runCommand "restic-wrapper" { nativeBuildInputs = [ pkgs.stdenv.cc ]; } ''
+    ${pkgs.stdenv.cc}/bin/cc -std=c11 -O2 -Wall -Wextra ${resticWrapperSrc} -o $out
+  '';
+  resticWrapperInstall = ''
+    /usr/bin/install -d -m 0755 "$HOME/.local/bin" "$HOME/.local/libexec"
+    /usr/bin/install -m 0755 "${pkgs.restic}/bin/restic" "$HOME/.local/libexec/restic"
+    /usr/bin/install -m 0755 "${resticWrapperBin}" "$HOME/.local/bin/restic-backup"
+    /usr/bin/install -m 0755 "${resticWrapperBin}" "$HOME/.local/bin/restic-prune"
+    /usr/bin/install -m 0755 "${resticWrapperBin}" "$HOME/.local/bin/restic-check"
+  '';
+in
+{
   imports = [
     ./modules/fish.nix
     ./modules/tmux.nix
@@ -158,6 +172,8 @@
     #   org.gradle.daemon.idletimeout=3600000
     # '';
   };
+
+  home.activation.resticWrappers = lib.optionalString pkgs.stdenv.isDarwin resticWrapperInstall;
 
   # switching to nvim temporarily
   # home.sessionVariables = {
