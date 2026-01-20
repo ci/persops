@@ -267,6 +267,57 @@ in
     policy = [ "magic" ];
   };
 
+  fileSystems."/srv/timemachine" = {
+    device = "/dev/disk/by-label/timemachine";
+    fsType = "ext4";
+    options = [
+      "noatime"
+      "nofail"
+      "x-systemd.device-timeout=10"
+    ];
+  };
+
+  users.groups.timemachine = {};
+  users.users.timemachine = {
+    isSystemUser = true;
+    group = "timemachine";
+    home = "/srv/timemachine";
+  };
+
+  systemd.tmpfiles.rules = [
+    "d /srv/timemachine 0750 timemachine timemachine -"
+    "d /srv/timemachine/aglaea 0750 timemachine timemachine -"
+  ];
+
+  services.samba = {
+    enable = true;
+    openFirewall = false;
+    settings = {
+      global = {
+        "security" = "user";
+        "min protocol" = "SMB2";
+        "ea support" = "yes";
+        "vfs objects" = "catia fruit streams_xattr";
+        "fruit:metadata" = "stream";
+        "fruit:model" = "MacSamba";
+        "fruit:nfs_aces" = "no";
+      };
+
+      "tm_aglaea" = {
+        "path" = "/srv/timemachine/aglaea";
+        "valid users" = "timemachine";
+        "force user" = "timemachine";
+        "browseable" = "yes";
+        "read only" = "no";
+        "fruit:time machine" = "yes";
+      };
+    };
+  };
+
+  networking.firewall.enable = true;
+  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 445 ];
+  networking.firewall.interfaces."enp2s0".allowedTCPPorts = [ 445 ];
+
   # Enable CUPS to print documents.
   services.printing.enable = true;
 
