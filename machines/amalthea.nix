@@ -317,6 +317,7 @@ in
   networking.firewall.enable = true;
   networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 445 ];
   networking.firewall.interfaces."enp2s0".allowedTCPPorts = [ 445 ];
+  networking.firewall.interfaces."wlp4s0".allowedTCPPorts = [ 445 ];
 
   # Enable CUPS to print documents.
   services.printing.enable = true;
