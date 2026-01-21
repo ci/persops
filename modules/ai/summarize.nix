@@ -98,6 +98,7 @@ PY
       export PNPM_STORE_PATH="$TMPDIR/pnpm-store"
       mkdir -p "$PNPM_STORE_PATH"
       tar --zstd -xf ${pnpmDeps}/pnpm-store.tar.zst -C "$PNPM_STORE_PATH"
+      chmod -R u+rwX "$PNPM_STORE_PATH"
       ${pnpm}/bin/pnpm config set manage-package-manager-versions false
       ${pnpm}/bin/pnpm config set store-dir "$PNPM_STORE_PATH"
       ${pnpm}/bin/pnpm install --offline --frozen-lockfile --force
