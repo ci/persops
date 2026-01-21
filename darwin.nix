@@ -75,4 +75,11 @@
     home = "/Users/${user}";
     shell = pkgs.fish;
   };
+
+  environment.etc."nsmb.conf".text = ''
+    [default]
+    mc_on=no
+    protocol_vers_map=6
+    port445=no_netbios
+  '';
 }

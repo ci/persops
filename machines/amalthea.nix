@@ -301,15 +301,22 @@ in
         "fruit:metadata" = "stream";
         "fruit:model" = "MacSamba";
         "fruit:nfs_aces" = "no";
+        "server multi channel support" = "no";
+        "server smb transports" = "tcp";
+        "log level" = "3";
+        "keepalive" = "60";
+        "deadtime" = "0";
       };
 
       "tm_aglaea" = {
         "path" = "/srv/timemachine/aglaea";
         "valid users" = "timemachine";
         "force user" = "timemachine";
-        "browseable" = "yes";
+        "browseable" = "no";
         "read only" = "no";
         "fruit:time machine" = "yes";
+        "strict sync" = "yes";
+        "sync always" = "no";
       };
     };
   };
