@@ -85,7 +85,7 @@ in
     curl
     dbeaver-bin
     difftastic
-    dogdns
+    doggo
     duf
     eza
     fd
