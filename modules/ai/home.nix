@@ -363,6 +363,16 @@ in {
           source = ./openhue;
           recursive = true;
         }
+        {
+          name = "pdf";
+          bases = [
+            ".claude/skills"
+            ".codex/skills"
+            ".clawdbot/skills"
+          ];
+          source = ./skills/pdf;
+          recursive = true;
+        }
       ];
       mkSkillEntry = base: skill: {
         name = "${base}/${skill.name}";
