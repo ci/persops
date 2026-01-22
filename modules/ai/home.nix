@@ -13,6 +13,14 @@ let
   homeDir = config.home.homeDirectory;
   clawdbotSecretsDir = "${homeDir}/.secrets";
   clawdbotGatewayPort = 18789;
+  # Temporary workaround for missing bundled extensions in nix-clawdbot.
+  # See: https://github.com/clawdbot/nix-clawdbot/issues/6
+  clawdbotExtensionsSrc = pkgs.fetchFromGitHub {
+    owner = "clawdbot";
+    repo = "clawdbot";
+    rev = "c21469b282213cbcc1858921dc668b1cc5e29f7e";
+    hash = "sha256-DklaX3pZ/Za/ki1xRimvz2MU4gzrur9+Yi6jFw9ceXQ=";
+  };
 in {
   imports = [
     inputs.nix-clawdbot.homeManagerModules.clawdbot
@@ -291,6 +299,11 @@ in {
             ];
           };
           media = { videoMode = "auto"; };
+        };
+      } // lib.optionalAttrs isLinux {
+        ".clawdbot/extensions" = {
+          source = "${clawdbotExtensionsSrc}/extensions";
+          recursive = true;
         };
       };
       skillTargets = [
