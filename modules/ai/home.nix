@@ -373,6 +373,16 @@ in {
           source = ./skills/pdf;
           recursive = true;
         }
+        {
+          name = "pptx";
+          bases = [
+            ".claude/skills"
+            ".codex/skills"
+            ".clawdbot/skills"
+          ];
+          source = ./skills/pptx;
+          recursive = true;
+        }
       ];
       mkSkillEntry = base: skill: {
         name = "${base}/${skill.name}";
