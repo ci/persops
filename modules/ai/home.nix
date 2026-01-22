@@ -117,8 +117,10 @@ in {
                 users = [
                   "303646090807214093"
                   "305098219501912078"
+                  "1233818027045294112"
                   "ca7ir"
                   "periqles"
+                  "donpedro2000"
                 ];
                 channels = {
                   "general" = { allow = true; };
@@ -137,7 +139,7 @@ in {
               "+40787895941"
             ];
             groups = {
-              "120363403134225234@g.us" = { requireMention = true; };
+              "120363403134225234@g.us" = { requireMention = false; };
             };
           };
         };
