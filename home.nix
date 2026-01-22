@@ -6,10 +6,17 @@ let
   '';
   resticWrapperInstall = ''
     /usr/bin/install -d -m 0755 "$HOME/.local/bin" "$HOME/.local/libexec"
-    /usr/bin/install -m 0755 "${pkgs.restic}/bin/restic" "$HOME/.local/libexec/restic"
-    /usr/bin/install -m 0755 "${resticWrapperBin}" "$HOME/.local/bin/restic-backup"
-    /usr/bin/install -m 0755 "${resticWrapperBin}" "$HOME/.local/bin/restic-prune"
-    /usr/bin/install -m 0755 "${resticWrapperBin}" "$HOME/.local/bin/restic-check"
+    install_if_changed() {
+      local src="$1"
+      local dst="$2"
+      if [ ! -x "$dst" ] || ! /usr/bin/cmp -s "$src" "$dst"; then
+        /usr/bin/install -m 0755 "$src" "$dst"
+      fi
+    }
+    install_if_changed "${pkgs.restic}/bin/restic" "$HOME/.local/libexec/restic"
+    install_if_changed "${resticWrapperBin}" "$HOME/.local/bin/restic-backup"
+    install_if_changed "${resticWrapperBin}" "$HOME/.local/bin/restic-prune"
+    install_if_changed "${resticWrapperBin}" "$HOME/.local/bin/restic-check"
   '';
 in
 {
