@@ -186,7 +186,6 @@ in {
     "$schema" = "https://opencode.ai/config.json";
     plugin = [
       "oh-my-opencode"
-      "opencode-openai-codex-auth@4.1.1"
       "opencode-antigravity-auth@1.2.7"
     ];
     keybinds = {
