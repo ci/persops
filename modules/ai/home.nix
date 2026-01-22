@@ -21,6 +21,23 @@ let
     rev = "c21469b282213cbcc1858921dc668b1cc5e29f7e";
     hash = "sha256-DklaX3pZ/Za/ki1xRimvz2MU4gzrur9+Yi6jFw9ceXQ=";
   };
+  clawdbotExtensions = pkgs.runCommand "clawdbot-extensions" { } ''
+    set -euo pipefail
+    mkdir -p "$out"
+    cp -R ${clawdbotExtensionsSrc}/extensions/* "$out/"
+    chmod -R u+w "$out"
+    for dir in "$out"/*; do
+      if [ -d "$dir" ]; then
+        id="$(basename "$dir")"
+        ${lib.getExe pkgs.jq} -n \
+          --arg id "$id" \
+          '{
+            id: $id,
+            configSchema: { type: "object", additionalProperties: true }
+          }' > "$dir/clawdbot.plugin.json"
+      fi
+    done
+  '';
 in {
   imports = [
     inputs.nix-clawdbot.homeManagerModules.clawdbot
@@ -60,15 +77,6 @@ in {
       launchd.enable = false;
       appDefaults.attachExistingOnly = true;
 
-      providers.telegram = {
-        enable = true;
-        botTokenFile = "${clawdbotSecretsDir}/telegram.bot.token";
-        allowFrom = [ 367809160 ];
-        groups = {
-          "*" = { requireMention = true; };
-        };
-      };
-
       agent.model = "openai-codex/gpt-5.2";
 
       configOverrides = {
@@ -90,39 +98,58 @@ in {
           tailscale = { mode = "serve"; };
         };
 
-        telegram = {
-          dmPolicy = "pairing";
-          groupPolicy = "disabled";
-        };
-        discord = {
-          enabled = true;
-          guilds = {
-            "1459993647964618843" = {
-              requireMention = true;
-              users = [
-                "303646090807214093"
-                "305098219501912078"
-                "ca7ir"
-                "periqles"
-              ];
-              channels = {
-                "general" = { allow = true; };
+        channels = {
+          telegram = {
+            enabled = true;
+            tokenFile = "${clawdbotSecretsDir}/telegram.bot.token";
+            allowFrom = [ 367809160 ];
+            dmPolicy = "pairing";
+            groupPolicy = "disabled";
+            groups = {
+              "*" = { requireMention = true; };
+            };
+          };
+          discord = {
+            enabled = true;
+            guilds = {
+              "1459993647964618843" = {
+                requireMention = true;
+                users = [
+                  "303646090807214093"
+                  "305098219501912078"
+                  "ca7ir"
+                  "periqles"
+                ];
+                channels = {
+                  "general" = { allow = true; };
+                };
               };
             };
           };
+          whatsapp = {
+            dmPolicy = "allowlist";
+            allowFrom = [
+              "+40763641549"
+            ];
+            groupPolicy = "allowlist";
+            groupAllowFrom = [
+              "+40763641549"
+              "+40787895941"
+            ];
+            groups = {
+              "120363403134225234@g.us" = { requireMention = true; };
+            };
+          };
         };
-        whatsapp = {
-          dmPolicy = "allowlist";
-          allowFrom = [
-            "+40763641549"
-          ];
-          groupPolicy = "allowlist";
-          groupAllowFrom = [
-            "+40763641549"
-            "+40787895941"
-          ];
-          groups = {
-            "120363403134225234@g.us" = { requireMention = true; };
+
+        messages = lib.mkForce {
+          queue = {
+            mode = "interrupt";
+            byChannel = {
+              discord = "queue";
+              telegram = "interrupt";
+              webchat = "queue";
+            };
           };
         };
 
@@ -302,7 +329,7 @@ in {
         };
       } // lib.optionalAttrs isLinux {
         ".clawdbot/extensions" = {
-          source = "${clawdbotExtensionsSrc}/extensions";
+          source = clawdbotExtensions;
           recursive = true;
         };
       };
@@ -420,5 +447,33 @@ in {
     mkdir -p "$HOME/.codex/skills/dev-browser/node_modules"
     mkdir -p "$HOME/.codex/skills/dev-browser/profiles"
     mkdir -p "$HOME/.codex/skills/dev-browser/tmp"
+  '';
+
+  home.activation.fixClawdbotConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    config_path="$HOME/.clawdbot/clawdbot.json"
+    if [ -f "$config_path" ]; then
+      tmp="$(mktemp)"
+      cp "$config_path" "$tmp"
+      rm -f "$config_path"
+      ${lib.getExe pkgs.jq} '
+        if (.messages | type == "object")
+          and (.messages | has("_type"))
+          and (.messages | has("content")) then
+          .messages = .messages.content
+        else
+          .
+        end
+        | if (.messages | type == "object")
+          and (.messages.queue? != null)
+          and (.messages.queue | type == "object")
+          and (.messages.queue.byProvider? != null) then
+            .messages.queue.byChannel = (.messages.queue.byChannel // .messages.queue.byProvider)
+            | del(.messages.queue.byProvider)
+          else
+            .
+          end
+      ' "$tmp" > "$config_path"
+      rm -f "$tmp"
+    fi
   '';
 }
