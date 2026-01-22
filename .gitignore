@@ -12,8 +12,6 @@
 /.clinerules.bak
 /.codex/config.toml
 /.codex/config.toml.bak
-/.kilocode/rules/ruler_kilocode_instructions.md
-/.kilocode/rules/ruler_kilocode_instructions.md.bak
 /.kiro/steering/ruler_kiro_instructions.md
 /.kiro/steering/ruler_kiro_instructions.md.bak
 /.openhands/microagents/repo.md

@@ -14,6 +14,7 @@ Personal configuration managing macOS (darwin) and NixOS systems via Nix flakes.
 ## Ops Notes
 
 - After changes to clawdbot config or skills synced to clawdbot, restart the gateway on amalthea: `systemctl --user restart clawdbot-gateway`
+- After adding new files (before nix), run `jj status` to ensure files tracked
 
 ## Repository Structure
 
