@@ -213,7 +213,7 @@ in
     # Ensure stage1 brings up networking even though NetworkManager
     # disables networking.useDHCP in stage2.
     kernelParams = [
-      "ip=dhcp"
+      "ip=192.168.42.231::192.168.42.1:255.255.255.0:amalthea:enp2s0:none"
     ];
 
     # Remote unlock over SSH in initrd. Keep this out of the generated
@@ -259,6 +259,28 @@ in
 
   networking.hostName = "amalthea";
   networking.networkmanager.enable = true;
+  networking.networkmanager.settings.main.no-auto-default = "enp2s0";
+  networking.networkmanager.ensureProfiles.profiles = {
+    enp2s0 = {
+      connection = {
+        id = "enp2s0";
+        type = "ethernet";
+        interface-name = "enp2s0";
+        autoconnect = "true";
+        autoconnect-priority = "100";
+        permissions = "";
+      };
+      ipv4 = {
+        method = "manual";
+        address1 = "192.168.42.231/24,192.168.42.1";
+        dns = "192.168.42.1;1.1.1.1";
+        dns-search = "";
+      };
+      ipv6 = {
+        method = "ignore";
+      };
+    };
+  };
 
   # Enable Wake-on-LAN on the wired NIC so the machine can be woken
   # from sleep/soft-off (S3/S5) via a magic packet.
