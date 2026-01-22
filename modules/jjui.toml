@@ -1,0 +1,5 @@
+[custom_commands]
+"workspace update-stale" = { key_sequence = ["w", "u"], desc = "workspace update-stale", args = ["workspace", "update-stale"] }
+
+[ui]
+theme = "base24-catppuccin-mocha"

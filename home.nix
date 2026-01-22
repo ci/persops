@@ -16,6 +16,7 @@ in
   imports = [
     ./modules/fish.nix
     ./modules/tmux.nix
+    ./modules/jjui.nix
     ./modules/git/home.nix
     ./modules/ssh.nix
     ./modules/aerospace/aerospace.nix
