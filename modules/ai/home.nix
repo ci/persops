@@ -8,6 +8,27 @@ let
   };
   gifgrepPackage = pkgs.callPackage ./gifgrep.nix { };
   spogoPackage = pkgs.callPackage ./spogo.nix { };
+  cudaPkgs =
+    if isLinux && pkgs.system == "x86_64-linux" then
+      pkgs.cudaPackages_12.overrideScope (final: prev: {
+        cuda_compat = pkgs.stdenvNoCC.mkDerivation {
+          pname = "cuda_compat";
+          version = "disabled";
+          dontUnpack = true;
+          dontBuild = true;
+          installPhase = "mkdir -p $out";
+          meta = (prev.cuda_compat.meta or { }) // { available = false; };
+        };
+      })
+    else
+      null;
+  sherpaOnnxOfflinePackage =
+    if cudaPkgs == null then
+      null
+    else
+      pkgs.callPackage ./sherpa-onnx-offline.nix {
+        cudaPackages = cudaPkgs;
+      };
   isLinux = pkgs.stdenv.isLinux;
   summarizeEnabled = true;
 in {
@@ -31,6 +52,8 @@ in {
     # llm
   ] ++ lib.optionals (summarizeEnabled && isLinux && pkgs.system == "x86_64-linux") [
     summarizePackage
+  ] ++ lib.optionals (sherpaOnnxOfflinePackage != null) [
+    sherpaOnnxOfflinePackage
   ];
 
   # OpenCode configuration

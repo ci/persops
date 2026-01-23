@@ -2,6 +2,16 @@
 
 let
   parakeetModel = "nvidia/parakeet-tdt-0.6b-v3";
+  cudaPkgs = pkgs.cudaPackages_12.overrideScope (final: prev: {
+    cuda_compat = pkgs.stdenvNoCC.mkDerivation {
+      pname = "cuda_compat";
+      version = "disabled";
+      dontUnpack = true;
+      dontBuild = true;
+      installPhase = "mkdir -p $out";
+      meta = (prev.cuda_compat.meta or { }) // { available = false; };
+    };
+  });
   transcribe = pkgs.writeShellScriptBin "transcribe" ''
     set -euo pipefail
 
@@ -199,11 +209,20 @@ in
     settings = {
       # We need to enable flakes
       experimental-features = "nix-command flakes";
+      substituters = [
+        "https://cache.nixos-cuda.org"
+      ];
+      trusted-public-keys = [
+        "cache.nixos-cuda.org:74DUi4Ye579gUqzH4ziL9IyiJBlDpMRn9MBN8oNan9M="
+      ];
     };
   };
 
-  nixpkgs.config.allowUnfree = true;
-  nixpkgs.config.allowUnsupportedSystem = true;
+  nixpkgs.config = {
+    allowUnfree = true;
+    allowUnsupportedSystem = true;
+    cudaForwardCompat = false;
+  };
 
   boot = {
     loader.systemd-boot.enable = true;
@@ -387,6 +406,8 @@ in
   };
 
   environment.systemPackages = with pkgs; [
+    cudaPkgs.cudatoolkit
+    cudaPkgs.cudnn
     ffmpeg
     transcribe
     python312
