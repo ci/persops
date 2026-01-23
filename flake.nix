@@ -50,6 +50,27 @@
         inputs.zig.overlays.default
         inputs."codex-cli-nix".overlays.default
         inputs."claude-code-nix".overlays.default
+        (final: prev:
+          if prev.stdenv.isLinux then
+            let
+              bumpSamba = pkg: pkg.overrideAttrs (old:
+                let
+                  version = "4.22.7";
+                in
+                {
+                  inherit version;
+                  src = prev.fetchurl {
+                    url = "https://download.samba.org/pub/samba/stable/samba-${version}.tar.gz";
+                    hash = "sha256-EhlYEdRUL2YVNukFW0TVjFMCBBK+r6riBeInv3L2pJc=";
+                  };
+                });
+            in
+            {
+              samba = bumpSamba prev.samba;
+              samba4Full = bumpSamba prev.samba4Full;
+            }
+          else
+            { })
       ];
 
       mkSystem = import ./lib/mksystem.nix {

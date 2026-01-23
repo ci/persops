@@ -1,4 +1,4 @@
-{ pkgs, user, ... }:
+{ pkgs, user, lib, ... }:
 
 {
   nix.settings = {
@@ -76,10 +76,17 @@
     shell = pkgs.fish;
   };
 
-  environment.etc."nsmb.conf".text = ''
+  # Avoid /nix/store symlink here; sharingd sandbox blocks reads.
+  system.activationScripts.postActivation.text = lib.mkAfter ''
+    rm -f /etc/nsmb.conf
+    cat > /etc/nsmb.conf <<'EOF'
     [default]
     mc_on=no
     protocol_vers_map=6
     port445=no_netbios
+    signing_required=yes
+    EOF
+    chown root:wheel /etc/nsmb.conf
+    chmod 0644 /etc/nsmb.conf
   '';
 }

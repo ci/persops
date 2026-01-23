@@ -324,7 +324,10 @@ in
         "fruit:model" = "MacSamba";
         "fruit:nfs_aces" = "no";
         "server multi channel support" = "no";
-        "server smb transports" = "tcp";
+        "smb ports" = "445";
+        "disable netbios" = "yes";
+        "smb3 directory leases" = "no";
+        "strict rename" = "no";
         "log level" = "3";
         "keepalive" = "60";
         "deadtime" = "0";
