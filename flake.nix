@@ -35,10 +35,6 @@
       url = "github:clawdbot/nix-steipete-tools";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    nix-clawdbot = {
-      url = "github:clawdbot/nix-clawdbot";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     nix-yazi-plugins = {
       url = "github:lordkekz/nix-yazi-plugins";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -54,7 +50,6 @@
         inputs.zig.overlays.default
         inputs."codex-cli-nix".overlays.default
         inputs."claude-code-nix".overlays.default
-        inputs.nix-clawdbot.overlays.default
       ];
 
       mkSystem = import ./lib/mksystem.nix {
