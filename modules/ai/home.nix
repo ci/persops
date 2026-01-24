@@ -221,7 +221,6 @@ in {
             ".clawdbot/skills"
           ];
           source = ./skills/frontend-design;
-          recursive = true;
         }
         {
           name = "github-pr";
@@ -231,7 +230,6 @@ in {
             ".clawdbot/skills"
           ];
           source = ./skills/github-pr;
-          recursive = true;
         }
         {
           name = "jj-version-control";
@@ -241,7 +239,6 @@ in {
             ".clawdbot/skills"
           ];
           source = ./skills/jj-version-control;
-          recursive = true;
         }
         {
           name = "summarize";
@@ -251,7 +248,6 @@ in {
             ".clawdbot/skills"
           ];
           source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize";
-          recursive = true;
         }
         {
           name = "spotify-player";
@@ -261,7 +257,6 @@ in {
             ".clawdbot/skills"
           ];
           source = ./skills/spotify-player;
-          recursive = true;
         }
         {
           name = "transcribe";
@@ -271,7 +266,6 @@ in {
             ".clawdbot/skills"
           ];
           source = ./skills/transcribe;
-          recursive = true;
         }
         {
           name = "openhue";
@@ -281,7 +275,6 @@ in {
             ".clawdbot/skills"
           ];
           source = ./openhue;
-          recursive = true;
         }
         {
           name = "pdf";
@@ -291,7 +284,6 @@ in {
             ".clawdbot/skills"
           ];
           source = ./skills/pdf;
-          recursive = true;
         }
         {
           name = "pptx";
@@ -301,14 +293,13 @@ in {
             ".clawdbot/skills"
           ];
           source = ./skills/pptx;
-          recursive = true;
         }
       ];
       mkSkillEntry = base: skill: {
         name = "${base}/${skill.name}";
         value = {
           source = skill.source;
-          recursive = skill.recursive;
+          recursive = skill.recursive or false;
         };
       };
     in
