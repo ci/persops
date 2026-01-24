@@ -202,98 +202,22 @@ in {
           media = { videoMode = "auto"; };
         };
       };
+      defaultSkillBases = [
+        ".claude/skills"
+        ".codex/skills"
+        ".clawdbot/skills"
+      ];
       skillTargets = [
-        {
-          name = "dev-browser";
-          bases = [
-            ".claude/skills"
-            ".codex/skills"
-            ".clawdbot/skills"
-          ];
-          source = ./skills/dev-browser;
-          recursive = true;
-        }
-        {
-          name = "frontend-design";
-          bases = [
-            ".claude/skills"
-            ".codex/skills"
-            ".clawdbot/skills"
-          ];
-          source = ./skills/frontend-design;
-        }
-        {
-          name = "github-pr";
-          bases = [
-            ".claude/skills"
-            ".codex/skills"
-            ".clawdbot/skills"
-          ];
-          source = ./skills/github-pr;
-        }
-        {
-          name = "jj-version-control";
-          bases = [
-            ".claude/skills"
-            ".codex/skills"
-            ".clawdbot/skills"
-          ];
-          source = ./skills/jj-version-control;
-        }
-        {
-          name = "summarize";
-          bases = [
-            ".claude/skills"
-            ".codex/skills"
-            ".clawdbot/skills"
-          ];
-          source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize";
-        }
-        {
-          name = "spotify-player";
-          bases = [
-            ".claude/skills"
-            ".codex/skills"
-            ".clawdbot/skills"
-          ];
-          source = ./skills/spotify-player;
-        }
-        {
-          name = "transcribe";
-          bases = [
-            ".claude/skills"
-            ".codex/skills"
-            ".clawdbot/skills"
-          ];
-          source = ./skills/transcribe;
-        }
-        {
-          name = "openhue";
-          bases = [
-            ".claude/skills"
-            ".codex/skills"
-            ".clawdbot/skills"
-          ];
-          source = ./openhue;
-        }
-        {
-          name = "pdf";
-          bases = [
-            ".claude/skills"
-            ".codex/skills"
-            ".clawdbot/skills"
-          ];
-          source = ./skills/pdf;
-        }
-        {
-          name = "pptx";
-          bases = [
-            ".claude/skills"
-            ".codex/skills"
-            ".clawdbot/skills"
-          ];
-          source = ./skills/pptx;
-        }
+        { name = "dev-browser"; source = ./skills/dev-browser; recursive = true; }
+        { name = "frontend-design"; source = ./skills/frontend-design; }
+        { name = "github-pr"; source = ./skills/github-pr; }
+        { name = "jj-version-control"; source = ./skills/jj-version-control; }
+        { name = "summarize"; source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize"; }
+        { name = "spotify-player"; source = ./skills/spotify-player; }
+        { name = "transcribe"; source = ./skills/transcribe; }
+        { name = "openhue"; source = ./openhue; }
+        { name = "pdf"; source = ./skills/pdf; }
+        { name = "pptx"; source = ./skills/pptx; }
       ];
       mkSkillEntry = base: skill: {
         name = "${base}/${skill.name}";
@@ -306,7 +230,7 @@ in {
     baseFiles
     // builtins.listToAttrs (
       builtins.concatMap
-        (skill: map (base: mkSkillEntry base skill) skill.bases)
+        (skill: map (base: mkSkillEntry base skill) (skill.bases or defaultSkillBases))
         skillTargets
     );
 
