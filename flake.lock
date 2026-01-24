@@ -30,11 +30,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1769033607,
-        "narHash": "sha256-byu3P0pUkTVSEPth+v/VGjCXVEA72Uu0ZGnPRoZF9jU=",
+        "lastModified": 1769206155,
+        "narHash": "sha256-aynUkHtmpZdwx/cqlckPOecST5J60VDIWB8eY1l5VLk=",
         "owner": "sadjow",
         "repo": "claude-code-nix",
-        "rev": "f5fbbce2d8c66da6f20796e2150b7a7a4890d4c6",
+        "rev": "3156934e6e3efff4f648d679f835cf887641906f",
         "type": "github"
       },
       "original": {
@@ -51,11 +51,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1769023790,
-        "narHash": "sha256-ymOxBfQXQlIaZihbb/0EplsjTGDGX3/NO10H3A2hzRM=",
+        "lastModified": 1769120812,
+        "narHash": "sha256-U4G0VY1D3zyMo+W291Yu2/D8Ins1iOGXNuM+r11W1oY=",
         "owner": "sadjow",
         "repo": "codex-cli-nix",
-        "rev": "17a79ae45d0f056d4120e86162aba2a3b522b161",
+        "rev": "e8854421ecb1fb7eab47c8741f731e118bdec367",
         "type": "github"
       },
       "original": {
@@ -298,11 +298,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1769092149,
-        "narHash": "sha256-XTC3tMduDWgsxX3cCt+s93Gp3G7VcgaxW0YJGO5V7Ug=",
+        "lastModified": 1769179138,
+        "narHash": "sha256-o51hx7iJFacHWeUoeczozlPfiJz/efiLNkEzDOg5Dps=",
         "owner": "numtide",
         "repo": "llm-agents.nix",
-        "rev": "3d080a925240a30ce22cd2f82d6962ac950c3a31",
+        "rev": "cd994b5ff299de10c087b61d01a008cedc8aae58",
         "type": "github"
       },
       "original": {
