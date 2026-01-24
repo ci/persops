@@ -214,6 +214,16 @@ in {
           recursive = true;
         }
         {
+          name = "frontend-design";
+          bases = [
+            ".claude/skills"
+            ".codex/skills"
+            ".clawdbot/skills"
+          ];
+          source = ./skills/frontend-design;
+          recursive = true;
+        }
+        {
           name = "github-pr";
           bases = [
             ".claude/skills"
