@@ -7,6 +7,7 @@ let
     pkgs = pkgs;
   };
   gifgrepPackage = pkgs.callPackage ./gifgrep.nix { };
+  osgrepPackage = pkgs.callPackage ./osgrep.nix { };
   spogoPackage = pkgs.callPackage ./spogo.nix { };
   cudaPkgs =
     if isLinux && pkgs.system == "x86_64-linux" then
@@ -48,6 +49,7 @@ in {
     llmAgents.opencode
     yt-dlp
     gifgrepPackage
+    osgrepPackage
     spogoPackage
     # llm
   ] ++ lib.optionals (summarizeEnabled && isLinux && pkgs.system == "x86_64-linux") [
