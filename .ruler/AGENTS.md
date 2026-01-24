@@ -134,6 +134,11 @@ keys = { { icon = " ", key = "f" } }
 home.packages = with pkgs; [ new-package ];
 ```
 
+### Add npm CLI (no nodePackages)
+
+- Use `buildNpmPackage` + npm tarball (`fetchurl`), vendor a `package-lock.json` next to the .nix, set `npmDepsHash`.
+- Wrap entrypoint with `makeWrapper` to `dist/index.js` if needed (avoid `npm -g` installs).
+
 ### Add Homebrew Cask (macOS)
 
 ```nix
