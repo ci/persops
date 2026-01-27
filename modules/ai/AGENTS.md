@@ -52,7 +52,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 ### Git
 
-- IMPORTANT: **ALWAYS USE** `jj` instead of `git` if `.jj` dir exists.
+- IMPORTANT: **ALWAYS USE** `jj` instead of `git` if `.jj` dir exists (run `jj status` first; finds .jj from subdirs).
 - Safe by default: `git status/diff/log`. Push only when user asks.
 - `git checkout` ok for PR review / explicit request.
 - Branch changes require user consent.
@@ -67,7 +67,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 ### JJ
 
-- IMPORTANT: always try to use `jj` instead of `git` if `.jj` dir exists.
+- IMPORTANT: always try to use `jj` instead of `git` if `.jj` dir exists; check with `jj status` (works from subdirs).
 - consult jj skill once per session for context before usage.
 
 ## Language/Stack Notes
