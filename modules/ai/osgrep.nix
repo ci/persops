@@ -20,6 +20,14 @@ buildNpmPackage {
   npmDepsHash = "sha256-rUqKWLmxsCiRo0N5BLI+LwuHeogXolLUgF9EZ5bDZoI=";
   dontNpmBuild = true;
 
+  npmInstallFlags = [
+    "--ignore-scripts"
+  ];
+
+  npmRebuildFlags = [
+    "--ignore-scripts"
+  ];
+
   postPatch = ''
     cp ${./osgrep-package-lock.json} package-lock.json
   '';
