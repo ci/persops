@@ -266,6 +266,9 @@ int main(int argc, char **argv) {
   add_arg(args, &idx, repo);
   add_arg(args, &idx, "--password-file");
   add_arg(args, &idx, password_path);
+#ifdef __APPLE__
+  add_arg(args, &idx, "--no-cache");
+#endif
 
   if (mode == MODE_BACKUP) {
     add_arg(args, &idx, "backup");
