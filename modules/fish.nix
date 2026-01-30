@@ -55,6 +55,7 @@ in {
       jwr = "jj workspace forget";
     };
     functions = {
+      fish_greeting = "";
       take = "mkdir -p $argv[1]; and cd $argv[1]";
       gwf = {
         description = "Create worktree for branch and cd into it";
