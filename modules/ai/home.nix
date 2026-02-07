@@ -218,6 +218,7 @@ in {
         { name = "spotify-player"; source = ./skills/spotify-player; }
         { name = "transcribe"; source = ./skills/transcribe; }
         { name = "openhue"; source = ./openhue; }
+        { name = "opentui"; source = ./skills/opentui; }
         { name = "pdf"; source = ./skills/pdf; }
         { name = "pptx"; source = ./skills/pptx; }
       ];

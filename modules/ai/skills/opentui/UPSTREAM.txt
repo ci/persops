@@ -1,0 +1,3 @@
+repo: https://github.com/msmps/opentui-skill.git
+rev: 860be00bc65e739c9bc2086ec6a0d7fa7a46e0f7
+cloned_at: 2026-02-07T15:55:00Z
