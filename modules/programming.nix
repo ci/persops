@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 let
   myRuby = pkgs.ruby_3_4;
@@ -57,6 +57,21 @@ in
 
     lefthook
 
+    # nvim :Mason deps / language toolchains
+    rustup
+    unzip
+    cabal-install
+
     zig_0_14
   ];
+
+  # Ensure rust-analyzer is available even when rust is managed via rustup/mise.
+  # (Mason sometimes expects `rust-analyzer`/`cargo` on PATH.)
+  home.activation.ensureRustAnalyzer = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    if [ -x "${lib.getExe pkgs.rustup}" ]; then
+      if ! "${lib.getExe pkgs.rustup}" component list --installed 2>/dev/null | grep -q '^rust-analyzer'; then
+        "${lib.getExe pkgs.rustup}" component add rust-analyzer >/dev/null 2>&1 || true
+      fi
+    fi
+  '';
 }
