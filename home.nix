@@ -60,6 +60,8 @@ in
       sync_frequency = "5m";
       sync_address = "https://api.atuin.sh";
       ctrl_n_shortcuts = true;
+      search_mode = "fulltext";
+      search_mode_shell_up_key_binding = "fulltext";
       filter_mode_shell_up_key_binding = "directory";  # up arrow = directory-scoped
       inline_height = 20;
       invert = true;
