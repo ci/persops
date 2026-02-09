@@ -91,6 +91,7 @@ in
     biome
     btop
     bun
+    cmake
     cloudflared
     curl
     dbeaver-bin
