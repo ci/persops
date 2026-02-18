@@ -186,10 +186,10 @@ in
 
   home.activation.resticWrappers = lib.optionalString pkgs.stdenv.isDarwin resticWrapperInstall;
 
-  # switching to nvim temporarily
-  # home.sessionVariables = {
-  #   EDITOR = "emacsclient";
-  # };
+  home.sessionVariables = {
+    CODEX_HOME = "$HOME/.codex";
+    # EDITOR = "emacsclient"; # switching to nvim temporarily
+  };
 
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
