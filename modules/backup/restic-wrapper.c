@@ -284,6 +284,8 @@ int main(int argc, char **argv) {
     add_arg(args, &idx, "auto");
 
     const char *excludes[] = {
+      // Avoid macOS TCC/FDA prompts from protected app-data trees.
+      "Library",
       "Library/Caches",
       "Library/Logs",
       "Library/Group Containers",
