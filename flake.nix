@@ -35,6 +35,10 @@
       url = "github:dmmulroy/jj-starship";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    tmux-sessionizer = {
+      url = "github:jrmoulton/tmux-sessionizer";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     nix-steipete-tools = {
       url = "github:clawdbot/nix-steipete-tools";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -55,6 +59,7 @@
         inputs."codex-cli-nix".overlays.default
         inputs."claude-code-nix".overlays.default
         inputs.jj-starship.overlays.default
+        inputs.tmux-sessionizer.overlays.default
         (final: prev:
           if prev.stdenv.isLinux then
             let

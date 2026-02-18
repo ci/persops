@@ -93,12 +93,15 @@
       ".vinxi",
       ".output",
       ".react-router",
-      ".expo"
+      ".expo",
+      ".jj",
+      "opensrc",
+      ".context"
     ]
 
     [[search_dirs]]
     path = "${config.home.homeDirectory}/p"
-    depth = 10
+    depth = 5
 
     [[search_dirs]]
     path = "${config.home.homeDirectory}/ctf"
