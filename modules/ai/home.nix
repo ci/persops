@@ -44,7 +44,7 @@ in {
     llmAgents.codex-acp
     # llmAgents.copilot-cli
     llmAgents.cursor-agent
-    llmAgents.gemini-cli
+    # llmAgents.gemini-cli # disabled: stale vs Homebrew package
     llmAgents.opencode
     yt-dlp
     gifgrepPackage

@@ -25,6 +25,7 @@
     ];
     brews = [
       "cowsay"
+      "gemini-cli"
       "libpq" # for ruby `pg` gems through mise
       "sshpass" # ansible ssh automation
       "qemu" # virtualization goodies
