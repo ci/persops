@@ -106,6 +106,7 @@ in
     freerdp
     fzf
     fx
+    gh
     glow
     htop
     hyperfine
