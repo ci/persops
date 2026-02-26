@@ -185,6 +185,9 @@ in
   };
 
   home.activation.resticWrappers = lib.optionalString pkgs.stdenv.isDarwin resticWrapperInstall;
+  home.activation.ensurePathDirs = ''
+    mkdir -p "$HOME/.local/share/pnpm" "$HOME/.npm-global/bin"
+  '';
 
   home.sessionVariables = {
     CODEX_HOME = "$HOME/.codex";
