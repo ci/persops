@@ -4,6 +4,7 @@ let
   resticWrapperBin = pkgs.runCommand "restic-wrapper" { nativeBuildInputs = [ pkgs.stdenv.cc ]; } ''
     ${pkgs.stdenv.cc}/bin/cc -std=c11 -O2 -Wall -Wextra ${resticWrapperSrc} -o $out
   '';
+  blogwatcherPackage = pkgs.callPackage ./modules/blogwatcher.nix { };
   resticWrapperInstall = ''
     /usr/bin/install -d -m 0755 "$HOME/.local/bin" "$HOME/.local/libexec"
     install_if_changed() {
@@ -89,6 +90,7 @@ in
     # aider-chat
     ast-grep
     biome
+    blogwatcherPackage
     btop
     bun
     cmake
