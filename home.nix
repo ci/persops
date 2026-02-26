@@ -5,6 +5,7 @@ let
     ${pkgs.stdenv.cc}/bin/cc -std=c11 -O2 -Wall -Wextra ${resticWrapperSrc} -o $out
   '';
   blogwatcherPackage = pkgs.callPackage ./modules/blogwatcher.nix { };
+  goplacesPackage = pkgs.callPackage ./modules/goplaces.nix { };
   resticWrapperInstall = ''
     /usr/bin/install -d -m 0755 "$HOME/.local/bin" "$HOME/.local/libexec"
     install_if_changed() {
@@ -107,6 +108,7 @@ in
     fzf
     fx
     gh
+    goplacesPackage
     glow
     htop
     hyperfine
