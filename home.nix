@@ -191,6 +191,10 @@ in
     # EDITOR = "emacsclient"; # switching to nvim temporarily
   };
 
+  home.sessionPath = [
+    "$HOME/.npm-global/bin"
+  ];
+
   # Let Home Manager install and manage itself.
   programs.home-manager.enable = true;
 }
