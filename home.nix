@@ -188,10 +188,12 @@ in
 
   home.sessionVariables = {
     CODEX_HOME = "$HOME/.codex";
+    PNPM_HOME = "$HOME/.local/share/pnpm";
     # EDITOR = "emacsclient"; # switching to nvim temporarily
   };
 
   home.sessionPath = [
+    "$HOME/.local/share/pnpm"
     "$HOME/.npm-global/bin"
   ];
 
