@@ -45,7 +45,9 @@ in {
     # llmAgents.copilot-cli
     llmAgents.cursor-agent
     # llmAgents.gemini-cli # disabled: stale vs Homebrew package
+    llmAgents.mcporter
     llmAgents.opencode
+    llmAgents.qmd
     yt-dlp
     gifgrepPackage
     osgrepPackage
