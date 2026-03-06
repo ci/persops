@@ -2,7 +2,7 @@
 name: spotify-player
 description: Terminal Spotify playback/search via spogo (preferred) or spotify_player.
 homepage: https://www.spotify.com
-metadata: {"clawdbot":{"emoji":"🎵","requires":{"anyBins":["spogo","spotify_player"]}}}
+metadata: {"openclaw":{"emoji":"🎵","requires":{"anyBins":["spogo","spotify_player"]}}}
 ---
 
 # spogo / spotify_player

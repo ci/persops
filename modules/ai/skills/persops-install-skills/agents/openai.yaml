@@ -1,0 +1,4 @@
+interface:
+  display_name: "Persops Skill Install"
+  short_description: "Add skills to persops agent config"
+  default_prompt: "Use $persops-install-skills to add or update an agent skill in ~/p/persops and apply it locally and remotely."

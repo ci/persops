@@ -32,6 +32,39 @@ let
       };
   isLinux = pkgs.stdenv.isLinux;
   summarizeEnabled = true;
+  skillBaseProfiles = {
+    all = [
+      ".claude/skills"
+      ".codex/skills"
+      ".openclaw/skills"
+    ];
+    coding = [
+      ".claude/skills"
+      ".codex/skills"
+    ];
+    claw = [
+      ".openclaw/skills"
+    ];
+  };
+  localSkillOverrides = builtins.fromJSON (builtins.readFile ./skill-overrides.json);
+  localSkillDirs = lib.filterAttrs (_: type: type == "directory") (builtins.readDir ./skills);
+  mkLocalSkill =
+    name:
+    let
+      override = localSkillOverrides.${name} or { };
+      profile = override.profile or "all";
+    in
+    {
+      inherit name;
+      source = ./skills + "/${name}";
+      recursive = override.recursive or false;
+      bases =
+        if builtins.hasAttr profile skillBaseProfiles then
+          skillBaseProfiles.${profile}
+        else
+          throw "Unknown AI skill profile '${profile}' for ${name}";
+    };
+  localSkillTargets = map mkLocalSkill (builtins.attrNames localSkillDirs);
 in {
 
   # AI agent packages
@@ -106,24 +139,12 @@ in {
           media = { videoMode = "auto"; };
         };
       };
-      defaultSkillBases = [
-        ".claude/skills"
-        ".codex/skills"
-        ".clawdbot/skills"
-      ];
-      skillTargets = [
-        { name = "dev-browser"; source = ./skills/dev-browser; recursive = true; }
-        { name = "frontend-design"; source = ./skills/frontend-design; }
-        { name = "github-pr"; source = ./skills/github-pr; }
-        { name = "jj-version-control"; source = ./skills/jj-version-control; }
-        { name = "summarize"; source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize"; }
-        { name = "spotify-player"; source = ./skills/spotify-player; }
-        { name = "transcribe"; source = ./skills/transcribe; }
-        { name = "openhue"; source = ./openhue; }
-        { name = "opentui"; source = ./skills/opentui; }
-        { name = "pdf"; source = ./skills/pdf; }
-        { name = "pptx"; source = ./skills/pptx; }
-      ];
+      skillTargets =
+        localSkillTargets
+        ++ [
+          { name = "summarize"; source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize"; }
+          { name = "openhue"; source = ./openhue; }
+        ];
       mkSkillEntry = base: skill: {
         name = "${base}/${skill.name}";
         value = {
@@ -135,7 +156,7 @@ in {
     baseFiles
     // builtins.listToAttrs (
       builtins.concatMap
-        (skill: map (base: mkSkillEntry base skill) (skill.bases or defaultSkillBases))
+        (skill: map (base: mkSkillEntry base skill) (skill.bases or skillBaseProfiles.all))
         skillTargets
     );
 
@@ -147,9 +168,9 @@ in {
     mkdir -p "$HOME/.codex/skills/dev-browser/node_modules"
     mkdir -p "$HOME/.codex/skills/dev-browser/profiles"
     mkdir -p "$HOME/.codex/skills/dev-browser/tmp"
-    mkdir -p "$HOME/.clawdbot/skills/dev-browser/node_modules"
-    mkdir -p "$HOME/.clawdbot/skills/dev-browser/profiles"
-    mkdir -p "$HOME/.clawdbot/skills/dev-browser/tmp"
+    mkdir -p "$HOME/.openclaw/skills/dev-browser/node_modules"
+    mkdir -p "$HOME/.openclaw/skills/dev-browser/profiles"
+    mkdir -p "$HOME/.openclaw/skills/dev-browser/tmp"
   '';
 
 }

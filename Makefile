@@ -5,6 +5,9 @@ NIXUSER ?= cat
 
 # Get the path to this Makefile and directory
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+FLAKE_DIR := path:$(MAKEFILE_DIR)
+DARWIN_FLAKE := $(FLAKE_DIR)#aglaea
+NIXOS_FLAKE := $(FLAKE_DIR)#$(NIXNAME)
 
 # The name of the nixosConfiguration in the flake
 NIXNAME ?= amalthea
@@ -14,17 +17,18 @@ UNAME := $(shell uname)
 
 switch:
 ifeq ($(UNAME), Darwin)
-	sudo darwin-rebuild switch --flake "${MAKEFILE_DIR}"
+	sudo darwin-rebuild switch --flake "${DARWIN_FLAKE}"
 else
-	sudo nixos-rebuild switch --flake "${MAKEFILE_DIR}#${NIXNAME}"
+	sudo nixos-rebuild switch --flake "${NIXOS_FLAKE}"
 endif
 
 test:
 ifeq ($(UNAME), Darwin)
-	nix build "${MAKEFILE_DIR}"
-	sudo darwin-rebuild test --flake "${MAKEFILE_DIR}"
+	darwin-rebuild build --flake "${DARWIN_FLAKE}"
+	sudo darwin-rebuild test --flake "${DARWIN_FLAKE}"
 else
-	sudo nixos-rebuild test --flake "${MAKEFILE_DIR}#$(NIXNAME)"
+	nixos-rebuild build --flake "${NIXOS_FLAKE}"
+	sudo nixos-rebuild test --flake "${NIXOS_FLAKE}"
 endif
 
 # copy the Nix configurations into the remote.

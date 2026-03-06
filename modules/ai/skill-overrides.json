@@ -1,0 +1,14 @@
+{
+  "dev-browser": {
+    "recursive": true
+  },
+  "jj-version-control": {
+    "profile": "coding"
+  },
+  "opentui": {
+    "profile": "coding"
+  },
+  "spotify-player": {
+    "profile": "claw"
+  }
+}

@@ -16,3 +16,29 @@ make switch
 ```
 
 Can also just run `nix flake update` to refresh everything, then switch.
+
+## Adding AI Skills
+
+Repo-owned skills live in `modules/ai/skills/*` and propagate from Nix into local agent dirs.
+
+Default flow:
+
+```sh
+modules/ai/scripts/add-skill.sh shadcn/ui
+make switch
+make r/copy
+make r/switch
+```
+
+Profiles:
+
+- default `all`: Claude + Codex + OpenClaw
+- `--profile coding`: Claude + Codex only
+- `--profile claw`: OpenClaw only
+
+Example:
+
+```sh
+modules/ai/scripts/add-skill.sh --profile coding vercel-labs/agent-skills
+modules/ai/scripts/add-skill.sh --profile claw owner/repo
+```
