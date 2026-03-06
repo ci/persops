@@ -17,7 +17,8 @@ Use this workflow for skills managed in `~/p/persops/modules/ai/skills`.
 ## Workflow
 
 1. Start with `jj status`, then inspect `modules/ai/home.nix`, `modules/ai/skill-overrides.json`, and any existing skill directory you might touch.
-2. For new upstream skills, run `modules/ai/scripts/add-skill.sh [--profile <all|coding|claw>] <source>`.
+2. For new upstream skills, run `modules/ai/scripts/add-skill.sh [--profile <all|coding|claw>] <source> [skills-add args...]`.
+   - Example: `modules/ai/scripts/add-skill.sh https://github.com/vercel-labs/skills --skill find-skills`
 3. Review the vendored files under `modules/ai/skills/<name>/`. Keep repo-owned truth there and verify `UPSTREAM.txt`.
 4. If the profile is not default `all`, update `modules/ai/skill-overrides.json`. Use it for `coding`, `claw`, or other per-skill exceptions like `recursive = true`.
 5. If you create or update a repo-local skill, keep `SKILL.md` concise, keep `agents/openai.yaml` aligned, and validate the skill with `uv run --with pyyaml python3 /Users/cat/.codex/skills/.system/skill-creator/scripts/quick_validate.py <skill-dir>`.

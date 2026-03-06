@@ -1,0 +1,6 @@
+source = vercel-labs/agent-skills
+source_type = github
+profile = all
+installed_at = 2026-03-06T21:55:27Z
+via = bunx --bun skills add https://github.com/vercel-labs/agent-skills --agent \* --yes --copy --skill web-design-guidelines
+computed_hash = a6a44d5498f7e8f68289902f3dedfc6f38ae0cee1e96527c80724cf27f727c2a

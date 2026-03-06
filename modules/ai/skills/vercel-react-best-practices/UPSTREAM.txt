@@ -1,0 +1,6 @@
+source = vercel-labs/agent-skills
+source_type = github
+profile = all
+installed_at = 2026-03-06T21:55:38Z
+via = bunx --bun skills add https://github.com/vercel-labs/agent-skills --agent \* --yes --copy --skill vercel-react-best-practices
+computed_hash = 3462ec83f862abb2d532953df33a4dbf87f4616849da5d4b5cc7c13601aaf997

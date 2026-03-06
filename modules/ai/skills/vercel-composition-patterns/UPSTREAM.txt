@@ -1,0 +1,6 @@
+source = vercel-labs/agent-skills
+source_type = github
+profile = all
+installed_at = 2026-03-06T21:55:54Z
+via = bunx --bun skills add https://github.com/vercel-labs/agent-skills --agent \* --yes --copy --skill vercel-composition-patterns
+computed_hash = f98931159fa9c7fed043bcd18a891a46dcf89ababa38df13a4c5b7b30dc0ce07

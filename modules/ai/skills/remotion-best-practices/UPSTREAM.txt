@@ -1,0 +1,6 @@
+source = remotion-dev/skills
+source_type = github
+profile = all
+installed_at = 2026-03-06T21:55:49Z
+via = bunx --bun skills add https://github.com/remotion-dev/skills --agent \* --yes --copy --skill remotion-best-practices
+computed_hash = 9851afb52e1b892c43b2af973bda1776ce01fedfdfe704e0cfd70069a3a9c300

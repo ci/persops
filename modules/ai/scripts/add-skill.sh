@@ -3,17 +3,19 @@ set -euo pipefail
 
 usage() {
   printf '%s\n' \
-    "Usage: modules/ai/scripts/add-skill.sh [--profile all|coding|claw] [--keep-temp] <github-source>" \
+    "Usage: modules/ai/scripts/add-skill.sh [--profile all|coding|claw] [--keep-temp] <github-source> [skills-add args...]" \
     "" \
     "Examples:" \
     "  modules/ai/scripts/add-skill.sh shadcn/ui" \
     "  modules/ai/scripts/add-skill.sh --profile coding vercel-labs/agent-skills" \
-    "  modules/ai/scripts/add-skill.sh --profile claw owner/repo"
+    "  modules/ai/scripts/add-skill.sh --profile claw owner/repo" \
+    "  modules/ai/scripts/add-skill.sh https://github.com/vercel-labs/skills --skill find-skills"
 }
 
 profile="all"
 keep_temp=0
 source_repo=""
+upstream_args=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,18 +36,25 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     -*)
+      if [[ -n "$source_repo" ]]; then
+        upstream_args+=("$@")
+        break
+      fi
       printf 'Unknown option: %s\n' "$1" >&2
       usage >&2
       exit 1
       ;;
     *)
       if [[ -n "$source_repo" ]]; then
-        printf 'Unexpected extra argument: %s\n' "$1" >&2
-        usage >&2
-        exit 1
+        upstream_args+=("$@")
+        break
       fi
       source_repo="$1"
       shift
+      if [[ $# -gt 0 ]]; then
+        upstream_args+=("$@")
+        break
+      fi
       ;;
   esac
 done
@@ -79,6 +88,28 @@ cleanup() {
 
 trap cleanup EXIT
 
+has_upstream_flag() {
+  local exact="$1"
+  local prefix="$2"
+  local arg
+  for arg in "${upstream_args[@]}"; do
+    if [[ "$arg" == "$exact" || ( -n "$prefix" && "$arg" == "$prefix"* ) ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+join_shell_words() {
+  local out=""
+  local arg quoted
+  for arg in "$@"; do
+    printf -v quoted '%q' "$arg"
+    out+="${quoted} "
+  done
+  printf '%s' "${out% }"
+}
+
 update_profile_override() {
   local skill_name="$1"
   local skill_profile="$2"
@@ -100,9 +131,32 @@ update_profile_override() {
   mv "$tmp_json" "$overrides_file"
 }
 
+effective_upstream_args=()
+
+if has_upstream_flag "--all" ""; then
+  :
+else
+  if ! has_upstream_flag "--skill" "--skill=" && ! has_upstream_flag "-s" ""; then
+    effective_upstream_args+=(--skill "*")
+  fi
+  if ! has_upstream_flag "--agent" "--agent=" && ! has_upstream_flag "-a" ""; then
+    effective_upstream_args+=(--agent "*")
+  fi
+  if ! has_upstream_flag "--yes" "" && ! has_upstream_flag "-y" ""; then
+    effective_upstream_args+=(--yes)
+  fi
+fi
+
+if ! has_upstream_flag "--copy" ""; then
+  effective_upstream_args+=(--copy)
+fi
+
+effective_upstream_args+=("${upstream_args[@]}")
+via_command="$(join_shell_words bunx --bun skills add "$source_repo" "${effective_upstream_args[@]}")"
+
 (
   cd "$tmp_dir"
-  bunx --bun skills add "$source_repo" --all --copy
+  bunx --bun skills add "$source_repo" "${effective_upstream_args[@]}"
 )
 
 [[ -d "$tmp_dir/skills" ]] || {
@@ -149,7 +203,7 @@ for skill_path in "${skill_paths[@]}"; do
     printf 'source_type = %s\n' "${upstream_source_type:-unknown}"
     printf 'profile = %s\n' "$profile"
     printf 'installed_at = %s\n' "$installed_at"
-    printf 'via = bunx --bun skills add %s --all --copy\n' "$source_repo"
+    printf 'via = %s\n' "$via_command"
     if [[ -n "$upstream_hash" ]]; then
       printf 'computed_hash = %s\n' "$upstream_hash"
     fi
