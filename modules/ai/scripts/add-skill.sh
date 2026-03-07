@@ -9,12 +9,16 @@ usage() {
     "  modules/ai/scripts/add-skill.sh shadcn/ui" \
     "  modules/ai/scripts/add-skill.sh --profile coding vercel-labs/agent-skills" \
     "  modules/ai/scripts/add-skill.sh --profile claw owner/repo" \
-    "  modules/ai/scripts/add-skill.sh https://github.com/vercel-labs/skills --skill find-skills"
+    "  modules/ai/scripts/add-skill.sh https://github.com/vercel-labs/skills --skill find-skills" \
+    "  modules/ai/scripts/add-skill.sh https://github.com/openai/skills/blob/main/skills/.curated/playwright-interactive"
 }
 
 profile="all"
 keep_temp=0
 source_repo=""
+source_input=""
+normalized_source=""
+inferred_skill=""
 upstream_args=()
 
 while [[ $# -gt 0 ]]; do
@@ -63,6 +67,18 @@ done
   usage >&2
   exit 1
 }
+
+source_input="$source_repo"
+normalized_source="$source_repo"
+
+if [[ "$source_repo" =~ ^https://github\.com/([^/]+/[^/]+)/(blob|tree)/[^/]+/(.+)$ ]]; then
+  normalized_source="https://github.com/${BASH_REMATCH[1]}"
+  source_subpath="${BASH_REMATCH[3]%/}"
+  inferred_skill="$(basename "$source_subpath")"
+  if [[ "$inferred_skill" == "SKILL.md" ]]; then
+    inferred_skill="$(basename "$(dirname "$source_subpath")")"
+  fi
+fi
 
 case "$profile" in
   all|coding|claw) ;;
@@ -137,7 +153,7 @@ if has_upstream_flag "--all" ""; then
   :
 else
   if ! has_upstream_flag "--skill" "--skill=" && ! has_upstream_flag "-s" ""; then
-    effective_upstream_args+=(--skill "*")
+    effective_upstream_args+=(--skill "${inferred_skill:-*}")
   fi
   if ! has_upstream_flag "--agent" "--agent=" && ! has_upstream_flag "-a" ""; then
     effective_upstream_args+=(--agent "*")
@@ -152,11 +168,11 @@ if ! has_upstream_flag "--copy" ""; then
 fi
 
 effective_upstream_args+=("${upstream_args[@]}")
-via_command="$(join_shell_words bunx --bun skills add "$source_repo" "${effective_upstream_args[@]}")"
+via_command="$(join_shell_words bunx --bun skills add "$normalized_source" "${effective_upstream_args[@]}")"
 
 (
   cd "$tmp_dir"
-  bunx --bun skills add "$source_repo" "${effective_upstream_args[@]}"
+  bunx --bun skills add "$normalized_source" "${effective_upstream_args[@]}"
 )
 
 [[ -d "$tmp_dir/skills" ]] || {
@@ -203,6 +219,9 @@ for skill_path in "${skill_paths[@]}"; do
     printf 'source_type = %s\n' "${upstream_source_type:-unknown}"
     printf 'profile = %s\n' "$profile"
     printf 'installed_at = %s\n' "$installed_at"
+    if [[ "$source_input" != "$normalized_source" ]]; then
+      printf 'requested_source = %s\n' "$source_input"
+    fi
     printf 'via = %s\n' "$via_command"
     if [[ -n "$upstream_hash" ]]; then
       printf 'computed_hash = %s\n' "$upstream_hash"

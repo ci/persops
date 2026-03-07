@@ -42,4 +42,5 @@ Example:
 modules/ai/scripts/add-skill.sh --profile coding vercel-labs/agent-skills
 modules/ai/scripts/add-skill.sh --profile claw owner/repo
 modules/ai/scripts/add-skill.sh https://github.com/vercel-labs/skills --skill find-skills
+modules/ai/scripts/add-skill.sh https://github.com/openai/skills/blob/main/skills/.curated/playwright-interactive
 ```

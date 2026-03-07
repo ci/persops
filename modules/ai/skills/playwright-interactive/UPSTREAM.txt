@@ -1,0 +1,7 @@
+source = openai/skills
+source_type = github
+profile = all
+installed_at = 2026-03-07T21:23:02Z
+requested_source = https://github.com/openai/skills/blob/main/skills/.curated/playwright-interactive
+via = bunx --bun skills add https://github.com/openai/skills --skill playwright-interactive --agent \* --yes --copy
+computed_hash = 11e4215d9b57460ad1aaae461eb9b08e4d58b808418f97abe156146e53b05d36
