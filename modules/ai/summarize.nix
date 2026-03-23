@@ -88,7 +88,7 @@ PY
       PNPM_CONFIG_HOME = "/tmp/pnpm-config";
       XDG_CACHE_HOME = "/tmp/pnpm-cache";
       NPM_CONFIG_USERCONFIG = "/tmp/pnpm-config/.npmrc";
-      npm_config_nodedir = "${nodejs.dev}";
+      npm_config_nodedir = "${nodejs}";
       npm_config_build_from_source = "1";
     };
 

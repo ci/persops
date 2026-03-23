@@ -2,6 +2,10 @@
 
 let
   parakeetModel = "nvidia/parakeet-tdt-0.6b-v3";
+  python312OutOnly = pkgs.symlinkJoin {
+    name = "python312-out-only";
+    paths = [ (pkgs.lib.getOutput "out" pkgs.python312) ];
+  };
   cudaPkgs = pkgs.cudaPackages_12.overrideScope (final: prev: {
     cuda_compat = pkgs.stdenvNoCC.mkDerivation {
       pname = "cuda_compat";
@@ -226,6 +230,7 @@ in
 
   boot = {
     loader.systemd-boot.enable = true;
+    loader.systemd-boot.configurationLimit = 20;
     loader.efi.canTouchEfiVariables = true;
 
     kernelPackages = pkgs.linuxPackages_latest;
@@ -410,7 +415,8 @@ in
     cudaPkgs.cudnn
     ffmpeg
     transcribe
-    python312
+    # Full flake update pulls a python doc build that is currently broken upstream.
+    python312OutOnly
     uv
   ];
 

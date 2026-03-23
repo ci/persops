@@ -17,6 +17,7 @@ Personal configuration managing macOS (darwin) and NixOS systems via Nix flakes.
 - After adding new files (before nix), run `jj status` to ensure files tracked
 - VCS check: run `jj status` first (works from subdirs with .jj above) before assuming git
 - Fish PATH + mise: `mise activate fish` resets `PATH`; append custom dirs after mise hooks in `modules/mise.nix`. Keep `home.sessionPath` for non-fish sessions.
+- Full flake updates: re-check temporary upstream workarounds in `flake.nix` and `machines/amalthea.nix` (`direnv`, `git-branchless`, `python312` out-only) and remove if upstream fixed.
 
 ## Repository Structure
 

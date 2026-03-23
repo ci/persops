@@ -60,6 +60,26 @@
         inputs."claude-code-nix".overlays.default
         inputs.jj-starship.overlays.default
         inputs.tmux-sessionizer.overlays.default
+        (_: prev: {
+          # nixpkgs patch path lags the newer cargo vendor layout.
+          git-branchless = prev.git-branchless.overrideAttrs (_: {
+            postPatch = ''
+              cd "$cargoDepsCopy"/source-registry-*/esl01-indexedlog-*
+              patch -p1 < ${prev.path}/pkgs/by-name/gi/git-branchless/fix-esl01-indexedlog-for-rust-1_89.patch
+              cd "$NIX_BUILD_TOP/$sourceRoot"
+            '';
+          });
+        })
+        (_: prev:
+          if prev.stdenv.isDarwin then
+            {
+              # direnv 2.37.1 still forces Darwin external linking upstream.
+              direnv = prev.direnv.overrideAttrs (old: {
+                env = (old.env or { }) // { CGO_ENABLED = 1; };
+              });
+            }
+          else
+            { })
         (final: prev:
           if prev.stdenv.isLinux then
             let
