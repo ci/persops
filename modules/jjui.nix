@@ -4,6 +4,6 @@
 
   xdg.configFile."jjui/themes/base16-catppuccin-mocha.toml".source = pkgs.fetchurl {
     url = "https://raw.githubusercontent.com/vic/tinted-jjui/refs/heads/main/themes/base16-catppuccin-mocha.toml";
-    hash = "sha256-bB9KCfjd0QzcO9aIRFW1lD27MVKzNHHNI1b74jL7N1o=";
+    hash = "sha256-WbrSKI2tiNljVH2/Wb68GVsT5PhBWz9vG5gAFPmPbPw=";
   };
 }
