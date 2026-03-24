@@ -49,6 +49,9 @@
     };
     jujutsu.url = "github:jj-vcs/jj";
     zig.url = "github:mitchellh/zig-overlay";
+    flox = {
+      url = "github:flox/flox/latest";
+    };
   };
 
   outputs = { self, nix-darwin, nixpkgs, home-manager, ... }@inputs:
