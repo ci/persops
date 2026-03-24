@@ -114,6 +114,12 @@
         darwin = true;
       };
 
+      darwinConfigurations."work" = mkSystem "work" {
+        system = "aarch64-darwin";
+        user = "cat";
+        darwin = true;
+      };
+
       nixosConfigurations."amalthea" = mkSystem "amalthea" {
         system = "x86_64-linux";
         user   = "cat";

@@ -32,8 +32,10 @@
       "tmuxinator" # instead of tmux.tmuxinator.enable
     ];
     casks = [
+      "1password"
       "steipete/tap/codexbar"
       "steipete/tap/repobar"
+      "nikitabobko/tap/aerospace"
       "conductor" # trialing these out
       "claude" # claudedesktop goes brrr
       "cleanshot"
@@ -41,12 +43,14 @@
       "ghostty" # best terminal atm
       "homerow" # everywhere-navigation
       "jordanbaird-ice"
+      "karabiner-elements"
       "keybase" # keybase-gui doesn't work on OSX yet
       "kindavim" # vim-ify everything
       "linear-linear" # linear app
       "opencode-desktop" # let's compare to conductor
       "orbstack" # container goodies on OSX
       "ollama-app" # through brew since nixos is just client for darwin
+      "raycast" # spotlight go away
       "readdle-spark" # trialing out email client
       "responsively" # browser for dev
       "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
