@@ -36,6 +36,7 @@
   environment = {
     shells = with pkgs; [ bashInteractive zsh fish ];
     systemPackages = with pkgs; [
+      pam_u2f
       pam-reattach
       pam-watchid
     ];
@@ -44,6 +45,7 @@
     etc."pam.d/sudo_local".text = ''
       # Managed by Nix Darwin
       auth       optional       ${pkgs.pam-reattach}/lib/pam/pam_reattach.so ignore_ssh
+      auth       sufficient     ${pkgs.pam_u2f}/lib/security/pam_u2f.so cue userverification=0 pinverification=0
       auth       sufficient     ${pkgs.pam-watchid}/lib/pam_watchid.so
       auth       sufficient     pam_tid.so
     '';
