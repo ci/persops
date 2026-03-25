@@ -8,12 +8,24 @@ MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 FLAKE_DIR := path:$(MAKEFILE_DIR)
 DARWIN_FLAKE := $(FLAKE_DIR)#aglaea
 NIXOS_FLAKE := $(FLAKE_DIR)#$(NIXNAME)
+HOSTNAME := $(shell hostname -s 2>/dev/null || hostname)
 
 # The name of the nixosConfiguration in the flake
 NIXNAME ?= amalthea
 
 # We need to do some OS switching below.
 UNAME := $(shell uname)
+
+local:
+ifeq ($(UNAME), Darwin)
+ifeq ($(HOSTNAME), ph)
+	sudo darwin-rebuild switch --flake ~/p/persops#work
+else
+	sudo darwin-rebuild switch --flake "${DARWIN_FLAKE}"
+endif
+else
+	sudo nixos-rebuild switch --flake "${NIXOS_FLAKE}"
+endif
 
 switch:
 ifeq ($(UNAME), Darwin)
@@ -33,6 +45,10 @@ endif
 
 # copy the Nix configurations into the remote.
 r/copy:
+ifeq ($(HOSTNAME), ph)
+	@echo "r/copy disabled on host ph"
+	@exit 1
+endif
 	rsync -av -e 'ssh -p$(NIXPORT)' \
 		--exclude='.git/' \
 		--exclude='.jj/' \
@@ -42,6 +58,10 @@ r/copy:
 # run the nixos-rebuild switch command. This does NOT copy files so you
 # have to run vm/copy before.
 r/switch:
+ifeq ($(HOSTNAME), ph)
+	@echo "r/switch disabled on host ph"
+	@exit 1
+endif
 	ssh -p$(NIXPORT) $(NIXUSER)@$(NIXADDR) " \
 		sudo nixos-rebuild switch --flake \"/nix-config#${NIXNAME}\" \
 	"
