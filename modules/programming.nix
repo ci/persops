@@ -54,6 +54,8 @@ in
     # nodejs
     nodePackages.npm
     nodePackages.yarn
+    php83
+    php83Packages.composer
 
     lefthook
 
