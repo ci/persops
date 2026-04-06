@@ -80,6 +80,7 @@ in {
     # llmAgents.gemini-cli # disabled: stale vs Homebrew package
     llmAgents.mcporter
     llmAgents.opencode
+    llmAgents.pi
     llmAgents.qmd
     yt-dlp
     gifgrepPackage
