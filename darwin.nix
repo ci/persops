@@ -67,6 +67,28 @@
     #   "raycast"
     # ];
 
+  system.defaults.NSGlobalDomain = {
+    # Fast key repeat: minimum delay before repeat starts, fastest repeat rate
+    # https://x.com/reach_vb - `defaults write -g InitialKeyRepeat -int 10; KeyRepeat -int 1`
+    InitialKeyRepeat = 10;
+    KeyRepeat = 1;
+  };
+
+  # Remove CapsLock activation delay (hidutil is session-scoped; needs a LaunchAgent)
+  # https://x.com/yoimnotkesku - `hidutil property --set '{"CapsLockDelayOverride":0}'`
+  launchd.user.agents.hidutil-capslock-delay = {
+    serviceConfig = {
+      ProgramArguments = [
+        "/usr/bin/hidutil"
+        "property"
+        "--set"
+        "{\"CapsLockDelayOverride\":0}"
+      ];
+      RunAtLoad = true;
+      KeepAlive = false;
+    };
+  };
+
   # Declare the user that will be running `nix-darwin`.
   system.primaryUser = user;
   users.knownUsers = [ user ];
