@@ -2,6 +2,32 @@
 
 let
   myRuby = pkgs.ruby_3_4;
+  appleToolchainShims = lib.hiPrio (pkgs.symlinkJoin {
+    name = "apple-toolchain-shims";
+    paths = [
+      (pkgs.writeShellScriptBin "cc" ''
+        exec /usr/bin/cc "$@"
+      '')
+      (pkgs.writeShellScriptBin "c++" ''
+        exec /usr/bin/c++ "$@"
+      '')
+      (pkgs.writeShellScriptBin "cpp" ''
+        exec /usr/bin/cpp "$@"
+      '')
+      (pkgs.writeShellScriptBin "gcc" ''
+        exec /usr/bin/cc "$@"
+      '')
+      (pkgs.writeShellScriptBin "g++" ''
+        exec /usr/bin/c++ "$@"
+      '')
+      (pkgs.writeShellScriptBin "gnu-gcc" ''
+        exec ${pkgs.gcc}/bin/gcc "$@"
+      '')
+      (pkgs.writeShellScriptBin "gnu-g++" ''
+        exec ${pkgs.gcc}/bin/g++ "$@"
+      '')
+    ];
+  });
 in
 {
   home.packages = with pkgs; [
@@ -65,6 +91,10 @@ in
     cabal-install
 
     zig_0_14
+  ] ++ lib.optionals pkgs.stdenv.isDarwin [
+    # Keep generic compiler names on macOS pointed at Apple's SDK-aware
+    # toolchain. GNU GCC remains available explicitly as `gnu-gcc`/`gnu-g++`.
+    appleToolchainShims
   ];
 
   # Ensure rust-analyzer is available even when rust is managed via rustup/mise.
