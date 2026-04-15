@@ -72,6 +72,10 @@
     # ];
 
   system.defaults.NSGlobalDomain = {
+    # Disable press-and-hold accent popup so letter keys repeat too.
+    # `defaults write -g ApplePressAndHoldEnabled -bool false`
+    ApplePressAndHoldEnabled = false;
+
     # Fast key repeat: minimum delay before repeat starts, fastest repeat rate
     # https://x.com/reach_vb - `defaults write -g InitialKeyRepeat -int 10; KeyRepeat -int 1`
     InitialKeyRepeat = 10;
