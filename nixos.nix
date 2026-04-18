@@ -56,6 +56,7 @@
       name="$(basename "$exe")"
       ln -sf "$exe" "/bin/$name"
     done
+    ln -sf ${pkgs.bashInteractive}/bin/bash /bin/bash
   '';
 
   programs = {
