@@ -50,6 +50,7 @@
       "opencode-desktop" # let's compare to conductor
       "orbstack" # container goodies on OSX
       "ollama-app" # through brew since nixos is just client for darwin
+      "osaurus" # local LLM server
       "raycast" # spotlight go away
       "readdle-spark" # trialing out email client
       "responsively" # browser for dev
