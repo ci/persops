@@ -92,6 +92,7 @@ in
     # dev
     # aider-chat
     ast-grep
+    awscli2
     biome
     blogwatcherPackage
     btop
