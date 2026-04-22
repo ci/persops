@@ -219,6 +219,7 @@ in
   home.sessionPath = [
     "$HOME/.local/share/pnpm"
     "$HOME/.npm-global/bin"
+    "$HOME/go/bin"
   ];
 
   # Let Home Manager install and manage itself.
