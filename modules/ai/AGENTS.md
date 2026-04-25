@@ -18,7 +18,6 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - CI: `gh run list/view` (rerun/fix til green).
 - Prefer end-to-end verify; if blocked, say what’s missing.
 - New deps: quick health check (recent releases/commits, adoption).
-- Web: search early; quote exact errors; prefer 2024–2026 sources.
 - Style: telegraph. Drop filler/grammar. Min tokens (global AGENTS + replies).
 
 ## Docs
@@ -27,25 +26,22 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Follow links until domain makes sense; honor `Read when` hints.
 - Keep notes short; update docs when behavior/API changes (no ship w/o docs).
 - Add `read_when` hints on cross-cutting docs.
-- Model preference: latest only. OK: Anthropic Opus 4.5 / Sonnet 4.5 (Sonnet 3.5 = old; avoid), OpenAI GPT-5.2, xAI Grok-4.1 Fast, Google Gemini 3 Flash.
 
 ## PR Feedback
 
-- Active PR: `gh pr view --json number,title,url --jq '"PR #\\(.number): \\(.title)\\n\\(.url)"'`.
-- PR comments: `gh pr view …` + `gh api …/comments --paginate`.
 - Replies: cite fix + file/line; resolve threads only after fix lands.
-- When merging a PR: thank the contributor in `CHANGELOG.md` (if not @ci or an automated bot).
 
 ## Flow & Runtime
 
 - Use repo’s package manager/runtime; no swaps w/o approval.
 - Use Codex background for long jobs; tmux only for interactive/persistent (debugger/server).
+- Passwords/secrets: `op`/1Password CLI must always run inside `tmux`, never directly.
+- `op` recipe: run the whole secret-using command in `tmux`; avoid temp files unless needed, delete after.
 
 ## Build / Test
 
 - Before handoff: run full gate (lint/typecheck/format/tests/docs).
 - CI red: `gh run list/view`, rerun, fix, push, repeat til green.
-- Keep it observable (logs, panes, tails, MCP/browser tools).
 - Release: read `docs/RELEASING.md` (or find best checklist if missing).
 
 ## VCS
@@ -54,7 +50,6 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 - IMPORTANT: run `jj status` first (works from subdirs); use `jj` instead of `git` if it succeeds.
 - Safe by default: `git status/diff/log`. Push only when user asks.
-- `git checkout` ok for PR review / explicit request.
 - Branch changes require user consent.
 - Destructive ops forbidden unless explicit (`reset --hard`, `clean`, `restore`, `rm`, …).
 - Don’t delete/rename unexpected stuff; stop + ask.
@@ -62,25 +57,12 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Avoid manual `git stash`; if Git auto-stashes during pull/rebase, that’s fine (hint, not hard guardrail).
 - If user types a command (“pull and push”), that’s consent for that command.
 - No amend unless asked.
-- Big review: `git --no-pager diff --color=never`.
-- Multi-agent: check `git status/diff` before edits; ship small commits.
+- Unrecognized changes: assume other agent; keep going; focus your changes. If it causes issues, stop + ask user.
 
 ### JJ
 
 - IMPORTANT: run `jj status` first (works from subdirs); use `jj` if it succeeds.
 - consult jj skill once per session for context before usage.
-
-## Language/Stack Notes
-
-- TypeScript: use repo PM; keep files small; follow existing patterns.
-
-## Critical Thinking
-
-- Fix root cause (not band-aid).
-- Unsure: read more code; if still stuck, ask w/ short options.
-- Conflicts: call out; pick safer path.
-- Unrecognized changes: assume other agent; keep going; focus your changes. If it causes issues, stop + ask user.
-- Leave breadcrumb notes in thread.
 
 ## Tools
 
@@ -99,15 +81,65 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Use only when you need persistence/interaction (debugger/server).
 - Quick refs: `tmux new -d -s codex-shell`, `tmux attach -t codex-shell`, `tmux list-sessions`, `tmux kill-session -t codex-shell`.
 
-<frontend_aesthetics>
-Avoid “AI slop” UI. Be opinionated + distinctive.
+## Behavioral guidelines
 
-Do:
+### Think before coding
 
-- Typography: pick a real font; avoid Inter/Roboto/Arial/system defaults.
-- Theme: commit to a palette; use CSS vars; bold accents > timid gradients.
-- Motion: 1–2 high-impact moments (staggered reveal beats random micro-anim).
-- Background: add depth (gradients/patterns), not flat default.
+Don't assume. Don't hide confusion. Surface tradeoffs.
 
-Avoid: purple-on-white clichés, generic component grids, predictable layouts.
-</frontend_aesthetics>
+Before implementing:
+
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+### Simplicity first
+
+Minimum code that solves the problem. Nothing speculative.
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+### Surgical changes
+
+Touch only what you must. Clean up only your own mess.
+
+When editing existing code:
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+### Goal-driven execution
+
+Define success criteria. Loop until verified.
+
+Transform tasks into verifiable goals:
+
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
