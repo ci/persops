@@ -84,6 +84,11 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 ## Tools
 
+### agent-browser
+
+- Use `agent-browser` for browser-specific tasks: navigate sites, click/fill forms, screenshots, scrape page data, test web apps, logins, browser automation.
+- Start with `agent-browser skills get core` (or `--full`) for version-matched workflow docs.
+
 ### gh
 
 - GitHub CLI for PRs/CI/releases. Given issue/PR URL (or `/pull/5`): use `gh`, not web search.

@@ -1,0 +1,7 @@
+source = vercel-labs/agent-browser
+source_type = github
+profile = all
+installed_at = 2026-04-25T22:01:31Z
+requested_source = https://raw.githubusercontent.com/vercel-labs/agent-browser/refs/heads/main/skills/agent-browser/SKILL.md
+via = bunx --bun skills add https://github.com/vercel-labs/agent-browser --skill agent-browser --agent \* --yes --copy
+computed_hash = c19a532a3777698b80b35270939a1dc559da451381971b3e1e78174d1ab54863

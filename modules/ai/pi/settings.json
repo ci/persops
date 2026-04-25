@@ -2,8 +2,7 @@
   "packages": [
     "npm:@plannotator/pi-extension",
     "npm:pi-lens",
-    "npm:pi-btw",
-    "npm:pi-agent-browser"
+    "npm:pi-btw"
   ],
   "lastChangelogVersion": "0.70.2",
   "defaultProvider": "openai-codex",
