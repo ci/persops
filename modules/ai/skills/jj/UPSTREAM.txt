@@ -1,0 +1,7 @@
+source = https://github.com/joshuadavidthomas/agent-skills/tree/main/jj
+source_type = github
+profile = coding
+installed_at = 2026-04-25T23:22:40Z
+rev = b8b8841f09b4c6d8fa0a7aba356016524e216b91
+via = git clone --depth 1 --filter=blob:none --sparse https://github.com/joshuadavidthomas/agent-skills.git /tmp/agent-skills-jj/repo && git sparse-checkout set jj
+local_patch = moved SKILL.md compatibility/requires-path frontmatter under metadata for local validator compatibility
