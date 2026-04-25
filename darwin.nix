@@ -15,6 +15,8 @@
     ];
   };
 
+  system.defaults.NSGlobalDomain.ApplePressAndHoldEnabled = false;
+
   homebrew = {
     enable = true;
     # in the future: manage only through nix.. still have a few to 'port' over
