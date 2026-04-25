@@ -28,6 +28,7 @@
       "gemini-cli"
       "libpq" # for ruby `pg` gems through mise
       "sshpass" # ansible ssh automation
+      "supacode"
       "qemu" # virtualization goodies
       "tmuxinator" # instead of tmux.tmuxinator.enable
     ];
