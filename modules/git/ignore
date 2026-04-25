@@ -1,0 +1,3 @@
+# Global Git excludes managed by Home Manager.
+**/.claude/settings.local.json
+.pi-lens/
