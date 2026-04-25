@@ -4,12 +4,13 @@ Personal configuration managing macOS (darwin) and NixOS systems via Nix flakes.
 
 ## Commands
 
-| Command | Purpose |
-|---------|---------|
-| `make switch` | Apply configuration (auto-detects darwin/nixos) |
-| `make test` | Test build without applying |
-| `nix flake check` | Validate flake syntax |
-| `nix flake update` | Update all flake inputs |
+| Command                                                     | Purpose                                         |
+| ----------------------------------------------------------- | ----------------------------------------------- |
+| `make switch`                                               | Apply configuration (auto-detects darwin/nixos) |
+| `make test`                                                 | Test build without applying                     |
+| `nix flake check`                                           | Validate flake syntax                           |
+| `nix flake update`                                          | Update all flake inputs                         |
+| `nix flake update codex-cli-nix claude-code-nix llm-agents` | Update AI agent inputs                          |
 
 ## Ops Notes
 
@@ -18,6 +19,7 @@ Personal configuration managing macOS (darwin) and NixOS systems via Nix flakes.
 - VCS check: run `jj status` first (works from subdirs with .jj above) before assuming git
 - Fish PATH + mise: `mise activate fish` resets `PATH`; append custom dirs after mise hooks in `modules/mise.nix`. Keep `home.sessionPath` for non-fish sessions.
 - Full flake updates: re-check temporary upstream workarounds in `flake.nix` and `machines/amalthea.nix` (`direnv`, `git-branchless`, `python312` out-only) and remove if upstream fixed.
+- AI input updates: if `pi --version 2>&1` changes, bump `modules/ai/pi/settings.json` `lastChangelogVersion` to the new version and summarize installed Pi `CHANGELOG.md` entries from old->new in the handoff. This suppresses repeat startup changelog prompts while still showing the user Pi news once.
 
 ## Repository Structure
 
@@ -175,7 +177,7 @@ darwinConfigurations."<name>" = mkSystem "<name>" {
 - **Backups (restic/S3)**: `modules/backup/restic-darwin.nix` + `modules/backup/restic-nixos.nix` wired into aglaea/amalthea. Secrets live outside Nix store. Repo file + env + password:
   - macOS: `~/.config/restic/{repository,s3.env,password}`
   - NixOS: `/etc/secrets/restic/{repository,s3.env,password}`
-  Schedules: hourly backup, daily prune, weekly check.
+    Schedules: hourly backup, daily prune, weekly check.
 - **stateVersion**: Never change without reading release notes
 - **Homebrew**: Some packages still via homebrew (see darwin.nix)
 - **allowUnfree**: Enabled globally

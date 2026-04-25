@@ -67,6 +67,9 @@ let
           throw "Unknown AI skill profile '${profile}' for ${name}";
     };
   localSkillTargets = map mkLocalSkill (builtins.attrNames localSkillDirs);
+  piAgentsFile = pkgs.writeText "pi-AGENTS.md" (
+    (builtins.readFile ./AGENTS.md) + "\n\n" + (builtins.readFile ./pi/AGENTS.extra.md)
+  );
 in {
 
   # AI agent packages
@@ -117,7 +120,8 @@ in {
   xdg.configFile."opencode/command/commit.md".source = ./commands/commit.md;
   xdg.configFile."opencode/command/rmslop.md".source = ./commands/rmslop.md;
 
-  # Global agent instructions for Claude Code, Codex, OpenCode, and Pi
+  # Global agent instructions for Claude Code, Codex, and OpenCode.
+  # Pi gets a generated mutable copy with pi-specific notes below.
   xdg.configFile."opencode/AGENTS.md".source = ./AGENTS.md;
 
   # Skills for agents
@@ -126,7 +130,6 @@ in {
       baseFiles = {
         ".claude/CLAUDE.md".source = ./AGENTS.md;
         ".codex/AGENTS.md".source = ./AGENTS.md;
-        ".pi/agent/AGENTS.md".source = ./AGENTS.md;
         ".summarize/config.json".text = builtins.toJSON {
           model = {
             mode = "auto";
@@ -163,5 +166,87 @@ in {
         (skill: map (base: mkSkillEntry base skill) (skill.bases or skillBaseProfiles.all))
         skillTargets
     );
+
+  # Pi config files are copied, not symlinked, so /settings and /reload workflows can write to them.
+  # Source of truth stays in modules/ai/pi; make local overwrites generated copies after backing up drift.
+  home.activation.installPiAgentConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    pi_dir="$HOME/.pi/agent"
+    pi_backup_dir=""
+
+    install -d "$pi_dir"
+
+    ensure_pi_backup_dir() {
+      if [ -z "$pi_backup_dir" ]; then
+        pi_backup_dir="$pi_dir/backups/$(date -u +%Y%m%dT%H%M%SZ)"
+        install -d "$pi_backup_dir"
+        echo "Backing up differing mutable Pi config under $pi_backup_dir" >&2
+      fi
+    }
+
+    backup_pi_path() {
+      path="$1"
+      rel="''${path#$pi_dir/}"
+      ensure_pi_backup_dir
+      install -d "$pi_backup_dir/$(dirname "$rel")"
+      cp -pR "$path" "$pi_backup_dir/$rel"
+      echo "Backed up $path -> $pi_backup_dir/$rel" >&2
+    }
+
+    ensure_mutable_dir() {
+      dst="$1"
+      if [ -L "$dst" ]; then
+        rm -f "$dst"
+      fi
+      install -d "$dst"
+    }
+
+    backup_file_if_different() {
+      src="$1"
+      dst="$2"
+      if [ -e "$dst" ] && [ ! -L "$dst" ] && { [ ! -f "$dst" ] || ! cmp -s "$src" "$dst"; }; then
+        backup_pi_path "$dst"
+      fi
+    }
+
+    install_mutable_file() {
+      src="$1"
+      dst="$2"
+      if [ -L "$dst" ]; then
+        rm -f "$dst"
+      fi
+      backup_file_if_different "$src" "$dst"
+      install -m 0644 "$src" "$dst"
+    }
+
+    backup_tree_drift() {
+      src="$1"
+      dst="$2"
+      if [ -d "$src" ]; then
+        while IFS= read -r rel; do
+          src_file="$src/$rel"
+          dst_file="$dst/$rel"
+          if [ -e "$dst_file" ] && [ ! -L "$dst_file" ] && { [ ! -f "$dst_file" ] || ! cmp -s "$src_file" "$dst_file"; }; then
+            backup_pi_path "$dst_file"
+          fi
+        done < <(cd "$src" && find . -type f ! -name '.gitkeep' -print | sed 's#^./##')
+      fi
+    }
+
+    copy_mutable_tree() {
+      src="$1"
+      dst="$2"
+      ensure_mutable_dir "$dst"
+      backup_tree_drift "$src" "$dst"
+      if [ -d "$src" ]; then
+        ${pkgs.rsync}/bin/rsync -a --chmod=Du=rwx,Dgo=rx,Fu=rw,Fgo=r --exclude '.gitkeep' "$src/" "$dst/"
+      fi
+    }
+
+    install_mutable_file "${./pi/settings.json}" "$pi_dir/settings.json"
+    install_mutable_file "${piAgentsFile}" "$pi_dir/AGENTS.md"
+    copy_mutable_tree "${./pi/extensions}" "$pi_dir/extensions"
+    copy_mutable_tree "${./pi/prompts}" "$pi_dir/prompts"
+    copy_mutable_tree "${./pi/themes}" "$pi_dir/themes"
+  '';
 
 }

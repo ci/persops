@@ -1,0 +1,18 @@
+{
+  "packages": [
+    "npm:@plannotator/pi-extension",
+    "npm:pi-lens",
+    "npm:pi-btw",
+    "npm:pi-agent-browser"
+  ],
+  "lastChangelogVersion": "0.70.2",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.5",
+  "defaultThinkingLevel": "xhigh",
+  "enabledModels": [
+    "openai-codex/gpt-5.5",
+    "openai-codex/gpt-5.4",
+    "openai-codex/gpt-5.4-mini"
+  ],
+  "hideThinkingBlock": false
+}

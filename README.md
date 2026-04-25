@@ -4,18 +4,20 @@ dotfiles + nix setup + packages + configs
 
 distro: OSX
 
-## Updating Codex / Claude Code
+## Updating AI Packages
 
-Codex and Claude Code are provided via the `sadjow/codex-cli-nix` and `sadjow/claude-code-nix` overlays, which publish new versions hourly. Version is pinned to whatever commit is in `flake.lock`.
+Codex, Claude Code, and Pi-related agent packages are pinned through flake inputs.
 
-To pull the latest versions and deploy them:
+To pull the latest AI versions and deploy them:
 
 ```sh
-nix flake update codex-cli-nix claude-code-nix
-make switch
+nix flake update codex-cli-nix claude-code-nix llm-agents
+make local
 ```
 
-Can also just run `nix flake update` to refresh everything, then switch.
+Can also run `nix flake update` to refresh everything, then switch.
+
+When Pi changes version, update `modules/ai/pi/settings.json` `lastChangelogVersion` to the new `pi --version 2>&1`, read Pi's installed `CHANGELOG.md`, and summarize the skipped Pi changelog entries in the handoff. This keeps Pi from showing the same changelog on every startup while still surfacing the news once during the update.
 
 ## Adding AI Skills
 
