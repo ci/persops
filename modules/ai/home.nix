@@ -164,20 +164,4 @@ in {
         skillTargets
     );
 
-  # Create writable directories for dev-browser skill (node_modules, profiles, tmp)
-  home.activation.createDevBrowserDirs = ''
-    mkdir -p "$HOME/.claude/skills/dev-browser/node_modules"
-    mkdir -p "$HOME/.claude/skills/dev-browser/profiles"
-    mkdir -p "$HOME/.claude/skills/dev-browser/tmp"
-    mkdir -p "$HOME/.codex/skills/dev-browser/node_modules"
-    mkdir -p "$HOME/.codex/skills/dev-browser/profiles"
-    mkdir -p "$HOME/.codex/skills/dev-browser/tmp"
-    mkdir -p "$HOME/.openclaw/skills/dev-browser/node_modules"
-    mkdir -p "$HOME/.openclaw/skills/dev-browser/profiles"
-    mkdir -p "$HOME/.openclaw/skills/dev-browser/tmp"
-    mkdir -p "$HOME/.pi/agent/skills/dev-browser/node_modules"
-    mkdir -p "$HOME/.pi/agent/skills/dev-browser/profiles"
-    mkdir -p "$HOME/.pi/agent/skills/dev-browser/tmp"
-  '';
-
 }
