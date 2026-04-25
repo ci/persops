@@ -1,7 +1,6 @@
 {
   "packages": [
     "npm:@plannotator/pi-extension",
-    "npm:pi-lens",
     "npm:pi-btw"
   ],
   "lastChangelogVersion": "0.70.2",
