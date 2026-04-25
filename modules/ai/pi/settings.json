@@ -1,7 +1,8 @@
 {
   "packages": [
     "npm:@plannotator/pi-extension",
-    "npm:pi-btw"
+    "npm:pi-btw",
+    "npm:pi-rtk-optimizer"
   ],
   "lastChangelogVersion": "0.70.2",
   "defaultProvider": "openai-codex",
