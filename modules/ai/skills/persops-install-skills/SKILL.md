@@ -9,8 +9,8 @@ Use this workflow for skills managed in `~/p/persops/modules/ai/skills`.
 
 ## Profile Mapping
 
-- Default to `all`: publish to `.claude/skills`, `.codex/skills`, and `.openclaw/skills`.
-- Use `coding`: publish to `.claude/skills` and `.codex/skills` only.
+- Default to `all`: publish to `.claude/skills`, `.codex/skills`, `.openclaw/skills`, and `.pi/agent/skills`.
+- Use `coding`: publish to `.claude/skills`, `.codex/skills`, and `.pi/agent/skills` only.
 - Use `claw`: publish to `.openclaw/skills` only.
 - Interpret `claw skill`, `openclaw skill`, or `clawdbot skill` as `claw`.
 
@@ -31,6 +31,7 @@ Use this workflow for skills managed in `~/p/persops/modules/ai/skills`.
    - `~/.claude/skills/<name>` when profile includes Claude
    - `~/.codex/skills/<name>` when profile includes Codex
    - `~/.openclaw/skills/<name>` when profile includes Claw
+   - `~/.pi/agent/skills/<name>` when profile includes Pi
 8. Commit changes at the end after verification. Use a Conventional Commit. Do not push unless the user asks.
 
 ## Notes

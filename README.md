@@ -32,8 +32,8 @@ make r/switch
 
 Profiles:
 
-- default `all`: Claude + Codex + OpenClaw
-- `--profile coding`: Claude + Codex only
+- default `all`: Claude + Codex + OpenClaw + Pi
+- `--profile coding`: Claude + Codex + Pi only
 - `--profile claw`: OpenClaw only
 
 Example:

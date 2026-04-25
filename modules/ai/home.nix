@@ -37,10 +37,12 @@ let
       ".claude/skills"
       ".codex/skills"
       ".openclaw/skills"
+      ".pi/agent/skills"
     ];
     coding = [
       ".claude/skills"
       ".codex/skills"
+      ".pi/agent/skills"
     ];
     claw = [
       ".openclaw/skills"
@@ -115,7 +117,7 @@ in {
   xdg.configFile."opencode/command/commit.md".source = ./commands/commit.md;
   xdg.configFile."opencode/command/rmslop.md".source = ./commands/rmslop.md;
 
-  # Global agent instructions for Claude Code, Codex, and OpenCode
+  # Global agent instructions for Claude Code, Codex, OpenCode, and Pi
   xdg.configFile."opencode/AGENTS.md".source = ./AGENTS.md;
 
   # Skills for agents
@@ -124,6 +126,7 @@ in {
       baseFiles = {
         ".claude/CLAUDE.md".source = ./AGENTS.md;
         ".codex/AGENTS.md".source = ./AGENTS.md;
+        ".pi/agent/AGENTS.md".source = ./AGENTS.md;
         ".summarize/config.json".text = builtins.toJSON {
           model = {
             mode = "auto";
@@ -172,6 +175,9 @@ in {
     mkdir -p "$HOME/.openclaw/skills/dev-browser/node_modules"
     mkdir -p "$HOME/.openclaw/skills/dev-browser/profiles"
     mkdir -p "$HOME/.openclaw/skills/dev-browser/tmp"
+    mkdir -p "$HOME/.pi/agent/skills/dev-browser/node_modules"
+    mkdir -p "$HOME/.pi/agent/skills/dev-browser/profiles"
+    mkdir -p "$HOME/.pi/agent/skills/dev-browser/tmp"
   '';
 
 }
