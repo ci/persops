@@ -2,7 +2,9 @@
   "packages": [
     "npm:@plannotator/pi-extension",
     "npm:pi-btw",
-    "npm:pi-rtk-optimizer"
+    "npm:pi-rtk-optimizer",
+    "https://github.com/davebcn87/pi-autoresearch",
+    "npm:pi-review-loop"
   ],
   "lastChangelogVersion": "0.70.2",
   "defaultProvider": "openai-codex",
