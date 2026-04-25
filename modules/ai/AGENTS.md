@@ -63,6 +63,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 - IMPORTANT: run `jj status` first (works from subdirs); use `jj` if it succeeds.
 - consult jj skill once per session for context before usage.
+- Finish changes with empty `@` unless user asks otherwise: use `jj commit -m ...` or `jj describe ... && jj new`; never only `jj describe` for handoff.
 
 ## Tools
 
