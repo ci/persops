@@ -23,10 +23,12 @@
     # onActivation.cleanup = "uninstall";
 
     taps = [
+      "posthog/tap"
       "steipete/tap"
     ];
     brews = [
       "cowsay"
+      "posthog/tap/phrocs"
       "gemini-cli"
       "libpq" # for ruby `pg` gems through mise
       "sshpass" # ansible ssh automation
