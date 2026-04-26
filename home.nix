@@ -196,7 +196,17 @@ in
 
   home.activation.resticWrappers = lib.optionalString pkgs.stdenv.isDarwin resticWrapperInstall;
   home.activation.ensurePathDirs = ''
-    mkdir -p "$HOME/.local/share/pnpm" "$HOME/.npm-global/bin"
+    mkdir -p "$HOME/.local/share/pnpm" "$HOME/.npm-global/bin" "$HOME/.npm-global/lib/node_modules"
+  '';
+  home.activation.ensureNpmPrefix = lib.hm.dag.entryAfter [ "ensurePathDirs" ] ''
+    npmrc="$HOME/.npmrc"
+    if [ ! -e "$npmrc" ] || ! grep -qE '^[[:space:]]*prefix[[:space:]]*=' "$npmrc"; then
+      umask 077
+      if [ -e "$npmrc" ] && [ -s "$npmrc" ] && [ "$(tail -c 1 "$npmrc" 2>/dev/null || true)" != "" ]; then
+        printf '\n' >> "$npmrc"
+      fi
+      printf 'prefix=%s/.npm-global\n' "$HOME" >> "$npmrc"
+    fi
   '';
 
   home.sessionVariables = {

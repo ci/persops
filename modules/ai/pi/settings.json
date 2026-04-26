@@ -4,7 +4,8 @@
     "npm:pi-btw",
     "npm:pi-rtk-optimizer",
     "https://github.com/davebcn87/pi-autoresearch",
-    "npm:pi-review-loop"
+    "npm:pi-review-loop",
+    "npm:pi-web-access"
   ],
   "lastChangelogVersion": "0.70.2",
   "defaultProvider": "openai-codex",
