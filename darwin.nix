@@ -30,7 +30,6 @@
       "gemini-cli"
       "libpq" # for ruby `pg` gems through mise
       "sshpass" # ansible ssh automation
-      "supacode"
       "qemu" # virtualization goodies
       "tmuxinator" # instead of tmux.tmuxinator.enable
     ];
@@ -60,6 +59,7 @@
       "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
       "spotify" # muuuusic
       "sonic-visualiser" # audio stegano
+      "supacode"
       "tailscale-app" # wireguard mesh goodies
       "vagrant" # + qemu = nice
       "vivaldi" # tryna migrate from arc
