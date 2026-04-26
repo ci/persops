@@ -104,6 +104,7 @@ in
     difftastic
     doggo
     duf
+    dust
     eza
     fd
     file
