@@ -1,6 +1,7 @@
 {
   "packages": [
     "npm:@plannotator/pi-extension",
+    "npm:@benvargas/pi-openai-fast",
     "npm:pi-btw",
     "npm:pi-rtk-optimizer",
     "https://github.com/davebcn87/pi-autoresearch",
