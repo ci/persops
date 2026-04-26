@@ -49,7 +49,7 @@ in
 
     kamal
 
-    beam.packages.erlang_27.elixir_1_18
+    beam.packages.erlang_28.elixir_1_20
     go
 
     flutter
