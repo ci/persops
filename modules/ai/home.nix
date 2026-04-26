@@ -87,6 +87,7 @@ in {
     llmAgents.opencode
     llmAgents.pi
     llmAgents.qmd
+    llmAgents.rtk
     yt-dlp
     gifgrepPackage
     osgrepPackage
