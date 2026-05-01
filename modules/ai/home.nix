@@ -249,6 +249,9 @@ in {
     copy_mutable_tree "${./pi/extensions}" "$pi_dir/extensions"
     copy_mutable_tree "${./pi/prompts}" "$pi_dir/prompts"
     copy_mutable_tree "${./pi/themes}" "$pi_dir/themes"
+    copy_mutable_tree "${./pi/skills}" "$pi_dir/skills"
+    copy_mutable_tree "${./pi/agents}" "$pi_dir/agents"
+    copy_mutable_tree "${./pi/compound-engineering}" "$pi_dir/compound-engineering"
   '';
 
 }
