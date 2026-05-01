@@ -7,6 +7,7 @@ let
   blogwatcherPackage = pkgs.callPackage ./modules/blogwatcher.nix { };
   goplacesPackage = pkgs.callPackage ./modules/goplaces.nix { };
   gwsPackage = pkgs.callPackage ./modules/gws.nix { };
+  skepsisPackage = pkgs.callPackage ./modules/skepsis { };
   resticWrapperInstall = ''
     /usr/bin/install -d -m 0755 "$HOME/.local/bin" "$HOME/.local/libexec"
     install_if_changed() {
@@ -139,6 +140,7 @@ in
     sad
     actionlint
     shellcheck
+    skepsisPackage
     statix
     tree-sitter
     wakeonlan
