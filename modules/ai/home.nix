@@ -77,7 +77,7 @@ in {
     llmAgents.amp
     codex
     claude-code
-    llmAgents.claude-code-acp
+    llmAgents.claude-agent-acp
     llmAgents.claude-plugins
     llmAgents.codex-acp
     # llmAgents.copilot-cli
