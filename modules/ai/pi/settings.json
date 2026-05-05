@@ -6,6 +6,7 @@
     "npm:pi-web-access",
     "git:github.com/VandeeFeng/pi-memory-md",
     "npm:@devkade/pi-plan",
+    "npm:pi-goal",
     "npm:pi-simplify",
     "npm:pi-add-dir",
     "npm:pi-prompt-template-model",
