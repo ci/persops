@@ -51,6 +51,7 @@
       "keybase" # keybase-gui doesn't work on OSX yet
       "kindavim" # vim-ify everything
       "linear-linear" # linear app
+      "obsidian"
       "opencode-desktop" # let's compare to conductor
       "orbstack" # container goodies on OSX
       "ollama-app" # through brew since nixos is just client for darwin
