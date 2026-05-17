@@ -5,15 +5,16 @@ let
   prefix = "ctrl+space";
 
   settings = {
-    "$schema" = "https://raw.githubusercontent.com/manaflow-ai/cmux/main/web/data/cmux-settings.schema.json";
+    "$schema" = "https://raw.githubusercontent.com/manaflow-ai/cmux/main/web/data/cmux.schema.json";
     schemaVersion = 1;
 
     shortcuts = {
-      # Pane focus (vim directions). smart-splits-style but cmux-only for now.
-      focusLeft  = [ prefix "h" ];
-      focusDown  = [ prefix "j" ];
-      focusUp    = [ prefix "k" ];
-      focusRight = [ prefix "l" ];
+      # Prefixless smart pane focus. cmux passes these through to Vim/Nvim;
+      # smart-splits calls `cmux select-pane -L/-D/-U/-R` at Vim split edges.
+      focusLeft  = "ctrl+h";
+      focusDown  = "ctrl+j";
+      focusUp    = "ctrl+k";
+      focusRight = "ctrl+l";
 
       # Shift+h/l = prev/next surface (horizontal tabs within a pane).
       prevSurface = [ prefix "shift+h" ];
@@ -42,6 +43,14 @@ let
   };
 in
 {
+  # Primary path for current cmux. Keep the legacy settings.json in sync for old builds.
+  xdg.configFile."cmux/cmux.json" = {
+    force = true;
+    text = builtins.toJSON settings + "\n";
+  };
+
   xdg.configFile."cmux/settings.json".text =
-    builtins.toJSON settings + "\n";
+    builtins.toJSON (settings // {
+      "$schema" = "https://raw.githubusercontent.com/manaflow-ai/cmux/main/web/data/cmux-settings.schema.json";
+    }) + "\n";
 }

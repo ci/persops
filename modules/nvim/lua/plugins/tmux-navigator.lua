@@ -66,6 +66,25 @@ return {
       },
     },
     config = function()
+      local cmux_select_pane_flags = {
+        left = "-L",
+        down = "-D",
+        up = "-U",
+        right = "-R",
+      }
+
+      require("smart-splits").setup({
+        at_edge = function(ctx)
+          local cmux_cli = vim.env.CMUX_BUNDLED_CLI_PATH
+          local flag = cmux_select_pane_flags[ctx.direction]
+          if cmux_cli and cmux_cli ~= "" and vim.env.CMUX_WORKSPACE_ID and flag then
+            vim.fn.jobstart({ cmux_cli, "__tmux-compat", "select-pane", flag }, { detach = true })
+          else
+            ctx.wrap()
+          end
+        end,
+      })
+
       local submode = require("submode")
       submode.create("WinResize", {
         mode = "n",
