@@ -1,0 +1,7 @@
+source = steipete/agent-scripts
+source_type = github
+profile = all
+installed_at = 2026-05-19T23:13:34Z
+requested_source = https://github.com/steipete/agent-scripts/tree/main/skills/github-deep-review
+via = bunx --bun skills add https://github.com/steipete/agent-scripts --skill github-deep-review --agent \* --yes --copy
+computed_hash = e327328f381a036ab9952de52478bc6647979c9e4988b5b381689ab5f6a51831
