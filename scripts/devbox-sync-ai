@@ -1,0 +1,432 @@
+#!/usr/bin/env bash
+# Remote shell snippets intentionally use single quotes; rsync destinations use
+# remote-home paths like ~/.pi.
+# shellcheck disable=SC2016,SC2088
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/devbox-sync-ai [options] [workspace-label|devbox-name|ssh-host]
+
+Sync personal AI/editor config into a PostHog Coder devbox. Personal only:
+no Coder template or shared workspace settings are changed.
+
+Default sync:
+  - ~/.pi/agent/settings.json, AGENTS.md, skills, prompts, themes, extensions,
+    agents, compound-engineering
+  - ~/.codex/AGENTS.md and ~/.codex/skills
+  - ~/.claude/CLAUDE.md and ~/.claude/skills
+  - ~/.agents/skills
+  - persops/modules/nvim -> ~/.config/nvim
+
+Skipped by default:
+  - ~/.pi/agent/auth.json
+  - agent auth, sessions, history, caches, logs, and machine-local state
+
+Options:
+  --start              Run `hogli devbox:start` before syncing
+  --dry-run            Print actions without changing the remote
+  --with-auth          Also copy ~/.pi/agent/auth.json (opt-in secret copy)
+  --delete             Mirror synced directories with rsync --delete
+  --no-pi              Do not sync Pi config
+  --no-codex           Do not sync Codex instructions/skills
+  --no-claude          Do not sync Claude instructions/skills
+  --no-agents          Do not sync ~/.agents/skills
+  --no-nvim            Do not sync Neovim config
+  --no-install-pi      Do not try to install Pi if missing on the devbox
+  --no-pi-update       Do not run `pi update` after syncing settings
+  --no-verify          Do not run remote post-sync checks
+  -h, --help           Show this help
+
+Examples:
+  scripts/devbox-sync-ai --start
+  scripts/devbox-sync-ai api
+  scripts/devbox-sync-ai devbox-catalini --with-auth
+  scripts/devbox-sync-ai coder.devbox-catalini
+USAGE
+}
+
+repo_root() {
+  cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd
+}
+
+quote_cmd() {
+  printf '+ '
+  printf '%q ' "$@"
+  printf '\n'
+}
+
+run() {
+  if [[ "$dry_run" == "1" ]]; then
+    quote_cmd "$@"
+  else
+    "$@"
+  fi
+}
+
+coder_bin() {
+  if [[ -x "$HOME/.hogli/bin/coder" ]]; then
+    printf '%s\n' "$HOME/.hogli/bin/coder"
+    return
+  fi
+  command -v coder || {
+    echo "error: coder CLI not found. Run: hogli devbox:setup" >&2
+    exit 1
+  }
+}
+
+coder_username() {
+  "$CODER_BIN" whoami --output json | python3 -c '
+import json, sys
+payload = json.load(sys.stdin)
+if isinstance(payload, list):
+    payload = payload[0] if payload else {}
+username = payload.get("username") or payload.get("name")
+if not username:
+    raise SystemExit("could not determine Coder username")
+print(username.lower())
+'
+}
+
+resolve_workspace() {
+  local target="$1"
+
+  if [[ -z "$target" ]]; then
+    local username
+    CODER_BIN="$(coder_bin)"
+    username="$(coder_username)"
+    printf 'devbox-%s\n' "$username"
+  elif [[ "$target" == coder.* ]]; then
+    printf '%s\n' "${target#coder.}"
+  elif [[ "$target" == devbox-* ]]; then
+    printf '%s\n' "$target"
+  elif [[ "$target" == @* ]]; then
+    echo "error: @user workspace syntax is not supported by this personal sync script" >&2
+    exit 1
+  else
+    local username
+    CODER_BIN="$(coder_bin)"
+    username="$(coder_username)"
+    printf 'devbox-%s-%s\n' "$username" "$target"
+  fi
+}
+
+remote_sh() {
+  local script="$1"
+  if [[ "$dry_run" == "1" ]]; then
+    echo "+ ssh $ssh_host bash -s <<'REMOTE'"
+    printf '%s\n' "$script"
+    echo "REMOTE"
+  else
+    ssh "$ssh_host" bash -s <<<"$script"
+  fi
+}
+
+rsync_file() {
+  local label="$1"
+  local src="$2"
+  local dst="$3"
+
+  if [[ ! -f "$src" ]]; then
+    echo "skip: $label ($src missing)" >&2
+    return
+  fi
+
+  echo "sync: $label"
+  run rsync -azL "$src" "$ssh_host:$dst"
+  remote_sh "chmod 600 $dst"
+}
+
+rsync_dir() {
+  local label="$1"
+  local src="$2"
+  local dst="$3"
+  local args=(-azL)
+
+  if [[ ! -d "$src" ]]; then
+    echo "skip: $label ($src missing)" >&2
+    return
+  fi
+  if [[ "$mirror_dirs" == "1" ]]; then
+    args+=(--delete)
+  fi
+
+  echo "sync: $label"
+  run rsync "${args[@]}" "$src/" "$ssh_host:$dst/"
+  remote_sh "chmod -R u+rwX,go+rX,go-w $dst"
+}
+
+sync_file_if_present() {
+  local label="$1"
+  local src="$2"
+  local dst="$3"
+
+  if [[ -e "$src" ]]; then
+    rsync_file "$label" "$src" "$dst"
+  else
+    echo "skip: $label ($src missing)" >&2
+  fi
+}
+
+start_workspace() {
+  echo "start: $workspace"
+  if command -v hogli >/dev/null 2>&1 && [[ "$workspace_target" != devbox-* && "$workspace_target" != coder.* ]]; then
+    if [[ -n "$workspace_target" && "$workspace_target" != devbox-* ]]; then
+      run hogli devbox:start "$workspace_target"
+    else
+      run hogli devbox:start
+    fi
+  else
+    local coder
+    coder="$(coder_bin)"
+    run "$coder" start "$workspace" --yes
+  fi
+}
+
+prepare_remote_pi() {
+  remote_sh "$(cat <<'REMOTE'
+set -e
+
+mkdir -p "$HOME/.pi/agent" "$HOME/.local/bin" "$HOME/.local/npm/bin"
+
+path_line='export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"'
+for profile in "$HOME/.profile" "$HOME/.bashrc" "$HOME/.zshrc"; do
+  touch "$profile"
+  grep -qxF "$path_line" "$profile" || printf '\n%s\n' "$path_line" >> "$profile"
+done
+
+install_pi_with_npm() {
+  npm config set prefix "$HOME/.local/npm" >/dev/null
+  npm install -g @earendil-works/pi-coding-agent
+}
+
+if [ ! -x "$HOME/.local/npm/bin/pi" ]; then
+  if command -v npm >/dev/null 2>&1; then
+    install_pi_with_npm
+  elif command -v flox >/dev/null 2>&1 && [ -d "$HOME/posthog/.flox" ]; then
+    flox activate -d "$HOME/posthog" -- bash -lc 'npm config set prefix "$HOME/.local/npm" >/dev/null && npm install -g @earendil-works/pi-coding-agent'
+  else
+    echo "warning: pi missing and neither npm nor PostHog flox npm is available" >&2
+  fi
+fi
+
+cat > "$HOME/.local/bin/pi" <<'PI_WRAPPER'
+#!/bin/sh
+set -eu
+
+pi_bin="${PI_NPM_BIN:-$HOME/.local/npm/bin/pi}"
+if [ ! -x "$pi_bin" ]; then
+  echo "pi is not installed at $pi_bin; rerun scripts/devbox-sync-ai" >&2
+  exit 127
+fi
+
+if command -v node >/dev/null 2>&1; then
+  exec "$pi_bin" "$@"
+fi
+
+pi_target="$pi_bin"
+if command -v readlink >/dev/null 2>&1 && [ -L "$pi_bin" ]; then
+  pi_target="$(readlink -f "$pi_bin" 2>/dev/null || printf '%s\n' "$pi_bin")"
+fi
+
+node_bin=""
+if [ -d "$HOME/posthog/.flox/run" ]; then
+  node_bin="$(find -L "$HOME/posthog/.flox/run" -path '*/bin/node' -type f -perm -111 -print -quit 2>/dev/null || true)"
+fi
+
+if [ -n "$node_bin" ] && [ -r "$pi_target" ]; then
+  PATH="${node_bin%/*}:$PATH"
+  export PATH
+  exec "$node_bin" "$pi_target" "$@"
+fi
+
+if command -v flox >/dev/null 2>&1 && [ -d "$HOME/posthog/.flox" ]; then
+  exec flox activate -d "$HOME/posthog" -- "$pi_bin" "$@"
+fi
+
+echo "pi requires node; neither node nor PostHog flox node is available" >&2
+exit 127
+PI_WRAPPER
+chmod 755 "$HOME/.local/bin/pi"
+REMOTE
+)"
+}
+
+sync_pi() {
+  local pi_dir="$HOME/.pi/agent"
+
+  remote_sh 'set -e
+mkdir -p ~/.pi/agent/skills ~/.pi/agent/prompts ~/.pi/agent/themes ~/.pi/agent/extensions ~/.pi/agent/agents ~/.pi/agent/compound-engineering
+'
+
+  rsync_file "Pi settings" "$pi_dir/settings.json" "~/.pi/agent/settings.json"
+  rsync_file "Pi AGENTS" "$pi_dir/AGENTS.md" "~/.pi/agent/AGENTS.md"
+  rsync_dir "Pi skills" "$pi_dir/skills" "~/.pi/agent/skills"
+  rsync_dir "Pi prompts" "$pi_dir/prompts" "~/.pi/agent/prompts"
+  rsync_dir "Pi themes" "$pi_dir/themes" "~/.pi/agent/themes"
+  rsync_dir "Pi extensions" "$pi_dir/extensions" "~/.pi/agent/extensions"
+  rsync_dir "Pi agents" "$pi_dir/agents" "~/.pi/agent/agents"
+  rsync_dir "Pi compound-engineering" "$pi_dir/compound-engineering" "~/.pi/agent/compound-engineering"
+
+  if [[ "$copy_auth" == "1" ]]; then
+    rsync_file "Pi auth (secret)" "$pi_dir/auth.json" "~/.pi/agent/auth.json"
+  else
+    echo "skip: Pi auth.json (pass --with-auth to copy secret auth)"
+  fi
+}
+
+sync_codex() {
+  remote_sh 'set -e
+mkdir -p ~/.codex/skills
+'
+  sync_file_if_present "Codex AGENTS" "$HOME/.codex/AGENTS.md" "~/.codex/AGENTS.md"
+  rsync_dir "Codex skills" "$HOME/.codex/skills" "~/.codex/skills"
+}
+
+sync_claude() {
+  remote_sh 'set -e
+mkdir -p ~/.claude/skills
+'
+  sync_file_if_present "Claude instructions" "$HOME/.claude/CLAUDE.md" "~/.claude/CLAUDE.md"
+  rsync_dir "Claude skills" "$HOME/.claude/skills" "~/.claude/skills"
+}
+
+sync_agents() {
+  remote_sh 'set -e
+mkdir -p ~/.agents/skills
+'
+  rsync_dir "global Agent Skills" "$HOME/.agents/skills" "~/.agents/skills"
+}
+
+sync_nvim() {
+  local root
+  root="$(repo_root)"
+  remote_sh 'set -e
+mkdir -p ~/.config/nvim
+'
+  rsync_dir "Neovim config" "$root/modules/nvim" "~/.config/nvim"
+}
+
+update_remote_pi_packages() {
+  remote_sh 'set -e
+export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"
+if command -v pi >/dev/null 2>&1; then
+  # Several Pi extensions still declare peers on the pre-rename package.
+  NPM_CONFIG_LEGACY_PEER_DEPS=true pi update || echo "warning: pi update failed; config was still synced" >&2
+else
+  echo "warning: pi not found; skipping pi update" >&2
+fi
+'
+}
+
+verify_remote() {
+  remote_sh 'set -e
+export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"
+
+test -f "$HOME/.pi/agent/settings.json"
+test -f "$HOME/.pi/agent/AGENTS.md"
+test -d "$HOME/.pi/agent/skills"
+test -d "$HOME/.pi/agent/extensions"
+test -d "$HOME/.pi/agent/agents"
+test -d "$HOME/.codex/skills"
+test -d "$HOME/.claude/skills"
+test -d "$HOME/.agents/skills"
+
+printf "verify: plain pi -> "
+command -v pi
+pi --version
+
+if command -v flox >/dev/null 2>&1 && [ -d "$HOME/posthog/.flox" ]; then
+  flox activate -d "$HOME/posthog" -- bash -lc '"'"'export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"; printf "verify: flox pi -> "; command -v pi; pi --version'"'"'
+fi
+'
+}
+
+workspace_target=""
+dry_run=0
+copy_auth=0
+mirror_dirs=0
+do_pi=1
+do_codex=1
+do_claude=1
+do_agents=1
+do_nvim=1
+install_pi=1
+pi_update=1
+do_start=0
+do_verify=1
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --start) do_start=1 ;;
+    --dry-run) dry_run=1 ;;
+    --with-auth) copy_auth=1 ;;
+    --delete) mirror_dirs=1 ;;
+    --no-pi) do_pi=0 ;;
+    --no-codex) do_codex=0 ;;
+    --no-claude) do_claude=0 ;;
+    --no-agents) do_agents=0 ;;
+    --no-nvim) do_nvim=0 ;;
+    --no-install-pi) install_pi=0 ;;
+    --no-pi-update) pi_update=0 ;;
+    --no-verify) do_verify=0 ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --*)
+      echo "error: unknown option $1" >&2
+      usage >&2
+      exit 1
+      ;;
+    *)
+      if [[ -n "$workspace_target" ]]; then
+        echo "error: only one workspace argument is supported" >&2
+        exit 1
+      fi
+      workspace_target="$1"
+      ;;
+  esac
+  shift
+done
+
+workspace="$(resolve_workspace "$workspace_target")"
+ssh_host="coder.$workspace"
+
+echo "workspace: $workspace"
+echo "ssh host:  $ssh_host"
+
+if [[ "$do_start" == "1" ]]; then
+  start_workspace
+fi
+
+if [[ "$install_pi" == "1" && "$do_pi" == "1" ]]; then
+  prepare_remote_pi
+fi
+
+if [[ "$do_pi" == "1" ]]; then
+  sync_pi
+fi
+if [[ "$do_codex" == "1" ]]; then
+  sync_codex
+fi
+if [[ "$do_claude" == "1" ]]; then
+  sync_claude
+fi
+if [[ "$do_agents" == "1" ]]; then
+  sync_agents
+fi
+if [[ "$do_nvim" == "1" ]]; then
+  sync_nvim
+fi
+if [[ "$pi_update" == "1" && "$do_pi" == "1" ]]; then
+  update_remote_pi_packages
+fi
+if [[ "$do_verify" == "1" && "$dry_run" != "1" ]]; then
+  verify_remote
+fi
+
+echo "done"
+if [[ "$copy_auth" != "1" ]]; then
+  echo "note: Pi auth was not copied. Open remote \`pi\`, run /login, or rerun with --with-auth if you accept copying auth.json."
+fi
