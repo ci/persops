@@ -1,4 +1,4 @@
-{ pkgs, user, ... }:
+{ pkgs, lib, user, ... }:
 
 {
   nix.settings = {
@@ -87,6 +87,7 @@
     home = "/home/${user}";
     extraGroups = [ "networkmanager" "docker" "wheel" "video" ];
     shell = pkgs.fish;
+    linger = true;
     hashedPassword = "$6$PMNZvv84d34ZY2BK$CEhbBGRm79WxIxFE5j4aY6l1/2HPqSjvFEXEhbgYJHaMoR9.A2/HHq2ninahWRVMaPQKQc8xfE7AZkf4Bm3CD/";
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFP05x9Bg50efrFPX0NXfV45RwcsYmgpKUKTnR2Ee7LA cat"
@@ -118,6 +119,28 @@
   virtualisation.docker.enable = true;
 
   security.sudo.wheelNeedsPassword = false;
+
+  systemd.user.services.codex-remote-control = {
+    description = "Codex remote control bridge";
+    wantedBy = [ "default.target" ];
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+
+    environment = {
+      CODEX_HOME = "%h/.codex";
+      PATH = lib.mkForce "/etc/profiles/per-user/%u/bin:/run/current-system/sw/bin:%h/.local/bin:%h/.local/share/pnpm:%h/.npm-global/bin:%h/go/bin";
+    };
+
+    serviceConfig = {
+      Type = "simple";
+      WorkingDirectory = "%h";
+      ExecStart = "${lib.getExe pkgs.codex} remote-control --enable remote_control";
+      Restart = "always";
+      RestartSec = 5;
+      StandardOutput = "append:%h/.codex/remote-control.log";
+      StandardError = "append:%h/.codex/remote-control.log";
+    };
+  };
 
   services = {
     openssh = {
