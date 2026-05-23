@@ -1,68 +1,61 @@
-# AGENTS.MD
-
 Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
-## Agent Protocol
+## Core
 
-- Contact: Catalin Irimie (@ci on GitHub, @ca7ir on X, <catalin.irimie@gmail.com>).
-- Workspace: `~/p/`. Missing @ci repo: clone `https://github.com/ci/<repo>.git` (use ssh).
-- 3rd-party/OSS (non-ci): clone under `~/p/foss`.
+- Workspace: `~/p/`. Missing @ci repo: clone `https://github.com/ci/<repo>.git` (use ssh). 3rd-party/OSS (non-ci): `~/p/foss`.
 - `~/p/persops`: private ops - nixos configs, dotfiles, scripts, etc.
-- PRs: use `gh pr view/diff` (no URLs).
 - “Make a note” => edit AGENTS.md (shortcut; not a blocker). Ignore `CLAUDE.md`.
 - Read: nothing manual — generated `AGENTS.md` (root) + `~/p/persops/modules/ai/AGENTS.md` are auto-injected into prompt. Edit: touch `.ruler/*.md` only when updating/regenerating AGENTS; then run `bunx @intellectronica/ruler apply`.
+- Skills are canonical for tool-specific workflows. Keep this file to hard rules only.
+- Skill descriptions: short generic trigger phrase, not summary; no personal names, long paths, or workflow narration unless needed for routing.
+- Skill frontmatter: quote `description`; after SKILL.md edits, YAML-parse frontmatter before commit.
+
+## Project defaults
+
 - Bugs: add regression test when it fits.
-- Keep files <~500 LOC; split/refactor as needed.
-- Commits: Conventional Commits (`feat|fix|refactor|build|ci|chore|docs|style|perf|test`).
-- Editor: `vi <path>`.
-- CI: `gh run list/view` (rerun/fix til green).
-- Prefer end-to-end verify; if blocked, say what’s missing.
+- Fixes: prefer clean bounded refactor over tiny shim. Lean code; no compat/edge-case scaffolding unless public API, shipped upgrade path, security boundary, or observed prod state.
+- Use repo package manager/runtime; no swaps without approval.
+- Docs: read repo docs before coding; update docs/changelog for user-visible behavior changes.
+- Inline code comments: brief notes for tricky, bug-prone, or previously buggy logic.
 - New deps: quick health check (recent releases/commits, adoption).
-- Style: telegraph. Drop filler/grammar. Min tokens (global AGENTS + replies).
-
-## Docs
-
-- Start: look through existing docs/*; open docs before coding when name matches what you're working on.
-- Follow links until domain makes sense; honor `Read when` hints.
-- Keep notes short; update docs when behavior/API changes (no ship w/o docs).
-- Add `read_when` hints on cross-cutting docs.
-
-## PR Feedback
-
-- Replies: cite fix + file/line; resolve threads only after fix lands.
-
-## Flow & Runtime
-
-- Use repo’s package manager/runtime; no swaps w/o approval.
-- Use Codex background for long jobs; tmux only for interactive/persistent (debugger/server).
-- Passwords/secrets: `op`/1Password CLI must always run inside `tmux`, never directly.
-- `op` recipe: run the whole secret-using command in `tmux`; avoid temp files unless needed, delete after.
-
-## Build / Test
-
 - Before handoff: run full gate (lint/typecheck/format/tests/docs).
-- CI red: `gh run list/view`, rerun, fix, push, repeat til green.
-- Release: read `docs/RELEASING.md` (or find best checklist if missing).
+
+## PR/CI
+
+- PR refs: use `gh pr view/diff`, not web search.
+- CI: `gh run list/view`; rerun/fix until green when asked.
+- `fix ci`: consent to pull, commit, push; fix/rerun/watch until CI green.
+- Replies: cite fix + file/line; resolve threads only after fix lands.
+- Pre-commit code changes: use `$autoreview` until no accepted/actionable findings remain, unless equivalent manual review already done, trivial/docs-only, or user opts out.
+- When opening a PR, prefer draft unless user asks otherwise.
+
+## Runtime safety
+
+- Public GitHub bodies: never inline double-quoted text with backticks, `$`, shell snippets, env names, or user text. Use temp file + `cat <<'EOF'` + inspect + `--body-file`.
+- PR/issue body edits: fetch via REST + `jq -r`, never `gh pr/issue view --json body --jq .body`. Example: `gh api repos/OWNER/REPO/pulls/NUM | jq -r '.body // ""' > /tmp/body.md`; inspect before `--body-file`; stop if it starts with `"` or shows literal `\n`.
+- Secrets: never run `env`, `set`, `export -p`, or broad secret regex dumps in a normal shell. Query exact names only; redact values.
 
 ## VCS
 
 ### Git
 
-- IMPORTANT: run `jj status` first (works from subdirs); use `jj` instead of `git` if it succeeds.
-- Safe by default: `git status/diff/log`. Push only when user asks.
-- Branch changes require user consent.
-- Destructive ops forbidden unless explicit (`reset --hard`, `clean`, `restore`, `rm`, …).
-- Don’t delete/rename unexpected stuff; stop + ask.
+- Verify if jj exists before using git: `jj status` first (works from subdirs); use `jj` instead of `git` if it succeeds.
+- Branch switch/checkout ok when task needs it and repo rules allow.
+- If cwd is not a git repo: freeform; pick sensible folder, say path before edits. Worktrees ok if useful.
+- Safe by default: `git status/diff/log`.
+- Push only when user asks.
+- Destructive ops forbidden unless explicit: `reset --hard`, `clean`, `restore`, `rm`, etc.
+- Prefer HTTPS for pull/fetch when public.
+- Commits: Conventional Commits (`feat|fix|refactor|build|ci|chore|docs|style|perf|test`).
 - No repo-wide S/R scripts; keep edits small/reviewable.
-- Avoid manual `git stash`; if Git auto-stashes during pull/rebase, that’s fine (hint, not hard guardrail).
-- If user types a command (“pull and push”), that’s consent for that command.
+- If user types a command ("pull and push"), that's consent for that command.
 - No amend unless asked.
 - Unrecognized changes: assume other agent; keep going; focus your changes. If it causes issues, stop + ask user.
 
 ### JJ
 
-- IMPORTANT: run `jj status` first (works from subdirs); use `jj` if it succeeds.
-- consult jj skill once per session for context before usage.
+- Always use jj if exists.
+- Consult $jj skill once per session for context before usage if using jj.
 - Finish changes with empty `@` unless user asks otherwise: use `jj commit -m ...` or `jj describe ... && jj new`; never only `jj describe` for handoff.
 
 ## Tools
@@ -73,16 +66,6 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 - Use `agent-browser` for browser-specific tasks: navigate sites, click/fill forms, screenshots, scrape page data, test web apps, logins, browser automation.
 - Start with `agent-browser skills get core` (or `--full`) for version-matched workflow docs.
-
-### gh
-
-- GitHub CLI for PRs/CI/releases. Given issue/PR URL (or `/pull/5`): use `gh`, not web search.
-- Examples: `gh issue view <url> --comments -R owner/repo`, `gh pr view <url> --comments --files -R owner/repo`.
-
-### tmux
-
-- Use only when you need persistence/interaction (debugger/server).
-- Quick refs: `tmux new -d -s codex-shell`, `tmux attach -t codex-shell`, `tmux list-sessions`, `tmux kill-session -t codex-shell`.
 
 ## Behavioral guidelines
 
