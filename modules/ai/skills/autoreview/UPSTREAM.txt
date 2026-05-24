@@ -1,0 +1,8 @@
+source = steipete/agent-scripts
+source_type = github
+profile = all
+installed_at = 2026-05-24T21:19:50Z
+requested_source = https://github.com/steipete/agent-scripts/tree/e6d810d5fe11c931f09e2bdd9b1d9da74fffd634/skills/autoreview
+via = manual vendor from https://github.com/steipete/agent-scripts/commit/e6d810d5fe11c931f09e2bdd9b1d9da74fffd634
+upstream_commit = e6d810d5fe11c931f09e2bdd9b1d9da74fffd634
+local_changes = removed portable-cache guidance and personal helper paths

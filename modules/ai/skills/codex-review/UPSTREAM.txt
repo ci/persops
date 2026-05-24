@@ -1,7 +1,0 @@
-source = steipete/agent-scripts
-source_type = github
-profile = all
-installed_at = 2026-05-19T23:13:33Z
-requested_source = https://github.com/steipete/agent-scripts/tree/main/skills/codex-review
-via = bunx --bun skills add https://github.com/steipete/agent-scripts --skill codex-review --agent \* --yes --copy
-computed_hash = 2daa33984003fbeb27b821725eb15d6e469251d63e58a6883a42580a0efa0d25
