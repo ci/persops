@@ -12,6 +12,7 @@ Sync personal AI/editor config into a PostHog Coder devbox. Personal only:
 no Coder template or shared workspace settings are changed.
 
 Default sync:
+  - gh CLI
   - ~/.pi/agent/settings.json, AGENTS.md, skills, prompts, themes, extensions,
     agents, compound-engineering
   - ~/.codex/AGENTS.md and ~/.codex/skills
@@ -181,6 +182,36 @@ start_workspace() {
     coder="$(coder_bin)"
     run "$coder" start "$workspace" --yes
   fi
+}
+
+prepare_remote_gh() {
+  remote_sh "$(cat <<'REMOTE'
+set -e
+
+export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"
+
+if ! command -v gh >/dev/null 2>&1; then
+  command -v apt-get >/dev/null 2>&1 || {
+    echo "error: gh missing and apt-get is unavailable" >&2
+    exit 1
+  }
+  command -v sudo >/dev/null 2>&1 || {
+    echo "error: gh missing and sudo is unavailable" >&2
+    exit 1
+  }
+  sudo -n true >/dev/null 2>&1 || {
+    echo "error: gh missing and passwordless sudo is unavailable" >&2
+    exit 1
+  }
+  sudo -n apt-get update || echo "warning: apt-get update failed; trying install with existing indexes" >&2
+  sudo -n apt-get install -y gh
+fi
+
+printf 'gh: '
+command -v gh
+gh --version | sed -n '1p'
+REMOTE
+)"
 }
 
 prepare_remote_pi() {
@@ -618,6 +649,10 @@ printf "verify: plain pi -> "
 command -v pi
 pi --version
 
+printf "verify: gh -> "
+command -v gh
+gh --version | sed -n "1p"
+
 if [ "$VERIFY_NVIM" = "1" ]; then
   printf "verify: nvim -> "
   command -v nvim
@@ -694,6 +729,8 @@ echo "ssh host:  $ssh_host"
 if [[ "$do_start" == "1" ]]; then
   start_workspace
 fi
+
+prepare_remote_gh
 
 if [[ "$install_pi" == "1" && "$do_pi" == "1" ]]; then
   prepare_remote_pi

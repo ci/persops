@@ -21,7 +21,7 @@ When Pi changes version, update `modules/ai/pi/settings.json` `lastChangelogVers
 
 ## Devbox AI sync
 
-Personal PostHog Coder devboxes can be bootstrapped with local AI/editor config without changing the shared Coder template. This syncs Pi settings/extensions/skills/agents, Codex and Claude global instructions/skills, Agent Skills, and nvim. The nvim sync installs/uses snap nvim, maps `vi`/`vim` to nvim, disables SuperMaven only on the devbox, and warms Lazy/Mason/Tree-sitter:
+Personal PostHog Coder devboxes can be bootstrapped with local AI/editor config without changing the shared Coder template. This ensures `gh`, syncs Pi settings/extensions/skills/agents, Codex and Claude global instructions/skills, Agent Skills, and nvim. The nvim sync installs/uses snap nvim, maps `vi`/`vim` to nvim, disables SuperMaven only on the devbox, and warms Lazy/Mason/Tree-sitter:
 
 ```sh
 scripts/devbox-sync-ai --start              # default devbox
