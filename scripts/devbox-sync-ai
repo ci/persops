@@ -17,7 +17,7 @@ Default sync:
   - ~/.codex/AGENTS.md and ~/.codex/skills
   - ~/.claude/CLAUDE.md and ~/.claude/skills
   - ~/.agents/skills
-  - persops/modules/nvim -> ~/.config/nvim
+  - persops/modules/nvim -> ~/.config/nvim, plus devbox Neovim warmup
 
 Skipped by default:
   - ~/.pi/agent/auth.json
@@ -307,6 +307,280 @@ mkdir -p ~/.config/nvim
   rsync_dir "Neovim config" "$root/modules/nvim" "~/.config/nvim"
 }
 
+prepare_remote_nvim() {
+  remote_sh "$(cat <<'REMOTE'
+set -e
+
+mkdir -p "$HOME/.local/bin" "$HOME/.local/npm/bin" "$HOME/.config/fish/conf.d"
+
+path_line='export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"'
+vi_alias="alias vi='nvim'"
+vim_alias="alias vim='nvim'"
+for profile in "$HOME/.profile" "$HOME/.bashrc" "$HOME/.zshrc"; do
+  touch "$profile"
+  grep -qxF "$path_line" "$profile" || printf '\n%s\n' "$path_line" >> "$profile"
+  grep -qxF "$vi_alias" "$profile" || printf '%s\n' "$vi_alias" >> "$profile"
+  grep -qxF "$vim_alias" "$profile" || printf '%s\n' "$vim_alias" >> "$profile"
+done
+
+cat > "$HOME/.config/fish/conf.d/nvim-aliases.fish" <<'FISH'
+fish_add_path -g "$HOME/.local/bin" "$HOME/.local/npm/bin"
+alias vi='nvim'
+alias vim='nvim'
+FISH
+
+export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:/snap/bin:$PATH"
+
+nvim_ok() {
+  command -v nvim >/dev/null 2>&1 &&
+    nvim --clean --headless "+lua assert(vim.fn.has('nvim-0.11.2') == 1, 'Neovim 0.11.2+ required')" +qa >/dev/null 2>&1
+}
+
+install_snap_nvim() {
+  command -v snap >/dev/null 2>&1 || return 1
+  command -v sudo >/dev/null 2>&1 || return 1
+  sudo -n true >/dev/null 2>&1 || return 1
+  sudo -n snap install nvim --classic
+}
+
+python_venv_ok() {
+  command -v python3 >/dev/null 2>&1 || return 1
+  local tmp
+  tmp="$(mktemp -d)"
+  python3 -m venv "$tmp/venv" >/dev/null 2>&1
+  local status=$?
+  rm -rf "$tmp"
+  return "$status"
+}
+
+install_apt_nvim_deps() {
+  local needs=()
+  command -v unzip >/dev/null 2>&1 || needs+=(unzip)
+  python_venv_ok || needs+=(python3-venv)
+  [[ "${#needs[@]}" -gt 0 ]] || return 0
+
+  command -v apt-get >/dev/null 2>&1 || return 1
+  command -v sudo >/dev/null 2>&1 || return 1
+  sudo -n true >/dev/null 2>&1 || return 1
+  sudo -n apt-get update || echo "warning: apt-get update failed; trying install with existing indexes" >&2
+  sudo -n apt-get install -y "${needs[@]}"
+}
+
+if ! nvim_ok; then
+  install_snap_nvim || {
+    echo "error: nvim missing or too old; install with: sudo snap install nvim --classic" >&2
+    exit 1
+  }
+fi
+
+if [ -x /snap/bin/nvim ]; then
+  cat > "$HOME/.local/bin/nvim" <<'SH'
+#!/bin/sh
+exec /snap/bin/nvim "$@"
+SH
+  chmod 755 "$HOME/.local/bin/nvim"
+fi
+
+for cmd in vi vim; do
+  cat > "$HOME/.local/bin/$cmd" <<'SH'
+#!/bin/sh
+exec nvim "$@"
+SH
+  chmod 755 "$HOME/.local/bin/$cmd"
+done
+
+install_apt_nvim_deps || {
+  echo "error: missing Mason runtime deps; install with: sudo apt-get install -y unzip python3-venv" >&2
+  exit 1
+}
+
+printf 'nvim: '
+command -v nvim
+nvim --version | sed -n '1p'
+REMOTE
+)"
+}
+
+configure_remote_nvim() {
+  remote_sh 'set -e
+mkdir -p ~/.config/nvim/lua/plugins
+cat > ~/.config/nvim/lua/plugins/devbox.lua <<'"'"'LUA'"'"'
+return {
+  {
+    "supermaven-inc/supermaven-nvim",
+    enabled = false,
+  },
+}
+LUA
+'
+}
+
+warm_remote_nvim() {
+  remote_sh "$(cat <<'REMOTE'
+set -e
+
+warm_tmp="$(mktemp -d)"
+trap 'rm -rf "$warm_tmp"' EXIT
+warm_script="$warm_tmp/warm.sh"
+
+cat > "$warm_script" <<'SH'
+set -e
+export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"
+warm_tmp="$(cd "$(dirname "$0")" && pwd)"
+
+die() {
+  printf '%s\n' "$1" >&2
+  exit 1
+}
+
+printf "warm: Lazy restore\n"
+nvim --headless "+Lazy! restore" +qa
+
+printf "warm: Mason packages\n"
+mason_lua="$warm_tmp/mason.lua"
+cat > "$mason_lua" <<'LUA'
+local plugin = require("lazy.core.config").plugins["mason.nvim"] or {}
+local opts = vim.deepcopy(plugin.opts or {})
+local packages = opts.ensure_installed or {}
+opts.ensure_installed = nil
+
+local function die(message)
+  vim.api.nvim_err_writeln(message)
+  vim.cmd("cquit 1")
+end
+
+if not plugin.dir then
+  die("mason.nvim plugin dir unavailable")
+end
+vim.opt.rtp:prepend(plugin.dir)
+
+local ok_mason, mason = pcall(require, "mason")
+if not ok_mason then
+  die("mason unavailable")
+end
+mason.setup(opts)
+
+local ok_registry, registry = pcall(require, "mason-registry")
+if not ok_registry then
+  die("mason registry unavailable")
+end
+
+local refreshed = false
+registry.refresh(function()
+  refreshed = true
+end)
+
+if not vim.wait(60000, function()
+  return refreshed
+end, 100) then
+  die("timed out refreshing mason registry")
+end
+
+local state = { missing = {}, installing = {}, unknown = {}, done = false }
+
+local function join(values)
+  table.sort(values)
+  return table.concat(values, ", ")
+end
+
+local function snapshot()
+  state = { missing = {}, installing = {}, unknown = {}, done = false }
+  for _, name in ipairs(packages) do
+    local ok_package, package = pcall(registry.get_package, name)
+    if not ok_package then
+      table.insert(state.unknown, name)
+    elseif package:is_installing() then
+      table.insert(state.installing, name)
+    elseif not package:is_installed() then
+      table.insert(state.missing, name)
+    end
+  end
+  state.done = #state.missing == 0 and #state.installing == 0 and #state.unknown == 0
+  return state
+end
+
+local seen = {}
+for _, name in ipairs(packages) do
+  if not seen[name] then
+    seen[name] = true
+    local ok_package, package = pcall(registry.get_package, name)
+    if not ok_package then
+      die("unknown Mason package: " .. name)
+    end
+    if not package:is_installed() and not package:is_installing() then
+      local ok_install, install_err = pcall(function()
+        package:install()
+      end)
+      if not ok_install then
+        die("failed to start Mason package install for " .. name .. ": " .. tostring(install_err))
+      end
+    end
+  end
+end
+
+local completed = vim.wait(600000, function()
+  return snapshot().done
+end, 1000)
+
+local final = snapshot()
+if not completed then
+  die("timed out waiting for Mason packages; installing: " .. join(final.installing) .. "; missing: " .. join(final.missing))
+end
+if not final.done then
+  die("Mason packages not installed; missing: " .. join(final.missing) .. "; installing: " .. join(final.installing) .. "; unknown: " .. join(final.unknown))
+end
+
+vim.cmd("qa")
+LUA
+nvim --headless "+luafile $mason_lua" || die "Mason warmup failed"
+
+printf "warm: treesitter parsers\n"
+treesitter_lua="$warm_tmp/treesitter.lua"
+cat > "$treesitter_lua" <<'LUA'
+local function die(message)
+  vim.api.nvim_err_writeln(message)
+  vim.cmd("cquit 1")
+end
+
+require("lazy").load({ plugins = { "nvim-treesitter" } })
+
+local config_path = vim.fn.stdpath("config") .. "/lua/plugins/treesitter.lua"
+local ok_spec, spec = pcall(dofile, config_path)
+if not ok_spec then
+  die("failed to read treesitter spec: " .. tostring(spec))
+end
+
+local languages = spec.opts and spec.opts.ensure_installed or {}
+local ok_install, install = pcall(require, "nvim-treesitter.install")
+if not ok_install then
+  die("nvim-treesitter installer unavailable")
+end
+
+local task = install.install(languages, { summary = true, max_jobs = 8 })
+local ok_wait, installed = pcall(function()
+  return task:wait(600000)
+end)
+if not ok_wait then
+  die("treesitter warmup failed: " .. tostring(installed))
+end
+if not installed then
+  die("one or more treesitter parsers failed to install")
+end
+
+vim.cmd("qa")
+LUA
+nvim --headless "+luafile $treesitter_lua" || die "treesitter warmup failed"
+SH
+
+if command -v flox >/dev/null 2>&1 && [ -d "$HOME/posthog/.flox" ]; then
+  flox activate -d "$HOME/posthog" -- bash "$warm_script"
+else
+  bash "$warm_script"
+fi
+REMOTE
+)"
+}
+
 update_remote_pi_packages() {
   remote_sh 'set -e
 export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"
@@ -320,7 +594,11 @@ fi
 }
 
 verify_remote() {
-  remote_sh 'set -e
+  local verify_nvim="${1:-1}"
+  local script
+
+  script="$(cat <<'REMOTE'
+set -e
 export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"
 
 test -f "$HOME/.pi/agent/settings.json"
@@ -331,15 +609,32 @@ test -d "$HOME/.pi/agent/agents"
 test -d "$HOME/.codex/skills"
 test -d "$HOME/.claude/skills"
 test -d "$HOME/.agents/skills"
+if [ "$VERIFY_NVIM" = "1" ]; then
+  test -f "$HOME/.config/nvim/init.lua"
+  test -f "$HOME/.config/nvim/lua/plugins/devbox.lua"
+fi
 
 printf "verify: plain pi -> "
 command -v pi
 pi --version
 
+if [ "$VERIFY_NVIM" = "1" ]; then
+  printf "verify: nvim -> "
+  command -v nvim
+  nvim --version | sed -n "1p"
+  printf "verify: vi -> "
+  command -v vi
+  printf "verify: vim -> "
+  command -v vim
+fi
+
 if command -v flox >/dev/null 2>&1 && [ -d "$HOME/posthog/.flox" ]; then
   flox activate -d "$HOME/posthog" -- bash -lc '"'"'export PATH="$HOME/.local/bin:$HOME/.local/npm/bin:$PATH"; printf "verify: flox pi -> "; command -v pi; pi --version'"'"'
 fi
-'
+REMOTE
+)"
+  remote_sh "VERIFY_NVIM=$verify_nvim
+$script"
 }
 
 workspace_target=""
@@ -417,13 +712,16 @@ if [[ "$do_agents" == "1" ]]; then
   sync_agents
 fi
 if [[ "$do_nvim" == "1" ]]; then
+  prepare_remote_nvim
   sync_nvim
+  configure_remote_nvim
+  warm_remote_nvim
 fi
 if [[ "$pi_update" == "1" && "$do_pi" == "1" ]]; then
   update_remote_pi_packages
 fi
 if [[ "$do_verify" == "1" && "$dry_run" != "1" ]]; then
-  verify_remote
+  verify_remote "$do_nvim"
 fi
 
 echo "done"
