@@ -60,6 +60,7 @@
       "readdle-spark" # trialing out email client
       "responsively" # browser for dev
       "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
+      "secretive"
       "spotify" # muuuusic
       "sonic-visualiser" # audio stegano
       "supacode"
