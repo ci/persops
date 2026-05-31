@@ -50,6 +50,8 @@ in systemFunc rec {
       home-manager.useUserPackages = true;
       home-manager.extraSpecialArgs = {
         inherit inputs system;
+        currentSystemName = name;
+        currentSystemUser = user;
       };
       home-manager.users.${user} = import userHMConfig;
     }

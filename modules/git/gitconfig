@@ -44,5 +44,5 @@
     gpgsign = true
 
 [include]
-  path = ~/.config/git/1password-ssh-signing.inc
+  path = ~/.config/git/ssh-signing.inc
   path = ~/.gitconfig.local
