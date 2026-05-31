@@ -1,5 +1,8 @@
 { pkgs, lib, user, ... }:
 
+let
+  agentServicePath = "/etc/profiles/per-user/%u/bin:/run/current-system/sw/bin:%h/.local/bin:%h/.local/share/pnpm:%h/.npm-global/bin:%h/go/bin";
+in
 {
   nix.settings = {
     substituters = [
@@ -128,7 +131,7 @@
 
     environment = {
       CODEX_HOME = "%h/.codex";
-      PATH = lib.mkForce "/etc/profiles/per-user/%u/bin:/run/current-system/sw/bin:%h/.local/bin:%h/.local/share/pnpm:%h/.npm-global/bin:%h/go/bin";
+      PATH = lib.mkForce agentServicePath;
     };
 
     serviceConfig = {
@@ -139,6 +142,27 @@
       RestartSec = 5;
       StandardOutput = "append:%h/.codex/remote-control.log";
       StandardError = "append:%h/.codex/remote-control.log";
+    };
+  };
+
+  systemd.user.services.claude-remote-control = {
+    description = "Claude remote control bridge";
+    wantedBy = [ "default.target" ];
+    wants = [ "network-online.target" ];
+    after = [ "network-online.target" ];
+
+    environment = {
+      PATH = lib.mkForce agentServicePath;
+    };
+
+    serviceConfig = {
+      Type = "simple";
+      WorkingDirectory = "%h";
+      ExecStart = "${lib.getExe pkgs.claude-code} rc";
+      Restart = "always";
+      RestartSec = 5;
+      StandardOutput = "append:%h/.claude/rc.log";
+      StandardError = "append:%h/.claude/rc.log";
     };
   };
 
