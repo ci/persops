@@ -64,14 +64,17 @@
         inputs.jj-starship.overlays.default
         inputs.tmux-sessionizer.overlays.default
         (_: prev: {
-          # nixpkgs patch path lags the newer cargo vendor layout.
-          git-branchless = prev.git-branchless.overrideAttrs (_: {
-            postPatch = ''
-              cd "$cargoDepsCopy"/source-registry-*/esl01-indexedlog-*
-              patch -p1 < ${prev.path}/pkgs/by-name/gi/git-branchless/fix-esl01-indexedlog-for-rust-1_89.patch
-              cd "$NIX_BUILD_TOP/$sourceRoot"
-            '';
-          });
+          # pipx 1.8.0 tests still expect old direct-URL specifier spacing.
+          pythonPackagesExtensions = (prev.pythonPackagesExtensions or [ ]) ++ [
+            (_: pyPrev: {
+              pipx = pyPrev.pipx.overridePythonAttrs (old: {
+                disabledTests = (old.disabledTests or [ ]) ++ [
+                  "test_fix_package_name"
+                  "test_parse_specifier_for_metadata"
+                ];
+              });
+            })
+          ];
         })
         (_: prev:
           if prev.stdenv.isDarwin then

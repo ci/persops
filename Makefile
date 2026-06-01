@@ -5,7 +5,7 @@ NIXUSER ?= cat
 
 # Get the path to this Makefile and directory
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-FLAKE_DIR := path:$(MAKEFILE_DIR)
+FLAKE_DIR := git+file:$(MAKEFILE_DIR)
 DARWIN_FLAKE := $(FLAKE_DIR)#aglaea
 NIXOS_FLAKE := $(FLAKE_DIR)#$(NIXNAME)
 HOSTNAME := $(shell hostname -s 2>/dev/null || hostname)

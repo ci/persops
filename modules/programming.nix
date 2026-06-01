@@ -77,9 +77,8 @@ in
     uv
 
     deno
-    # nodejs
-    nodePackages.npm
-    nodePackages.yarn
+    nodejs
+    yarn
     php83
     php83Packages.composer
 
