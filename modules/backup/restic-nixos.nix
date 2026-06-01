@@ -38,6 +38,7 @@ in
         "/home/${user}/.local/share/nvim"
         "/home/${user}/.local/share/Trash"
         "/home/${user}/.local/share/containers"
+        "/home/${user}/.local/share/devento/postgres/data"
         "/home/${user}/.npm/_cacache"
         "/home/${user}/go/pkg/mod"
         "/home/${user}/**/.direnv"

@@ -373,6 +373,9 @@ in
   networking.firewall.interfaces."enp2s0".allowedTCPPorts = [ 445 ];
   networking.firewall.interfaces."wlp4s0".allowedTCPPorts = [ 445 ];
 
+  # Avoid the dbus -> broker switch inhibitor until a planned reboot.
+  services.dbus.implementation = "dbus";
+
   # Enable CUPS to print documents.
   services.printing.enable = true;
 
