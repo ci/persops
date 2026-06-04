@@ -60,7 +60,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 ## Tools
 
-- Missing CLI fallback: try nix-comma with `, <tool>` before giving up, for example `, vale`.
+- Missing CLI fallback: try nix-comma (`, <tool>`) or `nix-shell -p <tool>` before giving up, for example `, vale` or `nix-shell -p vale`.
 
 ### agent-browser
 
