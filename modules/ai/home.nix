@@ -1,4 +1,4 @@
-{ pkgs, inputs, lib, ... }:
+{ pkgs, inputs, lib, currentSystemName ? null, ... }:
 let
   llmAgents = inputs.llm-agents.packages.${pkgs.system};
   summarizePackage = pkgs.callPackage ./summarize.nix {
@@ -67,8 +67,20 @@ let
           throw "Unknown AI skill profile '${profile}' for ${name}";
     };
   localSkillTargets = map mkLocalSkill (builtins.attrNames localSkillDirs);
+  workAgentsText = ''
+    ## Work Machine
+
+    - `AGENTS.md` changes usually mean `~/p/persops/modules/ai/AGENTS.md`. Use `.ruler/*.md` only when the user specifically says persops repo AGENTS, or the note is explicitly about doing work inside persops.
+    - PostHog monorepo, SDKs, and other work repos usually live in `~/p/`.
+    - Unless already working from a different path, create new worktrees under `~/p/worktrees/{original-repo}-plus-some-specific-name` so they stay distinguishable.
+    - Local development credentials for localhost dev (API token, project token, host) are in `~/p/local-dev-creds`; safe to read for local testing. Make sure `hogli` is running before relying on them.
+  '';
+  agentsText =
+    (builtins.readFile ./AGENTS.md)
+    + lib.optionalString (currentSystemName == "work") ("\n\n" + workAgentsText);
+  agentsFile = pkgs.writeText "AGENTS.md" agentsText;
   piAgentsFile = pkgs.writeText "pi-AGENTS.md" (
-    (builtins.readFile ./AGENTS.md) + "\n\n" + (builtins.readFile ./pi/AGENTS.extra.md)
+    agentsText + "\n\n" + (builtins.readFile ./pi/AGENTS.extra.md)
   );
 in {
 
@@ -124,14 +136,14 @@ in {
 
   # Global agent instructions for Claude Code, Codex, and OpenCode.
   # Pi gets a generated mutable copy with pi-specific notes below.
-  xdg.configFile."opencode/AGENTS.md".source = ./AGENTS.md;
+  xdg.configFile."opencode/AGENTS.md".source = agentsFile;
 
   # Skills for agents
   home.file =
     let
       baseFiles = {
-        ".claude/CLAUDE.md".source = ./AGENTS.md;
-        ".codex/AGENTS.md".source = ./AGENTS.md;
+        ".claude/CLAUDE.md".source = agentsFile;
+        ".codex/AGENTS.md".source = agentsFile;
         ".summarize/config.json".text = builtins.toJSON {
           model = {
             mode = "auto";
