@@ -1,0 +1,4 @@
+interface:
+  display_name: "Repro Fidelity"
+  short_description: "Reproduce bugs in the right runtime"
+  default_prompt: "Use $repro-fidelity to reproduce this bug under the relevant runtime and deployment model, then confirm or falsify the proposed root cause."
