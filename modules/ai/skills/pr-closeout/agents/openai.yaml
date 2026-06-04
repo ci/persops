@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Closeout"
+  short_description: "Finish branches with reviewable commits"
+  default_prompt: "Use $pr-closeout to finish this branch with clean commits, autoreview loops, validation gates, and a draft PR if appropriate."
