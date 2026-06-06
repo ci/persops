@@ -65,6 +65,7 @@
       "spotify" # muuuusic
       "sonic-visualiser" # audio stegano
       "supacode"
+      "superhuman"
       "tailscale-app" # wireguard mesh goodies
       "vagrant" # + qemu = nice
       "vivaldi" # tryna migrate from arc
