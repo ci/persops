@@ -384,6 +384,16 @@ in
     ];
   };
 
+  fileSystems."/srv/timemachine" = {
+    device = "/dev/disk/by-label/timemachine";
+    fsType = "ext4";
+    options = [
+      "noatime"
+      "nofail"
+      "x-systemd.device-timeout=10"
+    ];
+  };
+
   users.groups.timemachine = {};
   users.users.timemachine = {
     isSystemUser = true;
@@ -422,7 +432,7 @@ in
 
   services = {
     samba = {
-      enable = true;
+      enable = false;
       openFirewall = false;
       settings = {
         global = {
