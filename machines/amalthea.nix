@@ -415,7 +415,14 @@ in
     cudaPkgs.cudatoolkit
     cudaPkgs.cudnn
     ffmpeg
+    cryptsetup
+    parted
+    rsync
+    sg3_utils
+    smartmontools
     transcribe
+    usbutils
+    xfsprogs
     # Full flake update pulls a python doc build that is currently broken upstream.
     python312OutOnly
     uv
