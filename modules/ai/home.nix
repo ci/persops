@@ -12,7 +12,7 @@ let
   spogoPackage = pkgs.callPackage ./spogo.nix { };
   cudaPkgs =
     if isLinux && hostSystem == "x86_64-linux" then
-      pkgs.cudaPackages_12.overrideScope (final: prev: {
+      pkgs.cudaPackages_12.overrideScope (_: prev: {
         cuda_compat = pkgs.stdenvNoCC.mkDerivation {
           pname = "cuda_compat";
           version = "disabled";

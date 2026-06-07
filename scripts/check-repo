@@ -19,6 +19,17 @@ bash -n "${shell_scripts[@]}"
 section "shellcheck"
 shellcheck "${shell_scripts[@]}"
 
+section "deadnix"
+deadnix --fail .
+
+section "stylua"
+stylua --check modules/nvim/lua
+
+if [ -d .github/workflows ]; then
+  section "actionlint"
+  actionlint
+fi
+
 section "repo metadata"
 python3 - <<'PY'
 from __future__ import annotations

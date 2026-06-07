@@ -5,7 +5,7 @@ return {
     formatters_by_ft = {
       elixir = { "mix" },
       ruby = { "rubocop" },
-      nix = { "nixpkgs_fmt" },
+      nix = { "nixfmt" },
       ["*"] = { "trim_whitespace" },
     },
     formatters = {

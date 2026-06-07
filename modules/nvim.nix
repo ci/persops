@@ -1,4 +1,4 @@
-{ config, ... }: {
+_: {
   programs.neovim = {
     enable = true;
     defaultEditor = true;

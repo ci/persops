@@ -7,7 +7,7 @@ let
     name = "python312-out-only";
     paths = [ (pkgs.lib.getOutput "out" pkgs.python312) ];
   };
-  cudaPkgs = pkgs.cudaPackages_12.overrideScope (final: prev: {
+  cudaPkgs = pkgs.cudaPackages_12.overrideScope (_: prev: {
     cuda_compat = pkgs.stdenvNoCC.mkDerivation {
       pname = "cuda_compat";
       version = "disabled";
@@ -362,36 +362,38 @@ in
     ];
   };
 
-  fileSystems."/srv/sea16" = {
-    device = "/dev/mapper/sea16";
-    fsType = "xfs";
-    options = [
-      "noatime"
-      "prjquota"
-      "nofail"
-      "x-systemd.device-timeout=10"
-    ];
-  };
+  fileSystems = {
+    "/srv/sea16" = {
+      device = "/dev/mapper/sea16";
+      fsType = "xfs";
+      options = [
+        "noatime"
+        "prjquota"
+        "nofail"
+        "x-systemd.device-timeout=10"
+      ];
+    };
 
-  fileSystems."/archive" = {
-    device = "/srv/sea16/archive";
-    fsType = "none";
-    options = [
-      "bind"
-      "nofail"
-      "x-systemd.requires=srv-sea16.mount"
-      "x-systemd.after=srv-sea16.mount"
-    ];
-  };
+    "/archive" = {
+      device = "/srv/sea16/archive";
+      fsType = "none";
+      options = [
+        "bind"
+        "nofail"
+        "x-systemd.requires=srv-sea16.mount"
+        "x-systemd.after=srv-sea16.mount"
+      ];
+    };
 
-  fileSystems."/srv/timemachine" = {
-    device = "/dev/disk/by-label/timemachine";
-    fsType = "ext4";
-    options = [
-      "noatime"
-      "nofail"
-      "x-systemd.device-timeout=10"
-    ];
+    "/srv/timemachine" = {
+      device = "/dev/disk/by-label/timemachine";
+      fsType = "ext4";
+      options = [
+        "noatime"
+        "nofail"
+        "x-systemd.device-timeout=10"
+      ];
+    };
   };
 
   users.groups.timemachine = {};

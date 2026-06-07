@@ -54,7 +54,7 @@
     };
   };
 
-  outputs = { self, nix-darwin, nixpkgs, home-manager, ... }@inputs:
+  outputs = { self, nixpkgs, ... }@inputs:
     let
       overlays = [
         inputs.jujutsu.overlays.default
@@ -98,14 +98,46 @@
       ];
 
       forAllCheckSystems = nixpkgs.lib.genAttrs checkSystems;
+
+      pkgsFor = system: import nixpkgs {
+        inherit overlays system;
+        config.allowUnfree = true;
+      };
+
+      checkToolPackages = pkgs: [
+        pkgs.actionlint
+        pkgs.deadnix
+        pkgs.nixfmt
+        pkgs.shellcheck
+        pkgs.shfmt
+        pkgs.statix
+        pkgs.stylua
+      ];
     in
       {
+      formatter = forAllCheckSystems (system:
+        let
+          pkgs = pkgsFor system;
+        in
+          pkgs.nixfmt);
+
+      devShells = forAllCheckSystems (system:
+        let
+          pkgs = pkgsFor system;
+          pythonForChecks = pkgs.python3.withPackages (ps: [
+            ps.pyyaml
+          ]);
+        in {
+          default = pkgs.mkShell {
+            packages = checkToolPackages pkgs ++ [
+              pythonForChecks
+            ];
+          };
+        });
+
       checks = forAllCheckSystems (system:
         let
-          pkgs = import nixpkgs {
-            inherit overlays system;
-            config.allowUnfree = true;
-          };
+          pkgs = pkgsFor system;
           pythonForChecks = pkgs.python3.withPackages (ps: [
             ps.pyyaml
           ]);
@@ -117,10 +149,8 @@
               pkgs.findutils
               pkgs.gnugrep
               pkgs.gnused
-              pkgs.shellcheck
-              pkgs.statix
               pythonForChecks
-            ];
+            ] ++ checkToolPackages pkgs;
           } ''
             cp -R ${self} source
             chmod -R u+w source

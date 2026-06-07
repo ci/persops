@@ -1,5 +1,5 @@
 # i3 (X11)
-{ lib, pkgs, ... }: {
+{ lib, ... }: {
   specialisation.i3.configuration = {
     services.xserver = {
       enable = true;

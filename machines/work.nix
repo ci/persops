@@ -1,4 +1,4 @@
-{ pkgs, self, inputs, currentSystem, ... }: {
+{ pkgs, self, currentSystem, ... }: {
   system.stateVersion = 4;
   system.configurationRevision = self.rev or self.dirtyRev or null;
 
