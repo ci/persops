@@ -11,6 +11,8 @@ section() {
 shell_scripts=(
 	scripts/check-repo
 	scripts/devbox-sync-ai
+	scripts/remote-preflight
+	scripts/remote-verify
 	modules/ai/scripts/add-skill.sh
 )
 

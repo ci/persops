@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+	echo "usage: remote-verify <user> <host> <port>" >&2
+}
+
+if [ "$#" -ne 3 ]; then
+	usage
+	exit 2
+fi
+
+remote_user="$1"
+remote_host="$2"
+remote_port="$3"
+ssh_opts=(-p "$remote_port" -o BatchMode=yes -o ConnectTimeout=10)
+
+ssh "${ssh_opts[@]}" "${remote_user}@${remote_host}" bash -s -- "$remote_user" <<'REMOTE'
+set -euo pipefail
+
+remote_user="$1"
+
+show_system_state() {
+	echo "verify: system state"
+	systemctl is-system-running --wait || true
+
+	failed_units="$(systemctl --failed --no-legend --plain || true)"
+	if [ -n "$failed_units" ]; then
+		echo "warning: failed system units:"
+		printf '%s\n' "$failed_units"
+	fi
+}
+
+check_system_unit() {
+	local unit="$1"
+
+	if ! systemctl list-unit-files "$unit" --no-legend | grep -q .; then
+		echo "verify: ${unit} not installed; skipping"
+		return
+	fi
+
+	echo "verify: ${unit}"
+	systemctl is-active --quiet "$unit"
+	systemctl show "$unit" --property=ActiveState,SubState,Result,NRestarts,ExecMainStatus --no-pager
+}
+
+check_optional_system_unit() {
+	local unit="$1"
+
+	if ! systemctl list-unit-files "$unit" --no-legend | grep -q .; then
+		echo "verify: ${unit} not installed; skipping"
+		return
+	fi
+
+	echo "verify: ${unit}"
+	systemctl show "$unit" --property=LoadState,UnitFileState,ActiveState,SubState,Result --no-pager
+}
+
+check_user_unit() {
+	local unit="$1"
+	local uid
+	local runtime_dir
+
+	uid="$(id -u "$remote_user")"
+	runtime_dir="/run/user/${uid}"
+
+	echo "verify: user ${unit}"
+	sudo -u "$remote_user" XDG_RUNTIME_DIR="$runtime_dir" systemctl --user is-active --quiet "$unit"
+	sudo -u "$remote_user" XDG_RUNTIME_DIR="$runtime_dir" systemctl --user show \
+		"$unit" \
+		--property=ActiveState,SubState,Result,NRestarts,ExecMainStatus \
+		--no-pager
+}
+
+show_mount() {
+	local mountpoint="$1"
+
+	if findmnt -rn "$mountpoint" >/dev/null; then
+		echo "verify: ${mountpoint} mounted"
+	else
+		echo "warning: ${mountpoint} not mounted"
+	fi
+}
+
+printf 'verify: remote host '
+hostname
+show_system_state
+check_system_unit tailscaled.service
+
+if command -v tailscale >/dev/null 2>&1; then
+	printf 'verify: tailscale ip '
+	tailscale ip -4 || true
+fi
+
+check_user_unit codex-remote-control.service
+check_user_unit claude-remote-control.service
+check_optional_system_unit samba-smbd.service
+check_optional_system_unit sea16-quota-init.service
+show_mount /srv/sea16
+show_mount /archive
+show_mount /srv/timemachine
+REMOTE

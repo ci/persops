@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+	echo "usage: remote-preflight <user> <host> <port>" >&2
+}
+
+if [ "$#" -ne 3 ]; then
+	usage
+	exit 2
+fi
+
+remote_user="$1"
+remote_host="$2"
+remote_port="$3"
+ssh_opts=(-p "$remote_port" -o BatchMode=yes -o ConnectTimeout=10)
+
+echo "preflight: ssh ${remote_user}@${remote_host}:${remote_port}"
+
+if command -v tailscale >/dev/null 2>&1; then
+	if tailscale status --self >/dev/null 2>&1; then
+		echo "preflight: local tailscale ping ${remote_host}"
+		if ! tailscale ping --c=1 --timeout=5s "$remote_host" >/dev/null; then
+			echo "warning: local tailscale ping failed for ${remote_host}; continuing to SSH preflight" >&2
+		fi
+	else
+		echo "warning: local tailscale CLI is present but not ready; continuing to SSH preflight" >&2
+	fi
+else
+	echo "warning: local tailscale CLI not found; continuing to SSH preflight" >&2
+fi
+
+ssh "${ssh_opts[@]}" "${remote_user}@${remote_host}" bash -s <<'REMOTE'
+set -euo pipefail
+
+printf 'remote host: '
+hostname
+
+if command -v tailscale >/dev/null 2>&1; then
+	printf 'remote tailscale ip: '
+	tailscale ip -4 || true
+else
+	echo "remote tailscale: command not found"
+fi
+REMOTE
