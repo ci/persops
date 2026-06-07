@@ -84,9 +84,37 @@ let
     agentsText + "\n\n" + (builtins.readFile ./pi/AGENTS.extra.md)
   );
 in {
+  xdg.configFile = {
+    # OpenCode configuration
+    "opencode/opencode.json".text = builtins.toJSON {
+      "$schema" = "https://opencode.ai/config.json";
+      keybinds = {
+        leader = "ctrl+x";
+        messages_half_page_up = "ctrl+u";
+        messages_half_page_down = "ctrl+d";
+      };
+    };
 
-  # AI agent packages
-  home.packages = with pkgs; [
+    # Oh My OpenCode configuration
+    "opencode/oh-my-opencode.json".text = builtins.toJSON {
+      "$schema" = "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json";
+      agents = {
+        explore = { model = "anthropic/claude-haiku-4-5"; };
+      };
+    };
+
+    # OpenCode commands
+    "opencode/command/commit.md".source = ./commands/commit.md;
+    "opencode/command/rmslop.md".source = ./commands/rmslop.md;
+
+    # Global agent instructions for Claude Code, Codex, and OpenCode.
+    # Pi gets a generated mutable copy with pi-specific notes below.
+    "opencode/AGENTS.md".source = agentsFile;
+  };
+
+  home = {
+    # AI agent packages
+    packages = with pkgs; [
     llmAgents.amp
     codex
     claude-code
@@ -107,84 +135,58 @@ in {
     osgrepPackage
     spogoPackage
     # llm
-  ] ++ lib.optionals (summarizeEnabled && isLinux && hostSystem == "x86_64-linux") [
-    summarizePackage
-  ] ++ lib.optionals (sherpaOnnxOfflinePackage != null) [
-    sherpaOnnxOfflinePackage
-  ];
+    ] ++ lib.optionals (summarizeEnabled && isLinux && hostSystem == "x86_64-linux") [
+      summarizePackage
+    ] ++ lib.optionals (sherpaOnnxOfflinePackage != null) [
+      sherpaOnnxOfflinePackage
+    ];
 
-  # OpenCode configuration
-  xdg.configFile."opencode/opencode.json".text = builtins.toJSON {
-    "$schema" = "https://opencode.ai/config.json";
-    keybinds = {
-      leader = "ctrl+x";
-      messages_half_page_up = "ctrl+u";
-      messages_half_page_down = "ctrl+d";
-    };
-  };
-
-  # Oh My OpenCode configuration
-  xdg.configFile."opencode/oh-my-opencode.json".text = builtins.toJSON {
-    "$schema" = "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json";
-    agents = {
-      explore = { model = "anthropic/claude-haiku-4-5"; };
-    };
-  };
-
-  # OpenCode commands
-  xdg.configFile."opencode/command/commit.md".source = ./commands/commit.md;
-  xdg.configFile."opencode/command/rmslop.md".source = ./commands/rmslop.md;
-
-  # Global agent instructions for Claude Code, Codex, and OpenCode.
-  # Pi gets a generated mutable copy with pi-specific notes below.
-  xdg.configFile."opencode/AGENTS.md".source = agentsFile;
-
-  # Skills for agents
-  home.file =
-    let
-      baseFiles = {
-        ".claude/CLAUDE.md".source = agentsFile;
-        ".codex/AGENTS.md".source = agentsFile;
-        ".summarize/config.json".text = builtins.toJSON {
-          model = {
-            mode = "auto";
-            rules = [
-              {
-                when = [ "video" ];
-                candidates = [ "google/gemini-3-flash-preview" ];
-              }
-              {
-                candidates = [ "cli/codex/gpt-5.2" ];
-              }
-            ];
+    # Skills for agents
+    file =
+      let
+        baseFiles = {
+          ".claude/CLAUDE.md".source = agentsFile;
+          ".codex/AGENTS.md".source = agentsFile;
+          ".summarize/config.json".text = builtins.toJSON {
+            model = {
+              mode = "auto";
+              rules = [
+                {
+                  when = [ "video" ];
+                  candidates = [ "google/gemini-3-flash-preview" ];
+                }
+                {
+                  candidates = [ "cli/codex/gpt-5.2" ];
+                }
+              ];
+            };
+            media = { videoMode = "auto"; };
           };
-          media = { videoMode = "auto"; };
         };
-      };
-      skillTargets =
-        localSkillTargets
-        ++ [
-          { name = "summarize"; source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize"; }
-          { name = "openhue"; source = ./openhue; }
-        ];
-      mkSkillEntry = base: skill: {
-        name = "${base}/${skill.name}";
-        value = {
-          inherit (skill) source;
-          recursive = skill.recursive or false;
+        skillTargets =
+          localSkillTargets
+          ++ [
+            { name = "summarize"; source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize"; }
+            { name = "openhue"; source = ./openhue; }
+          ];
+        mkSkillEntry = base: skill: {
+          name = "${base}/${skill.name}";
+          value = {
+            inherit (skill) source;
+            recursive = skill.recursive or false;
+          };
         };
-      };
-    in
-    baseFiles
-    // builtins.listToAttrs (
-      builtins.concatMap
-        (skill: map (base: mkSkillEntry base skill) (skill.bases or skillBaseProfiles.all))
-        skillTargets
-    );
+      in
+      baseFiles
+      // builtins.listToAttrs (
+        builtins.concatMap
+          (skill: map (base: mkSkillEntry base skill) (skill.bases or skillBaseProfiles.all))
+          skillTargets
+      );
 
-  # Pi config files are copied, not symlinked, so /settings and /reload workflows can write to them.
-  # Source of truth stays in modules/ai/pi; make local overwrites generated copies after backing up drift.
-  home.activation.installPiAgentConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+    # Pi config files are copied, not symlinked, so /settings and /reload workflows can write to them.
+    # Source of truth stays in modules/ai/pi; make local overwrites generated copies after backing up drift.
+    activation.installPiAgentConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     pi_dir="$HOME/.pi/agent"
     pi_backup_dir=""
 
@@ -265,6 +267,7 @@ in {
     copy_mutable_tree "${./pi/skills}" "$pi_dir/skills"
     copy_mutable_tree "${./pi/agents}" "$pi_dir/agents"
     copy_mutable_tree "${./pi/compound-engineering}" "$pi_dir/compound-engineering"
-  '';
+    '';
+  };
 
 }

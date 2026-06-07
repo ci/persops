@@ -7,18 +7,20 @@
       config.common.default = "*";
     };
 
-    services.xrdp.defaultWindowManager = "startxfce4";
+    services = {
+      xrdp.defaultWindowManager = "startxfce4";
 
-    services.xserver = {
-      enable = true;
+      xserver = {
+        enable = true;
 
-      desktopManager.xfce.enable = true;
+        desktopManager.xfce.enable = true;
 
-      displayManager = {
-        lightdm.enable = true;
+        displayManager = {
+          lightdm.enable = true;
+        };
       };
-    };
 
-    services.displayManager.defaultSession = "xfce";
+      displayManager.defaultSession = "xfce";
+    };
   };
 }

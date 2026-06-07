@@ -123,46 +123,57 @@ in
 
   security.sudo.wheelNeedsPassword = false;
 
-  systemd.user.services.codex-remote-control = {
-    description = "Codex remote control bridge";
-    wantedBy = [ "default.target" ];
-    wants = [ "network-online.target" ];
-    after = [ "network-online.target" ];
+  systemd = {
+    user.services = {
+      codex-remote-control = {
+        description = "Codex remote control bridge";
+        wantedBy = [ "default.target" ];
+        wants = [ "network-online.target" ];
+        after = [ "network-online.target" ];
 
-    environment = {
-      CODEX_HOME = "%h/.codex";
-      PATH = lib.mkForce agentServicePath;
+        environment = {
+          CODEX_HOME = "%h/.codex";
+          PATH = lib.mkForce agentServicePath;
+        };
+
+        serviceConfig = {
+          Type = "simple";
+          WorkingDirectory = "%h";
+          ExecStart = "${lib.getExe pkgs.codex} remote-control --enable remote_control";
+          Restart = "always";
+          RestartSec = 5;
+          StandardOutput = "append:%h/.codex/remote-control.log";
+          StandardError = "append:%h/.codex/remote-control.log";
+        };
+      };
+
+      claude-remote-control = {
+        description = "Claude remote control bridge";
+        wantedBy = [ "default.target" ];
+        wants = [ "network-online.target" ];
+        after = [ "network-online.target" ];
+
+        environment = {
+          PATH = lib.mkForce agentServicePath;
+        };
+
+        serviceConfig = {
+          Type = "simple";
+          WorkingDirectory = "%h";
+          ExecStart = "${lib.getExe pkgs.claude-code} rc";
+          Restart = "always";
+          RestartSec = 5;
+          StandardOutput = "append:%h/.claude/rc.log";
+          StandardError = "append:%h/.claude/rc.log";
+        };
+      };
     };
 
-    serviceConfig = {
-      Type = "simple";
-      WorkingDirectory = "%h";
-      ExecStart = "${lib.getExe pkgs.codex} remote-control --enable remote_control";
-      Restart = "always";
-      RestartSec = 5;
-      StandardOutput = "append:%h/.codex/remote-control.log";
-      StandardError = "append:%h/.codex/remote-control.log";
-    };
-  };
-
-  systemd.user.services.claude-remote-control = {
-    description = "Claude remote control bridge";
-    wantedBy = [ "default.target" ];
-    wants = [ "network-online.target" ];
-    after = [ "network-online.target" ];
-
-    environment = {
-      PATH = lib.mkForce agentServicePath;
-    };
-
-    serviceConfig = {
-      Type = "simple";
-      WorkingDirectory = "%h";
-      ExecStart = "${lib.getExe pkgs.claude-code} rc";
-      Restart = "always";
-      RestartSec = 5;
-      StandardOutput = "append:%h/.claude/rc.log";
-      StandardError = "append:%h/.claude/rc.log";
+    sleep.settings.Sleep = {
+      AllowSuspend = "no";
+      AllowHibernation = "no";
+      AllowHybridSleep = "no";
+      AllowSuspendThenHibernate = "no";
     };
   };
 
@@ -217,10 +228,4 @@ in
     ];
   };
 
-  systemd.sleep.settings.Sleep = {
-    AllowSuspend = "no";
-    AllowHibernation = "no";
-    AllowHybridSleep = "no";
-    AllowSuspendThenHibernate = "no";
-  };
 }

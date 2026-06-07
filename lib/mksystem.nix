@@ -46,15 +46,17 @@ in systemFunc rec {
     machineConfig
     userOSConfig
     home-manager.home-manager {
-      home-manager.useGlobalPkgs = true;
-      home-manager.useUserPackages = true;
-      home-manager.extraSpecialArgs = {
-        inherit inputs;
-        currentSystem = system;
-        currentSystemName = name;
-        currentSystemUser = user;
+      home-manager = {
+        useGlobalPkgs = true;
+        useUserPackages = true;
+        extraSpecialArgs = {
+          inherit inputs;
+          currentSystem = system;
+          currentSystemName = name;
+          currentSystemUser = user;
+        };
+        users.${user} = import userHMConfig;
       };
-      home-manager.users.${user} = import userHMConfig;
     }
 
     # We expose some extra arguments so that our modules can parameterize

@@ -230,9 +230,13 @@ in
   };
 
   boot = {
-    loader.systemd-boot.enable = true;
-    loader.systemd-boot.configurationLimit = 5;
-    loader.efi.canTouchEfiVariables = true;
+    loader = {
+      systemd-boot = {
+        enable = true;
+        configurationLimit = 5;
+      };
+      efi.canTouchEfiVariables = true;
+    };
 
     kernelPackages = pkgs.linuxPackages_latest;
     # Ensure stage1 brings up networking even though NetworkManager
@@ -276,53 +280,87 @@ in
         exec /bin/sh
       '';
     };
+
+    blacklistedKernelModules = [ "nouveau" ];
   };
 
-  boot.blacklistedKernelModules = [ "nouveau" ];
+  networking = {
+    hostName = "amalthea";
+    networkmanager = {
+      enable = true;
+      settings.main.no-auto-default = "enp2s0";
+      ensureProfiles.profiles = {
+        enp2s0 = {
+          connection = {
+            id = "enp2s0";
+            type = "ethernet";
+            interface-name = "enp2s0";
+            autoconnect = "true";
+            autoconnect-priority = "100";
+            permissions = "";
+          };
+          ipv4 = {
+            method = "manual";
+            address1 = "192.168.42.231/24,192.168.42.1";
+            dns = "192.168.42.1;1.1.1.1";
+            dns-search = "";
+          };
+          ipv6 = {
+            method = "ignore";
+          };
+        };
+      };
+    };
 
-  networking.hostName = "amalthea";
-  networking.networkmanager.enable = true;
-  networking.networkmanager.settings.main.no-auto-default = "enp2s0";
-  networking.networkmanager.ensureProfiles.profiles = {
-    enp2s0 = {
-      connection = {
-        id = "enp2s0";
-        type = "ethernet";
-        interface-name = "enp2s0";
-        autoconnect = "true";
-        autoconnect-priority = "100";
-        permissions = "";
-      };
-      ipv4 = {
-        method = "manual";
-        address1 = "192.168.42.231/24,192.168.42.1";
-        dns = "192.168.42.1;1.1.1.1";
-        dns-search = "";
-      };
-      ipv6 = {
-        method = "ignore";
+    # Enable Wake-on-LAN on the wired NIC so the machine can be woken
+    # from sleep/soft-off (S3/S5) via a magic packet.
+    interfaces.enp2s0.wakeOnLan = {
+      enable = true;
+      policy = [ "magic" ];
+    };
+
+    firewall = {
+      enable = true;
+      interfaces = {
+        "tailscale0".allowedTCPPorts = [ 445 ];
+        "enp2s0".allowedTCPPorts = [ 445 ];
+        "wlp4s0".allowedTCPPorts = [ 445 ];
       };
     };
   };
 
-  # Enable Wake-on-LAN on the wired NIC so the machine can be woken
-  # from sleep/soft-off (S3/S5) via a magic packet.
-  networking.interfaces.enp2s0.wakeOnLan = {
-    enable = true;
-    policy = [ "magic" ];
+  environment = {
+    etc = {
+      "crypttab".text = ''
+        sea16 UUID=${sea16LuksUuid} /etc/secrets/sea16/luks.key luks,nofail
+      '';
+
+      "projects".text = ''
+        16001:/srv/sea16/tm/aglaea
+      '';
+
+      "projid".text = ''
+        sea16_tm_aglaea:16001
+      '';
+    };
+
+    systemPackages = with pkgs; [
+      cudaPkgs.cudatoolkit
+      cudaPkgs.cudnn
+      ffmpeg
+      cryptsetup
+      parted
+      rsync
+      sg3_utils
+      smartmontools
+      transcribe
+      usbutils
+      xfsprogs
+      # Full flake update pulls a python doc build that is currently broken upstream.
+      python312OutOnly
+      uv
+    ];
   };
-
-  environment.etc."crypttab".text = ''
-    sea16 UUID=${sea16LuksUuid} /etc/secrets/sea16/luks.key luks,nofail
-  '';
-
-  environment.etc."projects".text = ''
-    16001:/srv/sea16/tm/aglaea
-  '';
-
-  environment.etc."projid".text = ''
-    sea16_tm_aglaea:16001
-  '';
 
   fileSystems."/srv/sea16" = {
     device = "/dev/mapper/sea16";
@@ -370,73 +408,71 @@ in
     '';
   };
 
-  services.samba = {
-    enable = true;
-    openFirewall = false;
-    settings = {
-      global = {
-        "security" = "user";
-        "min protocol" = "SMB2";
-        "ea support" = "yes";
-        "vfs objects" = "catia fruit streams_xattr";
-        "fruit:metadata" = "stream";
-        "fruit:model" = "MacSamba";
-        "fruit:nfs_aces" = "no";
-        "server multi channel support" = "no";
-        "smb ports" = "445";
-        "disable netbios" = "yes";
-        "smb3 directory leases" = "no";
-        "strict rename" = "no";
-        "log level" = "3";
-        "keepalive" = "60";
-        "deadtime" = "0";
-      };
+  services = {
+    samba = {
+      enable = true;
+      openFirewall = false;
+      settings = {
+        global = {
+          "security" = "user";
+          "min protocol" = "SMB2";
+          "ea support" = "yes";
+          "vfs objects" = "catia fruit streams_xattr";
+          "fruit:metadata" = "stream";
+          "fruit:model" = "MacSamba";
+          "fruit:nfs_aces" = "no";
+          "server multi channel support" = "no";
+          "smb ports" = "445";
+          "disable netbios" = "yes";
+          "smb3 directory leases" = "no";
+          "strict rename" = "no";
+          "log level" = "3";
+          "keepalive" = "60";
+          "deadtime" = "0";
+        };
 
-      "tm_aglaea" = {
-        "path" = "/srv/sea16/tm/aglaea";
-        "valid users" = "timemachine";
-        "force user" = "timemachine";
-        "browseable" = "no";
-        "read only" = "no";
-        "fruit:time machine" = "yes";
-        "fruit:time machine max size" = "3T";
-        "strict sync" = "yes";
-        "sync always" = "no";
+        "tm_aglaea" = {
+          "path" = "/srv/sea16/tm/aglaea";
+          "valid users" = "timemachine";
+          "force user" = "timemachine";
+          "browseable" = "no";
+          "read only" = "no";
+          "fruit:time machine" = "yes";
+          "fruit:time machine max size" = "3T";
+          "strict sync" = "yes";
+          "sync always" = "no";
+        };
       };
     };
+
+    # Avoid the dbus -> broker switch inhibitor until a planned reboot.
+    dbus.implementation = "dbus";
+
+    # Enable CUPS to print documents.
+    printing.enable = true;
+
+    pulseaudio.enable = false;
+    pipewire = {
+      enable = true;
+      alsa.enable = true;
+      alsa.support32Bit = true;
+      pulse.enable = true;
+      # If you want to use JACK applications, uncomment this
+      #jack.enable = true;
+
+      # use the example session manager (no others are packaged yet so this is enabled by default,
+      # no need to redefine it in your config for now)
+      #media-session.enable = true;
+    };
+
+    xserver.videoDrivers = [ "nvidia" ];
   };
-
-  networking.firewall.enable = true;
-  networking.firewall.interfaces."tailscale0".allowedTCPPorts = [ 445 ];
-  networking.firewall.interfaces."enp2s0".allowedTCPPorts = [ 445 ];
-  networking.firewall.interfaces."wlp4s0".allowedTCPPorts = [ 445 ];
-
-  # Avoid the dbus -> broker switch inhibitor until a planned reboot.
-  services.dbus.implementation = "dbus";
-
-  # Enable CUPS to print documents.
-  services.printing.enable = true;
 
   # Enable sound with pipewire.
   security.rtkit.enable = true;
-  services.pulseaudio.enable = false;
-  services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
-    # If you want to use JACK applications, uncomment this
-    #jack.enable = true;
-
-    # use the example session manager (no others are packaged yet so this is enabled by default,
-    # no need to redefine it in your config for now)
-    #media-session.enable = true;
-  };
 
   # Enable touchpad support (enabled default in most desktopManager).
   # services.xserver.libinput.enable = true;
-
-  services.xserver.videoDrivers = [ "nvidia" ];
 
   hardware.graphics = {
     enable = true;
@@ -448,23 +484,6 @@ in
     nvidiaSettings = true;
     open = false;
   };
-
-  environment.systemPackages = with pkgs; [
-    cudaPkgs.cudatoolkit
-    cudaPkgs.cudnn
-    ffmpeg
-    cryptsetup
-    parted
-    rsync
-    sg3_utils
-    smartmontools
-    transcribe
-    usbutils
-    xfsprogs
-    # Full flake update pulls a python doc build that is currently broken upstream.
-    python312OutOnly
-    uv
-  ];
 
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions

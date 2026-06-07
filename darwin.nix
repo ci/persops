@@ -15,7 +15,26 @@
     ];
   };
 
-  system.defaults.NSGlobalDomain.ApplePressAndHoldEnabled = false;
+  system = {
+    defaults.NSGlobalDomain.ApplePressAndHoldEnabled = false;
+
+    # Declare the user that will be running `nix-darwin`.
+    primaryUser = user;
+
+    # Avoid /nix/store symlink here; sharingd sandbox blocks reads.
+    activationScripts.postActivation.text = lib.mkAfter ''
+      rm -f /etc/nsmb.conf
+      cat > /etc/nsmb.conf <<'EOF'
+      [default]
+      mc_on=no
+      protocol_vers_map=6
+      port445=no_netbios
+      signing_required=yes
+      EOF
+      chown root:wheel /etc/nsmb.conf
+      chmod 0644 /etc/nsmb.conf
+    '';
+  };
 
   homebrew = {
     enable = true;
@@ -81,8 +100,6 @@
     #   "raycast"
     # ];
 
-  # Declare the user that will be running `nix-darwin`.
-  system.primaryUser = user;
   users.knownUsers = [ user ];
   users.users.${user} = {
     uid = 501;
@@ -90,18 +107,4 @@
     home = "/Users/${user}";
     shell = pkgs.fish;
   };
-
-  # Avoid /nix/store symlink here; sharingd sandbox blocks reads.
-  system.activationScripts.postActivation.text = lib.mkAfter ''
-    rm -f /etc/nsmb.conf
-    cat > /etc/nsmb.conf <<'EOF'
-    [default]
-    mc_on=no
-    protocol_vers_map=6
-    port445=no_netbios
-    signing_required=yes
-    EOF
-    chown root:wheel /etc/nsmb.conf
-    chmod 0644 /etc/nsmb.conf
-  '';
 }
