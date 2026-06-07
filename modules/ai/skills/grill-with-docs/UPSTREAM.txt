@@ -1,0 +1,7 @@
+source = mattpocock/skills
+source_type = github
+profile = all
+installed_at = 2026-06-07T15:32:53Z
+via = bunx --bun skills add https://github.com/mattpocock/skills --agent \* --yes --copy --skill grill-me --skill grill-with-docs --skill diagnose --skill prototype --skill improve-codebase-architecture
+computed_hash = eb0e91e84277283dc2b23ed544399e53afd6b5287e5b6929f25fe8aa608e164b
+local_changes = shortened SKILL.md description for local routing rules
