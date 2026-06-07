@@ -438,7 +438,7 @@ in
 
   services = {
     samba = {
-      enable = false;
+      enable = true;
       openFirewall = false;
       settings = {
         global = {
@@ -459,7 +459,20 @@ in
           "deadtime" = "0";
         };
 
+        "archive" = {
+          "path" = "/archive";
+          "valid users" = "cat";
+          "force user" = "cat";
+          "force group" = "users";
+          "browseable" = "yes";
+          "read only" = "no";
+          "create mask" = "0660";
+          "directory mask" = "0770";
+        };
+
         "tm_aglaea" = {
+          # Keep Time Machine offline until the migration and final sync complete.
+          "available" = "no";
           "path" = "/srv/sea16/tm/aglaea";
           "valid users" = "timemachine";
           "force user" = "timemachine";
