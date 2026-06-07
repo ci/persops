@@ -125,6 +125,11 @@
         pkgs.statix
         pkgs.stylua
       ];
+
+      workflowToolPackages = pkgs: [
+        pkgs.nix-fast-build
+        pkgs.nix-output-monitor
+      ];
     in
     {
       formatter = forAllCheckSystems (
@@ -145,9 +150,12 @@
         in
         {
           default = pkgs.mkShell {
-            packages = checkToolPackages pkgs ++ [
-              pythonForChecks
-            ];
+            packages =
+              checkToolPackages pkgs
+              ++ workflowToolPackages pkgs
+              ++ [
+                pythonForChecks
+              ];
           };
         }
       );

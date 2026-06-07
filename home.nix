@@ -101,6 +101,8 @@ in
         # nix tooling
         comma # run programs without installing: , cowsay hello
         devenv
+        nix-fast-build
+        nix-output-monitor
 
         # dev
         # aider-chat

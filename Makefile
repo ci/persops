@@ -13,11 +13,21 @@ DARWIN_FLAKE := $(FLAKE_DIR)\#aglaea
 NIXOS_FLAKE := $(FLAKE_DIR)\#$(NIXNAME)
 REMOTE_FLAKE := /nix-config\#$(NIXNAME)
 HOSTNAME := $(shell hostname -s 2>/dev/null || hostname)
+ARCH := $(shell uname -m)
 
 # We need to do some OS switching below.
 UNAME := $(shell uname)
+ifeq ($(UNAME),Darwin)
+CURRENT_SYSTEM := $(if $(filter arm64 aarch64,$(ARCH)),aarch64-darwin,x86_64-darwin)
+else
+CURRENT_SYSTEM := $(if $(filter arm64 aarch64,$(ARCH)),aarch64-linux,x86_64-linux)
+endif
 
-.PHONY: local switch check test remote-guard r/copy r/preflight r/test r/switch r/verify r/apply r/rdp
+CHECK_SYSTEMS ?= $(CURRENT_SYSTEM)
+NH ?= nh
+NIX_FAST_BUILD ?= nix develop --command nix-fast-build
+
+.PHONY: local switch build check fast-check test remote-guard r/copy r/preflight r/test r/switch r/verify r/apply r/rdp
 
 remote-guard:
 ifeq ($(HOSTNAME), ph)
@@ -28,31 +38,41 @@ endif
 local:
 ifeq ($(UNAME), Darwin)
 ifeq ($(HOSTNAME), ph)
-	sudo darwin-rebuild switch --flake ~/p/persops#work
+	$(NH) darwin switch "$(FLAKE_DIR)#work"
 else
-	sudo darwin-rebuild switch --flake "${DARWIN_FLAKE}"
+	$(NH) darwin switch "${DARWIN_FLAKE}"
 endif
 else
-	sudo nixos-rebuild switch --flake "${NIXOS_FLAKE}"
+	$(NH) os switch "${NIXOS_FLAKE}"
 endif
 
 switch:
 ifeq ($(UNAME), Darwin)
-	sudo darwin-rebuild switch --flake "${DARWIN_FLAKE}"
+	$(NH) darwin switch "${DARWIN_FLAKE}"
 else
-	sudo nixos-rebuild switch --flake "${NIXOS_FLAKE}"
+	$(NH) os switch "${NIXOS_FLAKE}"
+endif
+
+build:
+ifeq ($(UNAME), Darwin)
+	$(NH) darwin build "${DARWIN_FLAKE}"
+else
+	$(NH) os build "${NIXOS_FLAKE}"
 endif
 
 check:
-	nix flake check
+	nix flake check --all-systems --print-build-logs
+	$(MAKE) fast-check
+
+fast-check:
+	$(NIX_FAST_BUILD) --flake ".#checks" --no-link --skip-cached --systems "$(CHECK_SYSTEMS)"
 
 test:
 ifeq ($(UNAME), Darwin)
-	darwin-rebuild build --flake "${DARWIN_FLAKE}"
+	$(NH) darwin build "${DARWIN_FLAKE}"
 	sudo darwin-rebuild test --flake "${DARWIN_FLAKE}"
 else
-	nixos-rebuild build --flake "${NIXOS_FLAKE}"
-	sudo nixos-rebuild test --flake "${NIXOS_FLAKE}"
+	$(NH) os test "${NIXOS_FLAKE}"
 endif
 
 # copy the Nix configurations into the remote.
