@@ -373,6 +373,17 @@ in
     ];
   };
 
+  fileSystems."/archive" = {
+    device = "/srv/sea16/archive";
+    fsType = "none";
+    options = [
+      "bind"
+      "nofail"
+      "x-systemd.requires=srv-sea16.mount"
+      "x-systemd.after=srv-sea16.mount"
+    ];
+  };
+
   users.groups.timemachine = {};
   users.users.timemachine = {
     isSystemUser = true;
@@ -381,6 +392,7 @@ in
   };
 
   systemd.tmpfiles.rules = [
+    "d /archive 0755 root root -"
     "d /srv/sea16 0755 root root -"
   ];
 
