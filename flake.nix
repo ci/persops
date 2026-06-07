@@ -54,7 +54,8 @@
     };
   };
 
-  outputs = { self, nixpkgs, ... }@inputs:
+  outputs =
+    { self, nixpkgs, ... }@inputs:
     let
       overlays = [
         inputs.jujutsu.overlays.default
@@ -76,20 +77,29 @@
             })
           ];
         })
-        (_: prev:
+        (
+          _: prev:
           if prev.stdenv.isDarwin then
             {
               # direnv 2.37.1 still forces Darwin external linking upstream.
               direnv = prev.direnv.overrideAttrs (old: {
-                env = (old.env or { }) // { CGO_ENABLED = 1; };
+                env = (old.env or { }) // {
+                  CGO_ENABLED = 1;
+                };
               });
             }
           else
-            { })
+            { }
+        )
       ];
 
       mkSystem = import ./lib/mksystem.nix {
-        inherit self overlays nixpkgs inputs;
+        inherit
+          self
+          overlays
+          nixpkgs
+          inputs
+          ;
       };
 
       checkSystems = [
@@ -99,10 +109,12 @@
 
       forAllCheckSystems = nixpkgs.lib.genAttrs checkSystems;
 
-      pkgsFor = system: import nixpkgs {
-        inherit overlays system;
-        config.allowUnfree = true;
-      };
+      pkgsFor =
+        system:
+        import nixpkgs {
+          inherit overlays system;
+          config.allowUnfree = true;
+        };
 
       checkToolPackages = pkgs: [
         pkgs.actionlint
@@ -114,51 +126,63 @@
         pkgs.stylua
       ];
     in
-      {
-      formatter = forAllCheckSystems (system:
+    {
+      formatter = forAllCheckSystems (
+        system:
         let
           pkgs = pkgsFor system;
         in
-          pkgs.nixfmt);
+        pkgs.nixfmt
+      );
 
-      devShells = forAllCheckSystems (system:
+      devShells = forAllCheckSystems (
+        system:
         let
           pkgs = pkgsFor system;
           pythonForChecks = pkgs.python3.withPackages (ps: [
             ps.pyyaml
           ]);
-        in {
+        in
+        {
           default = pkgs.mkShell {
             packages = checkToolPackages pkgs ++ [
               pythonForChecks
             ];
           };
-        });
+        }
+      );
 
-      checks = forAllCheckSystems (system:
+      checks = forAllCheckSystems (
+        system:
         let
           pkgs = pkgsFor system;
           pythonForChecks = pkgs.python3.withPackages (ps: [
             ps.pyyaml
           ]);
-        in {
-          repo = pkgs.runCommand "persops-repo-check" {
-            nativeBuildInputs = [
-              pkgs.bash
-              pkgs.coreutils
-              pkgs.findutils
-              pkgs.gnugrep
-              pkgs.gnused
-              pythonForChecks
-            ] ++ checkToolPackages pkgs;
-          } ''
-            cp -R ${self} source
-            chmod -R u+w source
-            cd source
-            bash scripts/check-repo
-            touch $out
-          '';
-        });
+        in
+        {
+          repo =
+            pkgs.runCommand "persops-repo-check"
+              {
+                nativeBuildInputs = [
+                  pkgs.bash
+                  pkgs.coreutils
+                  pkgs.findutils
+                  pkgs.gnugrep
+                  pkgs.gnused
+                  pythonForChecks
+                ]
+                ++ checkToolPackages pkgs;
+              }
+              ''
+                cp -R ${self} source
+                chmod -R u+w source
+                cd source
+                bash scripts/check-repo
+                touch $out
+              '';
+        }
+      );
 
       darwinConfigurations."aglaea" = mkSystem "aglaea" {
         system = "aarch64-darwin";
@@ -174,7 +198,7 @@
 
       nixosConfigurations."amalthea" = mkSystem "amalthea" {
         system = "x86_64-linux";
-        user   = "cat";
+        user = "cat";
       };
     };
 }

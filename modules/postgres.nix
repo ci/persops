@@ -31,7 +31,10 @@ in
     enable = true; # set to false when upgrading
     package = pgpkg;
     dataDir = pgdir;
-    initdbArgs = ["-U cat" "--encoding=UTF8"];
+    initdbArgs = [
+      "-U cat"
+      "--encoding=UTF8"
+    ];
     extraPlugins = with pgpkg.pkgs; [
       postgis
       pgvector

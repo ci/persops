@@ -3,8 +3,7 @@
 let
   inherit (pkgs.stdenv) isDarwin;
 
-  onePassDarwinPath =
-    ''"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"'';
+  onePassDarwinPath = ''"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"'';
 
   defaultSettings = {
     ForwardAgent = false;
@@ -28,10 +27,13 @@ in
     includes = [ "~/.ssh/config.local" ];
 
     settings = {
-      "*" = defaultSettings // lib.optionalAttrs isDarwin {
-        IdentityAgent = onePassDarwinPath;
-      };
-    } // lib.optionalAttrs isDarwin {
+      "*" =
+        defaultSettings
+        // lib.optionalAttrs isDarwin {
+          IdentityAgent = onePassDarwinPath;
+        };
+    }
+    // lib.optionalAttrs isDarwin {
       amalthea = {
         ForwardAgent = "yes";
       };

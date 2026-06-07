@@ -28,10 +28,10 @@ buildNpmPackage rec {
   # Upstream's lockfile omits registry metadata for some entries, which breaks
   # Nix's offline npm fetcher. Use the same locked versions with metadata filled in.
   postPatch = ''
-    cp ${./package-lock.json} package-lock.json
-    substituteInPlace package.json \
-      --replace-fail '"name": "skepsis",' '"name": "skepsis",
-  "version": "${version}",'
+      cp ${./package-lock.json} package-lock.json
+      substituteInPlace package.json \
+        --replace-fail '"name": "skepsis",' '"name": "skepsis",
+    "version": "${version}",'
   '';
 
   # The production bundle is checked in upstream; no Vite build needed here.

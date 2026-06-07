@@ -1,4 +1,10 @@
-{ lib, pkgs, currentSystemName ? null, currentSystemUser ? "cat", ... }:
+{
+  lib,
+  pkgs,
+  currentSystemName ? null,
+  currentSystemUser ? "cat",
+  ...
+}:
 
 let
   inherit (pkgs.stdenv) isDarwin;
@@ -18,9 +24,10 @@ let
     };
   };
   secretiveSigningConfig =
-    if currentSystemName != null && builtins.hasAttr currentSystemName secretiveSigningConfigs
-    then builtins.getAttr currentSystemName secretiveSigningConfigs
-    else null;
+    if currentSystemName != null && builtins.hasAttr currentSystemName secretiveSigningConfigs then
+      builtins.getAttr currentSystemName secretiveSigningConfigs
+    else
+      null;
   secretiveSocket = "/Users/${currentSystemUser}/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh";
   useSecretiveSigning = isDarwin && secretiveSigningConfig != null;
 in
@@ -28,7 +35,8 @@ in
   home.file = {
     # also can use a ~/.gitconfig.local with non-committed overrides
     ".gitconfig".source = ./gitconfig;
-  } // lib.optionalAttrs useSecretiveSigning {
+  }
+  // lib.optionalAttrs useSecretiveSigning {
     ".local/bin/git-ssh-sign-secretive" = {
       executable = true;
       text = ''
@@ -53,27 +61,34 @@ in
       text = ''
         catalin.i@posthog.com,268578347+cat-ph@users.noreply.github.com,cat-ph@users.noreply.github.com namespaces="git" ${workSshKey}
         catalin.irimie@gmail.com,6650666+ci@users.noreply.github.com,ci@users.noreply.github.com namespaces="git" ${personalSshKey}
-      '' + lib.optionalString useSecretiveSigning ''
+      ''
+      + lib.optionalString useSecretiveSigning ''
         ${secretiveSigningConfig.identities} namespaces="git" ${secretiveSigningConfig.key}
       '';
       force = true;
     };
 
     "git/ssh-signing.inc" = {
-      text = lib.optionalString isDarwin (if useSecretiveSigning then ''
-        [user]
-            signingkey = ${secretiveSigningConfig.path}
+      text = lib.optionalString isDarwin (
+        if useSecretiveSigning then
+          ''
+            [user]
+                signingkey = ${secretiveSigningConfig.path}
 
-        [gpg "ssh"]
-            program = /Users/${currentSystemUser}/.local/bin/git-ssh-sign-secretive
-      '' else ''
-        [gpg "ssh"]
-            program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
-      '');
+            [gpg "ssh"]
+                program = /Users/${currentSystemUser}/.local/bin/git-ssh-sign-secretive
+          ''
+        else
+          ''
+            [gpg "ssh"]
+                program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
+          ''
+      );
       force = true;
     };
 
-  } // lib.optionalAttrs useSecretiveSigning {
+  }
+  // lib.optionalAttrs useSecretiveSigning {
     "jj/conf.d/${currentSystemName}-signing.toml" = {
       text = ''
         [signing]

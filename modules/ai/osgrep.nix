@@ -1,8 +1,9 @@
-{ lib
-, buildNpmPackage
-, fetchurl
-, makeWrapper
-, nodejs
+{
+  lib,
+  buildNpmPackage,
+  fetchurl,
+  makeWrapper,
+  nodejs,
 }:
 
 let

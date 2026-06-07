@@ -1,7 +1,8 @@
 { pkgs, ... }:
 let
   inherit (pkgs.stdenv) isLinux isDarwin;
-in {
+in
+{
   programs.fish = {
     enable = true;
     shellAliases = {
@@ -20,11 +21,17 @@ in {
       le = "eza --all --group --header --group-directories-first --long --extended";
       lt = "eza --all --group --header --group-directories-first --tree --level 2";
       magit = "ee -e '(progn (magit-status) (delete-other-windows))'";
-    } // (if isLinux then {
-        # just to keep it consistent
-        pbcopy = "xclip";
-        pbpaste = "xclip -o";
-      } else {});
+    }
+    // (
+      if isLinux then
+        {
+          # just to keep it consistent
+          pbcopy = "xclip";
+          pbpaste = "xclip -o";
+        }
+      else
+        { }
+    );
 
     shellAbbrs = {
       g = "git";
@@ -96,13 +103,24 @@ in {
         '';
       };
     };
-    plugins = with pkgs;
-      [
-        { name = "colored-man-pages"; src = fishPlugins.colored-man-pages.src; }
-        { name = "done"; src = fishPlugins.done.src; }
-        { name = "fzf-fish"; src = fishPlugins.fzf-fish.src; }
-        { name = "puffer"; src = fishPlugins.puffer.src; }
-      ];
+    plugins = with pkgs; [
+      {
+        name = "colored-man-pages";
+        src = fishPlugins.colored-man-pages.src;
+      }
+      {
+        name = "done";
+        src = fishPlugins.done.src;
+      }
+      {
+        name = "fzf-fish";
+        src = fishPlugins.fzf-fish.src;
+      }
+      {
+        name = "puffer";
+        src = fishPlugins.puffer.src;
+      }
+    ];
     shellInit = ''
       fish_hybrid_key_bindings 2>/dev/null
       fish_vi_cursor
@@ -117,19 +135,27 @@ in {
       set -x FZF_DEFAULT_OPTS '--height "40%" --reverse --ansi --border --inline-info --tabstop=4'
 
       fish_config theme choose "Catppuccin Mocha"
-    '' + (if isDarwin then ''
-      set -gx PATH $PATH /opt/homebrew/bin
+    ''
+    + (
+      if isDarwin then
+        ''
+          set -gx PATH $PATH /opt/homebrew/bin
 
-      # need this non-interactively to allow tmux to use it
-      alias nixrb "sudo darwin-rebuild switch --flake ~/p/persops/"
-    '' else ''
-      alias nixrb "sudo nixos-rebuild switch --flake /nix-config"
-    '');
+          # need this non-interactively to allow tmux to use it
+          alias nixrb "sudo darwin-rebuild switch --flake ~/p/persops/"
+        ''
+      else
+        ''
+          alias nixrb "sudo nixos-rebuild switch --flake /nix-config"
+        ''
+    );
   };
-  xdg.configFile."fish/themes/Catppuccin Mocha.theme".source = pkgs.fetchFromGitHub {
-    owner = "catppuccin";
-    repo = "fish";
-    rev = "cc8e4d8fffbdaab07b3979131030b234596f18da";
-    sha256 = "sha256-udiU2TOh0lYL7K7ylbt+BGlSDgCjMpy75vQ98C1kFcc=";
-  } + "/themes/Catppuccin Mocha.theme";
+  xdg.configFile."fish/themes/Catppuccin Mocha.theme".source =
+    pkgs.fetchFromGitHub {
+      owner = "catppuccin";
+      repo = "fish";
+      rev = "cc8e4d8fffbdaab07b3979131030b234596f18da";
+      sha256 = "sha256-udiU2TOh0lYL7K7ylbt+BGlSDgCjMpy75vQ98C1kFcc=";
+    }
+    + "/themes/Catppuccin Mocha.theme";
 }

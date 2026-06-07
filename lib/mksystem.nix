@@ -2,7 +2,12 @@
 #
 # This function creates a NixOS system based on our VM setup for a
 # particular architecture.
-{ self, nixpkgs, overlays, inputs }:
+{
+  self,
+  nixpkgs,
+  overlays,
+  inputs,
+}:
 
 name:
 {
@@ -17,13 +22,15 @@ let
 
   # The config files for this system.
   machineConfig = ../machines/${name}.nix;
-  userOSConfig = ../${if darwin then "darwin" else "nixos" }.nix;
+  userOSConfig = ../${if darwin then "darwin" else "nixos"}.nix;
   userHMConfig = ../home.nix;
 
   # NixOS vs nix-darwin functions
   systemFunc = if darwin then inputs.nix-darwin.lib.darwinSystem else nixpkgs.lib.nixosSystem;
-  home-manager = if darwin then inputs.home-manager.darwinModules else inputs.home-manager.nixosModules;
-in systemFunc rec {
+  home-manager =
+    if darwin then inputs.home-manager.darwinModules else inputs.home-manager.nixosModules;
+in
+systemFunc rec {
   inherit system;
 
   specialArgs = {
@@ -41,11 +48,12 @@ in systemFunc rec {
     { nixpkgs.config.allowUnfree = true; }
 
     # Snapd on Linux
-    (if isLinux then inputs.nix-snapd.nixosModules.default else {})
+    (if isLinux then inputs.nix-snapd.nixosModules.default else { })
 
     machineConfig
     userOSConfig
-    home-manager.home-manager {
+    home-manager.home-manager
+    {
       home-manager = {
         useGlobalPkgs = true;
         useUserPackages = true;

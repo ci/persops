@@ -1,13 +1,19 @@
-{ pkgs, inputs, currentSystem, ... }:
+{
+  pkgs,
+  inputs,
+  currentSystem,
+  ...
+}:
 let
   yazi-plugins = inputs.nix-yazi-plugins.legacyPackages.${currentSystem};
   yazi-flavors = pkgs.fetchFromGitHub {
-      owner = "yazi-rs";
-      repo = "flavors";
-      rev = "06708015bfb53b169d99bb3907829f9175105d57";
-      sha256 = "sha256-Gm6ThktOLUR+KDs6f3s1WCgrw2TOKQ4tolVvVdCxnCM=";
+    owner = "yazi-rs";
+    repo = "flavors";
+    rev = "06708015bfb53b169d99bb3907829f9175105d57";
+    sha256 = "sha256-Gm6ThktOLUR+KDs6f3s1WCgrw2TOKQ4tolVvVdCxnCM=";
   };
-in {
+in
+{
   imports = [
     yazi-plugins.homeManagerModules.default
   ];
@@ -32,41 +38,50 @@ in {
     flavors = {
       catppuccin-mocha = "${yazi-flavors}/catppuccin-mocha.yazi";
     };
-		keymap = {
-			mgr.prepend_keymap = [
+    keymap = {
+      mgr.prepend_keymap = [
         # rewrite some defaults
-				{
-					on = "?";
-					run = "help";
-					desc = "Open help";
-				}
+        {
+          on = "?";
+          run = "help";
+          desc = "Open help";
+        }
         # invert zoxide and fzf
-				{
-					on = "z";
-					run = "plugin zoxide";
-					desc = "Jump to a directory via zoxide";
-				}
-				{
-					on = "Z";
-					run = "plugin fzf";
-					desc = "Jump to a file/directory via fzf";
-				}
-				{
-					on = ["g" "c"];
-					run = "cd ~/p/persops";
-					desc = "Go to personal config";
-				}
-				{
-					on = ["g" "p"];
-					run = "cd ~/p";
-					desc = "Go to 'projects'";
-				}
-				{
-					on = ["g" "t"];
-					run = "cd /tmp";
-					desc = "Go to tmp";
-				}
-			];
+        {
+          on = "z";
+          run = "plugin zoxide";
+          desc = "Jump to a directory via zoxide";
+        }
+        {
+          on = "Z";
+          run = "plugin fzf";
+          desc = "Jump to a file/directory via fzf";
+        }
+        {
+          on = [
+            "g"
+            "c"
+          ];
+          run = "cd ~/p/persops";
+          desc = "Go to personal config";
+        }
+        {
+          on = [
+            "g"
+            "p"
+          ];
+          run = "cd ~/p";
+          desc = "Go to 'projects'";
+        }
+        {
+          on = [
+            "g"
+            "t"
+          ];
+          run = "cd /tmp";
+          desc = "Go to tmp";
+        }
+      ];
     };
   };
 

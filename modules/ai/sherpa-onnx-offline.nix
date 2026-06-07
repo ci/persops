@@ -1,8 +1,9 @@
-{ lib
-, stdenv
-, fetchurl
-, makeWrapper
-, cudaPackages
+{
+  lib,
+  stdenv,
+  fetchurl,
+  makeWrapper,
+  cudaPackages,
 }:
 
 let
@@ -17,10 +18,11 @@ let
   };
 
   source = lib.attrByPath [ stdenv.hostPlatform.system ] null binSources;
-  src = if source == null then
-    throw "sherpa-onnx-offline: unsupported system ${stdenv.hostPlatform.system}"
-  else
-    fetchurl source;
+  src =
+    if source == null then
+      throw "sherpa-onnx-offline: unsupported system ${stdenv.hostPlatform.system}"
+    else
+      fetchurl source;
 
   runtimeLibs = [
     stdenv.cc.cc.lib
@@ -37,7 +39,12 @@ let
   };
 in
 stdenv.mkDerivation {
-  inherit pname version src meta;
+  inherit
+    pname
+    version
+    src
+    meta
+    ;
 
   nativeBuildInputs = [ makeWrapper ];
 

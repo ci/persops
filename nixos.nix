@@ -1,4 +1,9 @@
-{ pkgs, lib, user, ... }:
+{
+  pkgs,
+  lib,
+  user,
+  ...
+}:
 
 let
   agentServicePath = "/etc/profiles/per-user/%u/bin:/run/current-system/sw/bin:%h/.local/bin:%h/.local/share/pnpm:%h/.npm-global/bin:%h/go/bin";
@@ -28,7 +33,10 @@ in
 
   environment = {
     # https://github.com/nix-community/home-manager/pull/2408
-    pathsToLink = [ "/share/fish" "/bin" ];
+    pathsToLink = [
+      "/share/fish"
+      "/bin"
+    ];
 
     # Add ~/.local/bin to PATH
     localBinInPath = true;
@@ -48,7 +56,7 @@ in
       # For hypervisors that support auto-resizing, this script forces it.
       # I've noticed not everyone listens to the udev events so this is a hack.
       (writeShellScriptBin "xrandr-auto" ''
-      xrandr --output Virtual-1 --auto
+        xrandr --output Virtual-1 --auto
       '')
     ];
   };
@@ -88,7 +96,12 @@ in
   users.users.${user} = {
     isNormalUser = true;
     home = "/home/${user}";
-    extraGroups = [ "networkmanager" "docker" "wheel" "video" ];
+    extraGroups = [
+      "networkmanager"
+      "docker"
+      "wheel"
+      "video"
+    ];
     shell = pkgs.fish;
     linger = true;
     hashedPassword = "$6$PMNZvv84d34ZY2BK$CEhbBGRm79WxIxFE5j4aY6l1/2HPqSjvFEXEhbgYJHaMoR9.A2/HHq2ninahWRVMaPQKQc8xfE7AZkf4Bm3CD/";

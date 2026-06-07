@@ -1,15 +1,16 @@
-{ lib
-, stdenv
-, fetchurl
-, nodejs
-, pnpm
-, python3
-, python3Packages
-, pkg-config
-, makeWrapper
-, pkgs
-, git
-, zstd
+{
+  lib,
+  stdenv,
+  fetchurl,
+  nodejs,
+  pnpm,
+  python3,
+  python3Packages,
+  pkg-config,
+  makeWrapper,
+  pkgs,
+  git,
+  zstd,
 }:
 
 let
@@ -41,13 +42,22 @@ let
     description = "Link → clean text → summary";
     homepage = "https://github.com/steipete/summarize";
     license = licenses.mit;
-    platforms = [ "aarch64-darwin" "x86_64-linux" "aarch64-linux" ];
+    platforms = [
+      "aarch64-darwin"
+      "x86_64-linux"
+      "aarch64-linux"
+    ];
     mainProgram = "summarize";
   };
 in
 if stdenv.isLinux then
   stdenv.mkDerivation {
-    inherit pname version src meta;
+    inherit
+      pname
+      version
+      src
+      meta
+      ;
 
     nativeBuildInputs = [
       nodejs
@@ -61,17 +71,17 @@ if stdenv.isLinux then
     ];
 
     postPatch = ''
-      ${python3}/bin/python - <<'PY'
-import json
-from pathlib import Path
-p = Path("package.json")
-data = json.loads(p.read_text())
-scripts = data.get("scripts", {})
-if "prepare" in scripts:
-  del scripts["prepare"]
-data["scripts"] = scripts
-p.write_text(json.dumps(data, indent=2) + "\n")
-PY
+            ${python3}/bin/python - <<'PY'
+      import json
+      from pathlib import Path
+      p = Path("package.json")
+      data = json.loads(p.read_text())
+      scripts = data.get("scripts", {})
+      if "prepare" in scripts:
+        del scripts["prepare"]
+      data["scripts"] = scripts
+      p.write_text(json.dumps(data, indent=2) + "\n")
+      PY
     '';
 
     env = {

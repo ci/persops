@@ -1,4 +1,10 @@
-{ pkgs, lib, currentSystemName, currentSystemUser, ... }:
+{
+  pkgs,
+  lib,
+  currentSystemName,
+  currentSystemUser,
+  ...
+}:
 
 let
   host = currentSystemName;
@@ -10,7 +16,7 @@ let
 in
 {
   environment.systemPackages = [ pkgs.restic ];
-  users.groups.restic = {};
+  users.groups.restic = { };
   users.users.${user}.extraGroups = lib.mkAfter [ "restic" ];
   systemd.tmpfiles.rules = [
     "z /etc/secrets/restic 0750 root restic -"
@@ -45,11 +51,15 @@ in
       ];
 
       extraBackupArgs = [
-        "--host" host
-        "--tag" host
+        "--host"
+        host
+        "--tag"
+        host
         "--exclude-caches"
-        "--exclude-if-present" ".nobackup"
-        "--compression" "auto"
+        "--exclude-if-present"
+        ".nobackup"
+        "--compression"
+        "auto"
       ];
 
       timerConfig = {
@@ -77,11 +87,16 @@ in
       };
 
       pruneOpts = [
-        "--host" host
-        "--keep-hourly" "24"
-        "--keep-daily" "30"
-        "--keep-weekly" "8"
-        "--keep-monthly" "12"
+        "--host"
+        host
+        "--keep-hourly"
+        "24"
+        "--keep-daily"
+        "30"
+        "--keep-weekly"
+        "8"
+        "--keep-monthly"
+        "12"
       ];
     };
 

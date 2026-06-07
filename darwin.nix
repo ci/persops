@@ -1,4 +1,9 @@
-{ pkgs, user, lib, ... }:
+{
+  pkgs,
+  user,
+  lib,
+  ...
+}:
 
 {
   nix.settings = {
@@ -94,11 +99,11 @@
       "zed" # one-letter away ^ - NewEditorAgain?
     ];
   };
-    # casks  = [
-    #   "1password"
-    #   "cleanshot"
-    #   "raycast"
-    # ];
+  # casks  = [
+  #   "1password"
+  #   "cleanshot"
+  #   "raycast"
+  # ];
 
   users.knownUsers = [ user ];
   users.users.${user} = {

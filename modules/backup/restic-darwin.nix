@@ -1,4 +1,9 @@
-{ pkgs, currentSystemName, currentSystemUser, ... }:
+{
+  pkgs,
+  currentSystemName,
+  currentSystemUser,
+  ...
+}:
 
 let
   host = currentSystemName;

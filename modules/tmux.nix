@@ -1,4 +1,5 @@
-{ config, pkgs, ... }: {
+{ config, pkgs, ... }:
+{
   programs.tmux = {
     enable = true;
     shell = "${pkgs.fish}/bin/fish";
@@ -7,8 +8,7 @@
     historyLimit = 100000;
     # maintained through brew so far until 3.3.4 makes it into nix-unstable
     # tmuxinator.enable = true;
-    plugins = with pkgs;
-    [
+    plugins = with pkgs; [
       tmuxPlugins.tmux-thumbs
       tmuxPlugins.sensible
       tmuxPlugins.pain-control

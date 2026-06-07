@@ -11,34 +11,88 @@ let
     shortcuts = {
       # Prefixless smart pane focus. cmux passes these through to Vim/Nvim;
       # smart-splits calls `cmux select-pane -L/-D/-U/-R` at Vim split edges.
-      focusLeft  = "ctrl+h";
-      focusDown  = "ctrl+j";
-      focusUp    = "ctrl+k";
+      focusLeft = "ctrl+h";
+      focusDown = "ctrl+j";
+      focusUp = "ctrl+k";
       focusRight = "ctrl+l";
 
       # Shift+h/l = prev/next surface (horizontal tabs within a pane).
-      prevSurface = [ prefix "shift+h" ];
-      nextSurface = [ prefix "shift+l" ];
+      prevSurface = [
+        prefix
+        "shift+h"
+      ];
+      nextSurface = [
+        prefix
+        "shift+l"
+      ];
 
       # Shift+j/k = next/prev workspace (vertical sidebar tabs).
-      nextSidebarTab = [ prefix "shift+j" ];
-      prevSidebarTab = [ prefix "shift+k" ];
+      nextSidebarTab = [
+        prefix
+        "shift+j"
+      ];
+      prevSidebarTab = [
+        prefix
+        "shift+k"
+      ];
 
       # tmux-flavored single-letter chords.
-      reloadConfiguration   = [ prefix "r" ];           # C-a r
-      toggleSplitZoom       = [ prefix "z" ];           # C-a z
-      splitDown             = [ prefix "-" ];           # tmux C-a " (horizontal divider)
-      splitRight            = [ prefix "shift+\\" ];    # tmux C-a | (vertical divider)
-      newTab                = [ prefix "c" ];           # C-a c (new workspace)
-      closeTab              = [ prefix "x" ];           # C-a x (kill surface)
-      renameWorkspace       = [ prefix "," ];           # C-a , (rename)
-      toggleTerminalCopyMode = [ prefix "[" ];          # C-a [ (copy mode)
-      toggleSidebar         = [ prefix "b" ];           # C-a b (sidebar)
-      find                  = [ prefix "f" ];           # C-a f (find in terminal)
-      commandPalette        = [ prefix "p" ];           # C-a p (palette)
-      showNotifications     = [ prefix "i" ];           # C-a i (inbox)
-      jumpToUnread          = [ prefix "u" ];           # C-a u (jump unread)
-      newSurface            = [ prefix "t" ];           # C-a t (new surface/tab)
+      reloadConfiguration = [
+        prefix
+        "r"
+      ]; # C-a r
+      toggleSplitZoom = [
+        prefix
+        "z"
+      ]; # C-a z
+      splitDown = [
+        prefix
+        "-"
+      ]; # tmux C-a " (horizontal divider)
+      splitRight = [
+        prefix
+        "shift+\\"
+      ]; # tmux C-a | (vertical divider)
+      newTab = [
+        prefix
+        "c"
+      ]; # C-a c (new workspace)
+      closeTab = [
+        prefix
+        "x"
+      ]; # C-a x (kill surface)
+      renameWorkspace = [
+        prefix
+        ","
+      ]; # C-a , (rename)
+      toggleTerminalCopyMode = [
+        prefix
+        "["
+      ]; # C-a [ (copy mode)
+      toggleSidebar = [
+        prefix
+        "b"
+      ]; # C-a b (sidebar)
+      find = [
+        prefix
+        "f"
+      ]; # C-a f (find in terminal)
+      commandPalette = [
+        prefix
+        "p"
+      ]; # C-a p (palette)
+      showNotifications = [
+        prefix
+        "i"
+      ]; # C-a i (inbox)
+      jumpToUnread = [
+        prefix
+        "u"
+      ]; # C-a u (jump unread)
+      newSurface = [
+        prefix
+        "t"
+      ]; # C-a t (new surface/tab)
     };
   };
 in
@@ -50,7 +104,12 @@ in
   };
 
   xdg.configFile."cmux/settings.json".text =
-    builtins.toJSON (settings // {
-      "$schema" = "https://raw.githubusercontent.com/manaflow-ai/cmux/main/web/data/cmux-settings.schema.json";
-    }) + "\n";
+    builtins.toJSON (
+      settings
+      // {
+        "$schema" =
+          "https://raw.githubusercontent.com/manaflow-ai/cmux/main/web/data/cmux-settings.schema.json";
+      }
+    )
+    + "\n";
 }

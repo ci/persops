@@ -1,5 +1,6 @@
 # xfce (X11)
-{ pkgs, ... }: {
+{ pkgs, ... }:
+{
   specialisation.xfce.configuration = {
     xdg.portal = {
       enable = true;

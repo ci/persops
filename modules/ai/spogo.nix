@@ -1,6 +1,7 @@
-{ lib
-, stdenv
-, fetchurl
+{
+  lib,
+  stdenv,
+  fetchurl,
 }:
 
 let
@@ -26,10 +27,11 @@ let
   };
 
   source = lib.attrByPath [ stdenv.hostPlatform.system ] null binSources;
-  src = if source == null then
-    throw "spogo: unsupported system ${stdenv.hostPlatform.system}"
-  else
-    fetchurl source;
+  src =
+    if source == null then
+      throw "spogo: unsupported system ${stdenv.hostPlatform.system}"
+    else
+      fetchurl source;
 
   meta = with lib; {
     description = "Spotify, but make it terminal. Power CLI using web cookies.";
@@ -40,7 +42,12 @@ let
   };
 in
 stdenv.mkDerivation {
-  inherit pname version src meta;
+  inherit
+    pname
+    version
+    src
+    meta
+    ;
 
   dontConfigure = true;
   dontBuild = true;

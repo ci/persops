@@ -1,4 +1,10 @@
-{ pkgs, self, currentSystem, ... }: {
+{
+  pkgs,
+  self,
+  currentSystem,
+  ...
+}:
+{
   system.stateVersion = 4;
   system.configurationRevision = self.rev or self.dirtyRev or null;
 
@@ -15,7 +21,11 @@
     # Automatic garbage collection
     gc = {
       automatic = true;
-      interval = { Weekday = 0; Hour = 2; Minute = 0; };  # Sunday 2am
+      interval = {
+        Weekday = 0;
+        Hour = 2;
+        Minute = 0;
+      }; # Sunday 2am
       options = "--delete-older-than 30d";
     };
 
@@ -25,7 +35,13 @@
       # devenv's mprocs process manager symlinks the system pbcopy via an impure
       # derivation; allow that host path so the build is permitted. Nix 2.34 has
       # no working `extra-` form here, so restate the darwin defaults + pbcopy.
-      allowed-impure-host-deps = [ "/System/Library" "/bin/sh" "/dev" "/usr/lib" "/usr/bin/pbcopy" ];
+      allowed-impure-host-deps = [
+        "/System/Library"
+        "/bin/sh"
+        "/dev"
+        "/usr/lib"
+        "/usr/bin/pbcopy"
+      ];
     };
   };
 
@@ -38,7 +54,11 @@
   security.pam.services.sudo_local.touchIdAuth = true;
 
   environment = {
-    shells = with pkgs; [ bashInteractive zsh fish ];
+    shells = with pkgs; [
+      bashInteractive
+      zsh
+      fish
+    ];
     systemPackages = with pkgs; [
       pam_u2f
       pam-reattach

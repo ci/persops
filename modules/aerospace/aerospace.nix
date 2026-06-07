@@ -1,7 +1,8 @@
 { lib, pkgs, ... }:
 let
   inherit (pkgs.stdenv) isDarwin;
-in {
+in
+{
   home.packages = lib.mkIf isDarwin [
     pkgs.aerospace
     pkgs.jankyborders # nice active borders around windows
@@ -11,4 +12,3 @@ in {
     source = ./aerospace.toml;
   };
 }
-

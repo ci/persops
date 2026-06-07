@@ -48,13 +48,16 @@ in
     zoxide = {
       enable = true;
       enableFishIntegration = true;
-      options = [ "--cmd" "j" ];  # use 'j' as command to match previous z config
+      options = [
+        "--cmd"
+        "j"
+      ]; # use 'j' as command to match previous z config
     };
 
     # Atuin - better shell history with sync
     atuin = {
       enable = true;
-      enableFishIntegration = true;  # takes Ctrl+R
+      enableFishIntegration = true; # takes Ctrl+R
       flags = [
         "--disable-up-arrow"
       ];
@@ -66,7 +69,7 @@ in
         ctrl_n_shortcuts = true;
         search_mode = "fulltext";
         search_mode_shell_up_key_binding = "fulltext";
-        filter_mode_shell_up_key_binding = "directory";  # up arrow = directory-scoped
+        filter_mode_shell_up_key_binding = "directory"; # up arrow = directory-scoped
         inline_height = 20;
         invert = true;
         keymap_mode = "vim-insert";
@@ -92,104 +95,107 @@ in
   home = {
     stateVersion = "23.05"; # don't really update - read release notes, figure out process
 
-    packages = with pkgs; [
-      # nix tooling
-      comma  # run programs without installing: , cowsay hello
-      devenv
+    packages =
+      with pkgs;
+      [
+        # nix tooling
+        comma # run programs without installing: , cowsay hello
+        devenv
 
-      # dev
-      # aider-chat
-      ast-grep
-      awscli2
-      biome
-      blogwatcherPackage
-      btop
-      bun
-      cmake
-      cloudflared
-      curl
-      dbeaver-bin
-      difftastic
-      doggo
-      duf
-      dust
-      eza
-      fd
-      file
-      freerdp
-      fzf
-      fx
-      gh
-      gwsPackage
-      goplacesPackage
-      glow
-      htop
-      hyperfine
-      jq
-      jsonnet
-      jsonnet-bundler
-      kaggle
-      jujutsu
-      jjui
-      mosh
-      navi
-      nushell
-      openhue-cli
-      ouch
-      outfieldr
-      overmind
-      pgcli
-      pnpm
-      posting
-      pscale
-      ripgrep
-      sad
-      actionlint
-      shellcheck
-      skepsisPackage
-      statix
-      tree-sitter
-      wakeonlan
-      wget
+        # dev
+        # aider-chat
+        ast-grep
+        awscli2
+        biome
+        blogwatcherPackage
+        btop
+        bun
+        cmake
+        cloudflared
+        curl
+        dbeaver-bin
+        difftastic
+        doggo
+        duf
+        dust
+        eza
+        fd
+        file
+        freerdp
+        fzf
+        fx
+        gh
+        gwsPackage
+        goplacesPackage
+        glow
+        htop
+        hyperfine
+        jq
+        jsonnet
+        jsonnet-bundler
+        kaggle
+        jujutsu
+        jjui
+        mosh
+        navi
+        nushell
+        openhue-cli
+        ouch
+        outfieldr
+        overmind
+        pgcli
+        pnpm
+        posting
+        pscale
+        ripgrep
+        sad
+        actionlint
+        shellcheck
+        skepsisPackage
+        statix
+        tree-sitter
+        wakeonlan
+        wget
 
-      # containers, k8s, helm stuff
-      ansible
-      docker
-      docker-compose
-      kubernetes-helm
-      terraform
-      kubectl
-      kubectx
-      k9s
-      opentofu
-      tanka
+        # containers, k8s, helm stuff
+        ansible
+        docker
+        docker-compose
+        kubernetes-helm
+        terraform
+        kubectl
+        kubectx
+        k9s
+        opentofu
+        tanka
 
-      # chat
-      element-desktop
-      discord
-      # signal-desktop # broken in current version? mismatching sha
-      slack
-      zoom-us
+        # chat
+        element-desktop
+        discord
+        # signal-desktop # broken in current version? mismatching sha
+        slack
+        zoom-us
 
-      # sec stuff
-      audacity
-      avalonia-ilspy
-      ghidra-bin
+        # sec stuff
+        audacity
+        avalonia-ilspy
+        ghidra-bin
 
-      # # example 'fine-tuning' package
-      # (nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
+        # # example 'fine-tuning' package
+        # (nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
 
-      # example shell-script wrapper
-      # (writeShellScriptBin "my-hello" ''
-      #   echo "Hello, ${config.home.username}!"
-      # '')
-    ] ++ lib.optionals pkgs.stdenv.isDarwin [
-      # osx specifics
-      docker-credential-helpers
-      mos # reverse mouse direction only for mouse not touchpad
-      hexfiend
-      numi
-    ];
+        # example shell-script wrapper
+        # (writeShellScriptBin "my-hello" ''
+        #   echo "Hello, ${config.home.username}!"
+        # '')
+      ]
+      ++ lib.optionals pkgs.stdenv.isDarwin [
+        # osx specifics
+        docker-credential-helpers
+        mos # reverse mouse direction only for mouse not touchpad
+        hexfiend
+        numi
+      ];
 
     # manage dotfiles directly
     file = {

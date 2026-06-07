@@ -5,6 +5,5 @@ let
 in
 {
   imports =
-    lib.optionals isDarwin [ ./restic-darwin.nix ]
-    ++ lib.optionals (!isDarwin) [ ./restic-nixos.nix ];
+    lib.optionals isDarwin [ ./restic-darwin.nix ] ++ lib.optionals (!isDarwin) [ ./restic-nixos.nix ];
 }

@@ -1,4 +1,10 @@
-{ pkgs, self, currentSystem, ... }: {
+{
+  pkgs,
+  self,
+  currentSystem,
+  ...
+}:
+{
   system.stateVersion = 4;
   system.configurationRevision = self.rev or self.dirtyRev or null;
 
@@ -35,7 +41,11 @@
   security.pam.services.sudo_local.touchIdAuth = true;
 
   environment = {
-    shells = with pkgs; [ bashInteractive zsh fish ];
+    shells = with pkgs; [
+      bashInteractive
+      zsh
+      fish
+    ];
     systemPackages = with pkgs; [
       pam_u2f
       pam-reattach

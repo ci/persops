@@ -2,99 +2,108 @@
 
 let
   myRuby = pkgs.ruby_3_4;
-  appleToolchainShims = lib.hiPrio (pkgs.symlinkJoin {
-    name = "apple-toolchain-shims";
-    paths = [
-      (pkgs.writeShellScriptBin "cc" ''
-        exec /usr/bin/cc "$@"
-      '')
-      (pkgs.writeShellScriptBin "c++" ''
-        exec /usr/bin/c++ "$@"
-      '')
-      (pkgs.writeShellScriptBin "cpp" ''
-        exec /usr/bin/cpp "$@"
-      '')
-      (pkgs.writeShellScriptBin "gcc" ''
-        exec /usr/bin/cc "$@"
-      '')
-      (pkgs.writeShellScriptBin "g++" ''
-        exec /usr/bin/c++ "$@"
-      '')
-      (pkgs.writeShellScriptBin "gnu-gcc" ''
-        exec ${pkgs.gcc}/bin/gcc "$@"
-      '')
-      (pkgs.writeShellScriptBin "gnu-g++" ''
-        exec ${pkgs.gcc}/bin/g++ "$@"
-      '')
-    ];
-  });
+  appleToolchainShims = lib.hiPrio (
+    pkgs.symlinkJoin {
+      name = "apple-toolchain-shims";
+      paths = [
+        (pkgs.writeShellScriptBin "cc" ''
+          exec /usr/bin/cc "$@"
+        '')
+        (pkgs.writeShellScriptBin "c++" ''
+          exec /usr/bin/c++ "$@"
+        '')
+        (pkgs.writeShellScriptBin "cpp" ''
+          exec /usr/bin/cpp "$@"
+        '')
+        (pkgs.writeShellScriptBin "gcc" ''
+          exec /usr/bin/cc "$@"
+        '')
+        (pkgs.writeShellScriptBin "g++" ''
+          exec /usr/bin/c++ "$@"
+        '')
+        (pkgs.writeShellScriptBin "gnu-gcc" ''
+          exec ${pkgs.gcc}/bin/gcc "$@"
+        '')
+        (pkgs.writeShellScriptBin "gnu-g++" ''
+          exec ${pkgs.gcc}/bin/g++ "$@"
+        '')
+      ];
+    }
+  );
 in
 {
-  home.packages = with pkgs; [
-    (myRuby.withPackages (ps: with ps; [
-      cocoapods
-      htmlbeautifier
-      irb
-      pry
-      pwntools
-      rails
-      rake
-      rspec
-      rubocop
-      solargraph
-      zsteg
-    ]))
+  home.packages =
+    with pkgs;
+    [
+      (myRuby.withPackages (
+        ps: with ps; [
+          cocoapods
+          htmlbeautifier
+          irb
+          pry
+          pwntools
+          rails
+          rake
+          rspec
+          rubocop
+          solargraph
+          zsteg
+        ]
+      ))
 
-    gcc
+      gcc
 
-    kamal
+      kamal
 
-    beam.packages.erlang_28.elixir_1_20
-    go
+      beam.packages.erlang_28.elixir_1_20
+      go
 
-    flutter
+      flutter
 
-    (python314.withPackages (ps: with ps; [
-      aiohttp
-      beautifulsoup4
-      build
-      ipython
-      jupyter
-      matplotlib
-      numpy
-      openpyxl
-      pandas
-      pip
-      pipx
-      pwntools
-      pydantic
-      requests
-      ropgadget
-      setuptools
-      twine
-      z3-solver
-    ]))
-    uv
+      (python314.withPackages (
+        ps: with ps; [
+          aiohttp
+          beautifulsoup4
+          build
+          ipython
+          jupyter
+          matplotlib
+          numpy
+          openpyxl
+          pandas
+          pip
+          pipx
+          pwntools
+          pydantic
+          requests
+          ropgadget
+          setuptools
+          twine
+          z3-solver
+        ]
+      ))
+      uv
 
-    deno
-    nodejs
-    yarn
-    php83
-    php83Packages.composer
+      deno
+      nodejs
+      yarn
+      php83
+      php83Packages.composer
 
-    lefthook
+      lefthook
 
-    # nvim :Mason deps / language toolchains
-    (lib.hiPrio rust-analyzer)
-    rustup
-    unzip
-    cabal-install
+      # nvim :Mason deps / language toolchains
+      (lib.hiPrio rust-analyzer)
+      rustup
+      unzip
+      cabal-install
 
-    zig_0_14
-  ] ++ lib.optionals pkgs.stdenv.isDarwin [
-    # Keep generic compiler names on macOS pointed at Apple's SDK-aware
-    # toolchain. GNU GCC remains available explicitly as `gnu-gcc`/`gnu-g++`.
-    appleToolchainShims
-  ];
+      zig_0_14
+    ]
+    ++ lib.optionals pkgs.stdenv.isDarwin [
+      # Keep generic compiler names on macOS pointed at Apple's SDK-aware
+      # toolchain. GNU GCC remains available explicitly as `gnu-gcc`/`gnu-g++`.
+      appleToolchainShims
+    ];
 
 }
