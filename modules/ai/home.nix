@@ -70,7 +70,7 @@ let
   workAgentsText = ''
     ## Work Machine
 
-    - `AGENTS.md` changes usually mean `~/p/persops/modules/ai/AGENTS.md`. Use `.ruler/*.md` only when the user specifically says persops repo AGENTS, or the note is explicitly about doing work inside persops.
+    - `AGENTS.md` changes usually mean `~/p/persops/modules/ai/AGENTS.md`. Use root `~/p/persops/AGENTS.md` only when the user specifically says persops repo AGENTS, or the note is explicitly about doing work inside persops.
     - PostHog monorepo, SDKs, and other work repos usually live in `~/p/`.
     - Unless already working from a different path, create new worktrees under `~/p/worktrees/{original-repo}-plus-some-specific-name` so they stay distinguishable.
     - Local development credentials for localhost dev (API token, project token, host) are in `~/p/local-dev-creds`; safe to read for local testing. Make sure `hogli` is running before relying on them.

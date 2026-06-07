@@ -1,5 +1,7 @@
 # persops - Nix-Based Dotfiles & System Configuration
 
+This is the repo-local AGENTS.md for working on this persops checkout. Global shipped agent instructions managed by this repo live in [modules/ai/AGENTS.md](modules/ai/AGENTS.md).
+
 Personal configuration managing macOS (darwin) and NixOS systems via Nix flakes.
 
 ## Commands
