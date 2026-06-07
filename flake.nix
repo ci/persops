@@ -91,8 +91,45 @@
       mkSystem = import ./lib/mksystem.nix {
         inherit self overlays nixpkgs inputs;
       };
+
+      checkSystems = [
+        "aarch64-darwin"
+        "x86_64-linux"
+      ];
+
+      forAllCheckSystems = nixpkgs.lib.genAttrs checkSystems;
     in
       {
+      checks = forAllCheckSystems (system:
+        let
+          pkgs = import nixpkgs {
+            inherit overlays system;
+            config.allowUnfree = true;
+          };
+          pythonForChecks = pkgs.python3.withPackages (ps: [
+            ps.pyyaml
+          ]);
+        in {
+          repo = pkgs.runCommand "persops-repo-check" {
+            nativeBuildInputs = [
+              pkgs.bash
+              pkgs.coreutils
+              pkgs.findutils
+              pkgs.gnugrep
+              pkgs.gnused
+              pkgs.shellcheck
+              pkgs.statix
+              pythonForChecks
+            ];
+          } ''
+            cp -R ${self} source
+            chmod -R u+w source
+            cd source
+            bash scripts/check-repo
+            touch $out
+          '';
+        });
+
       darwinConfigurations."aglaea" = mkSystem "aglaea" {
         system = "aarch64-darwin";
         user = "cat";

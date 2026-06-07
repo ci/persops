@@ -1,0 +1,5 @@
+source = local
+source_type = manual
+profile = all
+installed_at = unknown
+local_changes = provenance file added after the skill had already been vendored locally

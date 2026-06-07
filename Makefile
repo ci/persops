@@ -34,6 +34,9 @@ else
 	sudo nixos-rebuild switch --flake "${NIXOS_FLAKE}"
 endif
 
+check:
+	nix flake check
+
 test:
 ifeq ($(UNAME), Darwin)
 	darwin-rebuild build --flake "${DARWIN_FLAKE}"

@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+section() {
+  printf '\n==> %s\n' "$1"
+}
+
+shell_scripts=(
+  scripts/devbox-sync-ai
+  modules/ai/scripts/add-skill.sh
+)
+
+section "bash syntax"
+bash -n "${shell_scripts[@]}"
+
+section "shellcheck"
+shellcheck "${shell_scripts[@]}"
+
+section "repo metadata"
+python3 - <<'PY'
+from __future__ import annotations
+
+import json
+import sys
+from pathlib import Path
+
+try:
+    import yaml
+except ImportError as exc:
+    print(f"PyYAML is required for repo metadata checks: {exc}", file=sys.stderr)
+    sys.exit(1)
+
+ROOT = Path.cwd()
+PROFILE_NAMES = {"all", "coding", "claw"}
+errors: list[str] = []
+
+
+def rel(path: Path) -> str:
+    return str(path.relative_to(ROOT))
+
+
+def load_frontmatter(path: Path) -> dict[str, object] | None:
+    text = path.read_text()
+    if not text.startswith("---\n"):
+        errors.append(f"{rel(path)}: missing YAML frontmatter")
+        return None
+
+    try:
+        _, frontmatter, _ = text.split("---\n", 2)
+    except ValueError:
+        errors.append(f"{rel(path)}: unterminated YAML frontmatter")
+        return None
+
+    try:
+        parsed = yaml.safe_load(frontmatter)
+    except yaml.YAMLError as exc:
+        errors.append(f"{rel(path)}: invalid YAML frontmatter: {exc}")
+        return None
+
+    if not isinstance(parsed, dict):
+        errors.append(f"{rel(path)}: YAML frontmatter must be a mapping")
+        return None
+
+    return parsed
+
+
+for path in sorted(ROOT.rglob("*.json")):
+    if any(part in {".git", ".jj", "node_modules"} for part in path.parts):
+        continue
+    try:
+        json.loads(path.read_text())
+    except json.JSONDecodeError as exc:
+        errors.append(f"{rel(path)}: invalid JSON: {exc}")
+
+for path in sorted([*ROOT.rglob("*.yaml"), *ROOT.rglob("*.yml")]):
+    if any(part in {".git", ".jj", "node_modules"} for part in path.parts):
+        continue
+    try:
+        yaml.safe_load(path.read_text())
+    except yaml.YAMLError as exc:
+        errors.append(f"{rel(path)}: invalid YAML: {exc}")
+
+for path in sorted((ROOT / "modules/ai").rglob("SKILL.md")):
+    frontmatter = load_frontmatter(path)
+    if frontmatter is None:
+        continue
+
+    for key in ("name", "description"):
+        value = frontmatter.get(key)
+        if not isinstance(value, str) or not value.strip():
+            errors.append(f"{rel(path)}: frontmatter {key!r} must be a non-empty string")
+
+for path in sorted((ROOT / "modules/ai/skills").glob("*/SKILL.md")):
+    upstream = path.parent / "UPSTREAM.txt"
+    if not upstream.is_file():
+        errors.append(f"{rel(path.parent)}: missing UPSTREAM.txt")
+
+overrides_path = ROOT / "modules/ai/skill-overrides.json"
+if overrides_path.is_file():
+    try:
+        overrides = json.loads(overrides_path.read_text())
+    except json.JSONDecodeError:
+        overrides = {}
+
+    if not isinstance(overrides, dict):
+        errors.append(f"{rel(overrides_path)}: top-level value must be an object")
+    else:
+        skills_dir = ROOT / "modules/ai/skills"
+        for skill_name, config in sorted(overrides.items()):
+            if not (skills_dir / skill_name).is_dir():
+                errors.append(f"{rel(overrides_path)}: override for missing skill {skill_name!r}")
+            if not isinstance(config, dict):
+                errors.append(f"{rel(overrides_path)}: override {skill_name!r} must be an object")
+                continue
+            profile = config.get("profile")
+            if profile not in PROFILE_NAMES:
+                expected = ", ".join(sorted(PROFILE_NAMES))
+                errors.append(
+                    f"{rel(overrides_path)}: override {skill_name!r} has invalid profile "
+                    f"{profile!r}; expected one of {expected}"
+                )
+
+if errors:
+    for error in errors:
+        print(error, file=sys.stderr)
+    sys.exit(1)
+
+print("metadata checks passed")
+PY
+
+section "statix (advisory)"
+if ! statix check --format errfmt .; then
+  printf 'statix reported existing warnings; not failing this gate yet\n' >&2
+fi

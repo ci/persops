@@ -1,0 +1,5 @@
+source = nix-steipete-tools/tools/summarize/skills/summarize
+source_type = flake_input
+profile = all
+installed_at = unknown
+local_changes = provenance file added after the skill had already been vendored locally

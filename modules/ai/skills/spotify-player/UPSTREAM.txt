@@ -1,0 +1,5 @@
+source = local
+source_type = manual
+profile = claw
+installed_at = unknown
+local_changes = spogo-first spotify helper
