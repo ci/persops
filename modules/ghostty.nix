@@ -1,4 +1,4 @@
-{...}: {
+_: {
   # broken on OSX currently, maintained through brew cask in /flake.nix
   # programs.ghostty = {
   #   enable = true;

@@ -28,7 +28,7 @@ in systemFunc rec {
 
   specialArgs = {
     inherit self inputs;
-    user = user;
+    inherit user;
   };
 
   modules = [

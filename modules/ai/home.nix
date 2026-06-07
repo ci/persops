@@ -3,9 +3,9 @@ let
   hostSystem = pkgs.stdenv.hostPlatform.system;
   llmAgents = inputs.llm-agents.packages.${hostSystem};
   summarizePackage = pkgs.callPackage ./summarize.nix {
-    nodejs = if pkgs ? nodejs_22 then pkgs.nodejs_22 else pkgs.nodejs;
-    pnpm = if pkgs ? pnpm_10 then pkgs.pnpm_10 else pkgs.pnpm;
-    pkgs = pkgs;
+    nodejs = pkgs.nodejs_22 or pkgs.nodejs;
+    pnpm = pkgs.pnpm_10 or pkgs.pnpm;
+    inherit pkgs;
   };
   gifgrepPackage = pkgs.callPackage ./gifgrep.nix { };
   osgrepPackage = pkgs.callPackage ./osgrep.nix { };
@@ -170,7 +170,7 @@ in {
       mkSkillEntry = base: skill: {
         name = "${base}/${skill.name}";
         value = {
-          source = skill.source;
+          inherit (skill) source;
           recursive = skill.recursive or false;
         };
       };

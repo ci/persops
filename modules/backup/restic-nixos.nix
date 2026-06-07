@@ -21,7 +21,7 @@ in
 
   services.restic.backups = {
     home-hourly = {
-      user = user;
+      inherit user;
       repositoryFile = nixRepositoryFile;
       initialize = true;
 
@@ -63,7 +63,7 @@ in
     };
 
     home-prune-daily = {
-      user = user;
+      inherit user;
       repositoryFile = nixRepositoryFile;
 
       passwordFile = nixPasswordFile;
@@ -86,7 +86,7 @@ in
     };
 
     home-check-weekly = {
-      user = user;
+      inherit user;
       repositoryFile = nixRepositoryFile;
 
       passwordFile = nixPasswordFile;

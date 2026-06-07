@@ -31,13 +31,11 @@ let
     inherit pnpm;
   };
 
-  pnpmDeps = (pnpmFetchDepsPkg.fetchPnpmDeps {
-    pname = pname;
-    version = version;
-    src = src;
+  pnpmDeps = pnpmFetchDepsPkg.fetchPnpmDeps {
+    inherit pname version src;
     hash = "sha256-3BRbu9xNYUpsUkC1DKXKl8iv5GO9rZqE2eqRVDh8DTA=";
     fetcherVersion = 3;
-  });
+  };
 
   meta = with lib; {
     description = "Link → clean text → summary";
@@ -121,8 +119,7 @@ PY
   }
 else
   stdenv.mkDerivation {
-    pname = pname;
-    version = version;
+    inherit pname version;
     src = fetchurl binSources.${stdenv.hostPlatform.system};
 
     dontConfigure = true;

@@ -1,4 +1,4 @@
-{ ... }:
+_:
 let
   # Chord prefix used by every binding below. Change this one string to
   # rebind everything. ctrl+space keeps C-a free for readline beginning-of-line.
