@@ -49,7 +49,8 @@ in systemFunc rec {
       home-manager.useGlobalPkgs = true;
       home-manager.useUserPackages = true;
       home-manager.extraSpecialArgs = {
-        inherit inputs system;
+        inherit inputs;
+        currentSystem = system;
         currentSystemName = name;
         currentSystemUser = user;
       };

@@ -1,29 +1,40 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 
 let
   inherit (pkgs.stdenv) isDarwin;
 
   onePassDarwinPath =
     ''"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"'';
+
+  defaultSettings = {
+    ForwardAgent = false;
+    AddKeysToAgent = "no";
+    Compression = false;
+    ServerAliveInterval = 0;
+    ServerAliveCountMax = 3;
+    HashKnownHosts = false;
+    UserKnownHostsFile = "~/.ssh/known_hosts";
+    ControlMaster = "no";
+    ControlPath = "~/.ssh/master-%r@%n:%p";
+    ControlPersist = "no";
+  };
 in
 {
-  programs.ssh =
-    {
-      enable = true;
+  programs.ssh = {
+    enable = true;
+    enableDefaultConfig = false;
 
-      # Load private host entries / overrides if present.
-      includes = [ "~/.ssh/config.local" ];
-    } // (if isDarwin then {
-      enableDefaultConfig = false;
+    # Load private host entries / overrides if present.
+    includes = [ "~/.ssh/config.local" ];
 
-      matchBlocks."*" = {
-        extraOptions.IdentityAgent = onePassDarwinPath;
+    settings = {
+      "*" = defaultSettings // lib.optionalAttrs isDarwin {
+        IdentityAgent = onePassDarwinPath;
       };
-
-      # When connecting to the NixOS box, forward the local 1Password agent
-      # so the remote stays headless.
-      matchBlocks."amalthea" = {
-        extraOptions.ForwardAgent = "yes";
+    } // lib.optionalAttrs isDarwin {
+      amalthea = {
+        ForwardAgent = "yes";
       };
-    } else {});
+    };
+  };
 }

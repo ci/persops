@@ -1,6 +1,7 @@
 { pkgs, inputs, lib, currentSystemName ? null, ... }:
 let
-  llmAgents = inputs.llm-agents.packages.${pkgs.system};
+  hostSystem = pkgs.stdenv.hostPlatform.system;
+  llmAgents = inputs.llm-agents.packages.${hostSystem};
   summarizePackage = pkgs.callPackage ./summarize.nix {
     nodejs = if pkgs ? nodejs_22 then pkgs.nodejs_22 else pkgs.nodejs;
     pnpm = if pkgs ? pnpm_10 then pkgs.pnpm_10 else pkgs.pnpm;
@@ -10,7 +11,7 @@ let
   osgrepPackage = pkgs.callPackage ./osgrep.nix { };
   spogoPackage = pkgs.callPackage ./spogo.nix { };
   cudaPkgs =
-    if isLinux && pkgs.system == "x86_64-linux" then
+    if isLinux && hostSystem == "x86_64-linux" then
       pkgs.cudaPackages_12.overrideScope (final: prev: {
         cuda_compat = pkgs.stdenvNoCC.mkDerivation {
           pname = "cuda_compat";
@@ -106,7 +107,7 @@ in {
     osgrepPackage
     spogoPackage
     # llm
-  ] ++ lib.optionals (summarizeEnabled && isLinux && pkgs.system == "x86_64-linux") [
+  ] ++ lib.optionals (summarizeEnabled && isLinux && hostSystem == "x86_64-linux") [
     summarizePackage
   ] ++ lib.optionals (sherpaOnnxOfflinePackage != null) [
     sherpaOnnxOfflinePackage

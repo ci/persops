@@ -1,6 +1,6 @@
-{ pkgs, inputs, system, ... }:
+{ pkgs, inputs, currentSystem, ... }:
 let
-  yazi-plugins = inputs.nix-yazi-plugins.legacyPackages.${system};
+  yazi-plugins = inputs.nix-yazi-plugins.legacyPackages.${currentSystem};
   yazi-flavors = pkgs.fetchFromGitHub {
       owner = "yazi-rs";
       repo = "flavors";
@@ -15,6 +15,7 @@ in {
   programs.yazi = {
     enable = true;
     enableFishIntegration = true; # yy wrapper for cd-on-exit
+    shellWrapperName = "yy";
     settings = {
       mgr = {
         show_hidden = true;
