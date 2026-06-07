@@ -73,8 +73,32 @@ on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
     run = 'move-node-to-workspace 3'
 
 [[on-window-detected]]
+    if.app-id = 'com.superhuman.electron'
+    run = 'move-node-to-workspace 4'
+
+[[on-window-detected]]
     if.app-id = 'com.mitchellh.ghostty'
     run = 'move-node-to-workspace 5'
+
+[[on-window-detected]]
+    if.app-id = 'com.openai.codex'
+    run = 'move-node-to-workspace 6'
+
+[[on-window-detected]]
+    if.app-id = 'com.steipete.codexbar'
+    run = 'move-node-to-workspace 6'
+
+[[on-window-detected]]
+    if.app-id = 'com.anthropic.claudefordesktop'
+    run = 'move-node-to-workspace 6'
+
+[[on-window-detected]]
+    if.app-id = 'com.linear'
+    run = 'move-node-to-workspace 7'
+
+[[on-window-detected]]
+    if.app-id = 'net.imput.helium'
+    run = 'move-node-to-workspace 1'
 
 [[on-window-detected]]
     if.app-id = 'com.vivaldi.Vivaldi'
