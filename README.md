@@ -42,8 +42,7 @@ Default flow:
 ```sh
 modules/ai/scripts/add-skill.sh shadcn/ui
 make switch
-make r/copy
-make r/switch
+make r/apply
 ```
 
 Profiles:

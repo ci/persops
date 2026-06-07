@@ -25,8 +25,7 @@ Use this workflow for skills managed in `~/p/persops/modules/ai/skills`.
 5. If you create or update a repo-local skill, keep `SKILL.md` concise, keep `agents/openai.yaml` aligned, and validate the skill with `uv run --with pyyaml python3 /Users/cat/.codex/skills/.system/skill-creator/scripts/quick_validate.py <skill-dir>`.
 6. Run the local and remote apply loop:
    - `make switch`
-   - `make r/copy`
-   - `make r/switch`
+   - `make r/apply`
 7. Verify the expected symlinks locally and on `amalthea`:
    - `~/.claude/skills/<name>` when profile includes Claude
    - `~/.codex/skills/<name>` when profile includes Codex
