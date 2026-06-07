@@ -389,15 +389,6 @@ in
       ];
     };
 
-    "/srv/timemachine" = {
-      device = "/dev/disk/by-label/timemachine";
-      fsType = "ext4";
-      options = [
-        "noatime"
-        "nofail"
-        "x-systemd.device-timeout=10"
-      ];
-    };
   };
 
   users.groups.timemachine = { };
@@ -471,8 +462,6 @@ in
         };
 
         "tm_aglaea" = {
-          # Keep Time Machine offline until the migration and final sync complete.
-          "available" = "no";
           "path" = "/srv/sea16/tm/aglaea";
           "valid users" = "timemachine";
           "force user" = "timemachine";
