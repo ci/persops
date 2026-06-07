@@ -91,6 +91,9 @@ in
 
     # Let Home Manager install and manage itself.
     home-manager.enable = true;
+
+    # Fish enables this by default for `man` completions; `mandb` slows builds.
+    man.generateCaches = false;
   };
 
   home = {
