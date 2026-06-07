@@ -1,6 +1,7 @@
 { pkgs, ... }:
 
 let
+  sea16LuksUuid = "c6ef6695-37d1-4edf-9f8c-8e08cbff15e6";
   parakeetModel = "nvidia/parakeet-tdt-0.6b-v3";
   python312OutOnly = pkgs.symlinkJoin {
     name = "python312-out-only";
@@ -311,11 +312,24 @@ in
     policy = [ "magic" ];
   };
 
-  fileSystems."/srv/timemachine" = {
-    device = "/dev/disk/by-label/timemachine";
-    fsType = "ext4";
+  environment.etc."crypttab".text = ''
+    sea16 UUID=${sea16LuksUuid} /etc/secrets/sea16/luks.key luks,nofail
+  '';
+
+  environment.etc."projects".text = ''
+    16001:/srv/sea16/tm/aglaea
+  '';
+
+  environment.etc."projid".text = ''
+    sea16_tm_aglaea:16001
+  '';
+
+  fileSystems."/srv/sea16" = {
+    device = "/dev/mapper/sea16";
+    fsType = "xfs";
     options = [
       "noatime"
+      "prjquota"
       "nofail"
       "x-systemd.device-timeout=10"
     ];
@@ -325,13 +339,36 @@ in
   users.users.timemachine = {
     isSystemUser = true;
     group = "timemachine";
-    home = "/srv/timemachine";
+    home = "/srv/sea16/tm";
   };
 
   systemd.tmpfiles.rules = [
-    "d /srv/timemachine 0750 timemachine timemachine -"
-    "d /srv/timemachine/aglaea 0750 timemachine timemachine -"
+    "d /srv/sea16 0755 root root -"
   ];
+
+  systemd.services.sea16-quota-init = {
+    description = "Initialize sea16 directories and XFS project quota";
+    wantedBy = [ "multi-user.target" ];
+    wants = [ "srv-sea16.mount" ];
+    after = [ "srv-sea16.mount" ];
+    path = with pkgs; [
+      coreutils
+      xfsprogs
+    ];
+    unitConfig.ConditionPathIsMountPoint = "/srv/sea16";
+    serviceConfig.Type = "oneshot";
+    script = ''
+      install -d -o timemachine -g timemachine -m 0750 /srv/sea16/tm
+      install -d -o timemachine -g timemachine -m 0750 /srv/sea16/tm/aglaea
+      install -d -o cat -g users -m 0750 /srv/sea16/archive
+      install -d -o cat -g users -m 0750 /srv/sea16/restore-tests
+
+      xfs_quota -x \
+        -c 'project -s sea16_tm_aglaea' \
+        -c 'limit -p bhard=3t sea16_tm_aglaea' \
+        /srv/sea16
+    '';
+  };
 
   services.samba = {
     enable = true;
@@ -356,12 +393,13 @@ in
       };
 
       "tm_aglaea" = {
-        "path" = "/srv/timemachine/aglaea";
+        "path" = "/srv/sea16/tm/aglaea";
         "valid users" = "timemachine";
         "force user" = "timemachine";
         "browseable" = "no";
         "read only" = "no";
         "fruit:time machine" = "yes";
+        "fruit:time machine max size" = "3T";
         "strict sync" = "yes";
         "sync always" = "no";
       };
