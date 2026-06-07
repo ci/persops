@@ -15,6 +15,13 @@ nix flake update codex-cli-nix claude-code-nix llm-agents
 make local
 ```
 
+## Ops status
+
+`ops-status` prints a local health summary for the current machine: Nix, `persops`
+VCS state, Restic, Time Machine, Tailscale, desktop services, and Linux systemd
+services where available. Use `ops-status --remote` for a small read-only
+`amalthea` SSH probe.
+
 Can also run `nix flake update` to refresh everything, then switch.
 
 When Pi changes version, update `modules/ai/pi/settings.json` `lastChangelogVersion` to the new `pi --version 2>&1`, read Pi's installed `CHANGELOG.md`, and summarize the skipped Pi changelog entries in the handoff. This keeps Pi from showing the same changelog on every startup while still surfacing the news once during the update.

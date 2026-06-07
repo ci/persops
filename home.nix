@@ -41,6 +41,7 @@ in
     ./modules/programming.nix
     ./modules/yazi.nix
     ./modules/ai/home.nix
+    ./modules/ops-status.nix
   ];
 
   programs = {
