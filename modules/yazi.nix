@@ -100,9 +100,6 @@ in
       ouch = {
         enable = true;
       };
-      glow = {
-        enable = true;
-      };
       bookmarks = {
         enable = true;
         persist = "vim";
