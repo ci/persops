@@ -25,7 +25,8 @@ on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
     alt-shift-k = 'move up'
     alt-shift-l = 'move right'
 
-    alt-f = 'fullscreen'
+    alt-f = 'fullscreen --no-outer-gaps' # full-width even with zen gaps on
+    alt-z = 'exec-and-forget aerospace-zen-toggle' # toggle centered outer gaps on the Dell
 
     alt-s = 'layout v_accordion' # 'layout stacking' in i3
     alt-w = 'layout h_accordion' # 'layout tabbed' in i3
