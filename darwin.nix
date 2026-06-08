@@ -49,6 +49,7 @@
     taps = [
       "posthog/tap"
       "steipete/tap"
+      "darrylmorley/whatcable"
     ];
     brews = [
       "cowsay"
@@ -93,6 +94,7 @@
       "tailscale-app" # wireguard mesh goodies
       "vagrant" # + qemu = nice
       "vivaldi" # tryna migrate from arc
+      "whatcable" # usb-c/thunderbolt cable info menu bar app
       "windsurf" # codeium successor
       "yaak@beta" # postman much
       "zen" # tired of switching browsers
