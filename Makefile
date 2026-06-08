@@ -70,7 +70,6 @@ fast-check:
 test:
 ifeq ($(UNAME), Darwin)
 	$(NH) darwin build "${DARWIN_FLAKE}"
-	sudo darwin-rebuild test --flake "${DARWIN_FLAKE}"
 else
 	$(NH) os test "${NIXOS_FLAKE}"
 endif
