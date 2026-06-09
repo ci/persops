@@ -9,10 +9,15 @@ NIXNAME ?= amalthea
 # Get the path to this Makefile and directory
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 FLAKE_DIR := git+file:$(MAKEFILE_DIR)
+HOSTNAME := $(shell hostname -s 2>/dev/null || hostname)
+# Work machine (ph) uses the "work" darwin config; everything else is aglaea.
+ifeq ($(HOSTNAME), ph)
+DARWIN_FLAKE := $(FLAKE_DIR)\#work
+else
 DARWIN_FLAKE := $(FLAKE_DIR)\#aglaea
+endif
 NIXOS_FLAKE := $(FLAKE_DIR)\#$(NIXNAME)
 REMOTE_FLAKE := /nix-config\#$(NIXNAME)
-HOSTNAME := $(shell hostname -s 2>/dev/null || hostname)
 ARCH := $(shell uname -m)
 
 # We need to do some OS switching below.
@@ -37,11 +42,7 @@ endif
 
 local:
 ifeq ($(UNAME), Darwin)
-ifeq ($(HOSTNAME), ph)
-	$(NH) darwin switch "$(FLAKE_DIR)#work"
-else
 	$(NH) darwin switch "${DARWIN_FLAKE}"
-endif
 else
 	$(NH) os switch "${NIXOS_FLAKE}"
 endif
