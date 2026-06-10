@@ -4,8 +4,6 @@
     mise
   ];
 
-  xdg.configFile."mise/config.toml".source = ./mise.toml;
-
   programs = {
     bash.initExtra = ''
       eval "$(${lib.getExe pkgs.mise} activate bash)"
