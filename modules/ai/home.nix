@@ -134,9 +134,7 @@ in
         llmAgents.amp
         codex
         claude-code
-        llmAgents.claude-agent-acp
         llmAgents.claude-plugins
-        llmAgents.codex-acp
         # llmAgents.copilot-cli
         llmAgents.cursor-agent
         # llmAgents.gemini-cli # disabled: stale vs Homebrew package
