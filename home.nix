@@ -151,7 +151,6 @@ in
         overmind
         pgcli
         pnpm
-        posting
         pscale
         ripgrep
         sad
