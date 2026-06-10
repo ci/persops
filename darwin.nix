@@ -66,11 +66,12 @@
       "steipete/tap/codexbar"
       "steipete/tap/repobar"
       "nikitabobko/tap/aerospace"
-      "conductor" # trialing these out
+      "conductor" # agent session manager of choice
       "claude" # claudedesktop goes brrr
       "cleanshot"
       "font-jetbrains-mono-nerd-font"
       "ghostty" # best terminal atm
+      "helium-browser" # browser that finally stuck
       "homerow" # everywhere-navigation
       "thaw"
       "karabiner-elements"
@@ -78,27 +79,18 @@
       "kindavim" # vim-ify everything
       "linear" # linear app
       "obsidian"
-      "opencode-desktop" # let's compare to conductor
       "orbstack" # container goodies on OSX
-      "ollama-app" # through brew since nixos is just client for darwin
       "osaurus" # local LLM server
       "raycast" # spotlight go away
-      "readdle-spark" # trialing out email client
       "responsively" # browser for dev
       "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
       "secretive"
       "spotify" # muuuusic
       "sonic-visualiser" # audio stegano
-      "supacode"
       "superhuman"
       "tailscale-app" # wireguard mesh goodies
       "vagrant" # + qemu = nice
-      "vivaldi" # tryna migrate from arc
       "whatcable" # usb-c/thunderbolt cable info menu bar app
-      "windsurf" # codeium successor
-      "yaak@beta" # postman much
-      "zen" # tired of switching browsers
-      "zed" # one-letter away ^ - NewEditorAgain?
     ];
   };
   # casks  = [
