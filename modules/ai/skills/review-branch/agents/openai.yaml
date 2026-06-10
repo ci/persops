@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Branch"
+  short_description: "Read-only branch/PR review in a temp worktree"
+  default_prompt: "Use $review-branch to review this branch from origin in a temp worktree — read the PR description and comments if one exists, triage existing review comments, and report findings without making any changes."

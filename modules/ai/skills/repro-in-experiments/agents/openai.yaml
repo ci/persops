@@ -1,0 +1,4 @@
+interface:
+  display_name: "Repro in Experiments"
+  short_description: "Repro issues in a scratch app under ~/p/experiments"
+  default_prompt: "Use $repro-in-experiments to reproduce this issue in a fresh app under ~/p/experiments against the local PostHog instance, pinning reported versions when given, and report a confirmed-or-falsified verdict with exact versions."
