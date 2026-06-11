@@ -10,24 +10,33 @@ let
   # and would trip AeroSpace's "config found in more than one location" check).
   base = builtins.readFile ./aerospace.toml;
 
-  normalToml = pkgs.writeText "aerospace-normal.toml" (base + ''
+  normalToml = pkgs.writeText "aerospace-normal.toml" (
+    base
+    + ''
 
-    # variant: normal
-  '');
+      # variant: normal
+    ''
+  );
 
-  zenToml = pkgs.writeText "aerospace-zen.toml" (base + ''
+  zenToml = pkgs.writeText "aerospace-zen.toml" (
+    base
+    + ''
 
-    # variant: zen
-    [gaps]
-        outer.left  = [{ monitor."DELL G3223Q" = 720 }, 0]
-        outer.right = [{ monitor."DELL G3223Q" = 720 }, 0]
-  '');
+      # variant: zen
+      [gaps]
+          outer.left  = [{ monitor."DELL G3223Q" = 720 }, 0]
+          outer.right = [{ monitor."DELL G3223Q" = 720 }, 0]
+    ''
+  );
 
   # Bound to alt-z (via exec-and-forget aerospace-zen-toggle); on PATH through the
   # per-user profile, which AeroSpace's [exec] PATH already includes.
   toggleScript = pkgs.writeShellApplication {
     name = "aerospace-zen-toggle";
-    runtimeInputs = [ pkgs.aerospace pkgs.coreutils ];
+    runtimeInputs = [
+      pkgs.aerospace
+      pkgs.coreutils
+    ];
     text = ''
       active="''${XDG_CONFIG_HOME:-$HOME/.config}/aerospace/aerospace.toml"
       if grep -q '# variant: zen' "$active" 2>/dev/null; then
