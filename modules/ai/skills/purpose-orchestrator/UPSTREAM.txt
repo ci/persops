@@ -1,0 +1,7 @@
+source = persops (repo-local, original)
+source_type = local
+profile = codex
+installed_at = 2026-06-13
+requested_source = authored in persops modules/ai/skills/purpose-orchestrator
+via = original skill, derived from steipete/agent-scripts maintainer-orchestrator
+inspiration = https://github.com/steipete/agent-scripts/tree/main/skills/maintainer-orchestrator
