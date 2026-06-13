@@ -58,7 +58,7 @@ except ImportError as exc:
     sys.exit(1)
 
 ROOT = Path.cwd()
-PROFILE_NAMES = {"all", "coding", "claw"}
+PROFILE_NAMES = {"all", "coding", "claw", "codex"}
 errors: list[str] = []
 
 

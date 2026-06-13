@@ -58,6 +58,9 @@ let
     claw = [
       ".openclaw/skills"
     ];
+    codex = [
+      ".codex/skills"
+    ];
   };
   localSkillOverrides = builtins.fromJSON (builtins.readFile ./skill-overrides.json);
   localSkillDirs = lib.filterAttrs (_: type: type == "directory") (builtins.readDir ./skills);

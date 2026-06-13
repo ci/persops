@@ -1,0 +1,4 @@
+interface:
+  display_name: "Purpose Orchestrator"
+  short_description: "Coordinate delegated Codex worker threads"
+  default_prompt: "Use $purpose-orchestrator to coordinate this named purpose: infer the charter from my request, create or reuse Codex worker threads within scope, monitor them, enforce decision-ready proof gates, and report concise status. Ask only when scope or permissions are ambiguous."

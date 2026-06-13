@@ -5,6 +5,9 @@
   "opentui": {
     "profile": "coding"
   },
+  "purpose-orchestrator": {
+    "profile": "codex"
+  },
   "spotify-player": {
     "profile": "claw"
   }
