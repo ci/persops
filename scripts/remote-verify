@@ -86,6 +86,7 @@ printf 'verify: remote host '
 hostname
 show_system_state
 check_system_unit tailscaled.service
+check_system_unit home-assistant.service
 
 if command -v tailscale >/dev/null 2>&1; then
 	printf 'verify: tailscale ip '
