@@ -326,9 +326,18 @@ in
     firewall = {
       enable = true;
       interfaces = {
-        "tailscale0".allowedTCPPorts = [ 445 ];
-        "enp2s0".allowedTCPPorts = [ 445 ];
-        "wlp4s0".allowedTCPPorts = [ 445 ];
+        "tailscale0".allowedTCPPorts = [
+          445
+          8123
+        ];
+        "enp2s0".allowedTCPPorts = [
+          445
+          8123
+        ];
+        "wlp4s0".allowedTCPPorts = [
+          445
+          8123
+        ];
       };
     };
   };
@@ -428,6 +437,27 @@ in
   };
 
   services = {
+    home-assistant = {
+      enable = true;
+      openFirewall = false;
+      extraComponents = [
+        "default_config"
+        "dhcp"
+        "hue"
+        "ssdp"
+        "zeroconf"
+      ];
+      config = {
+        default_config = { };
+        homeassistant = {
+          name = "Home";
+          time_zone = "Europe/Bucharest";
+          unit_system = "metric";
+        };
+        http.server_port = 8123;
+      };
+    };
+
     samba = {
       enable = true;
       openFirewall = false;
