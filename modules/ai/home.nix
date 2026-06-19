@@ -9,6 +9,34 @@ let
   hostSystem = pkgs.stdenv.hostPlatform.system;
   llmAgents = inputs.llm-agents.packages.${hostSystem};
   herdrPackage = inputs.herdr.packages.${hostSystem}.default;
+  herdrConfig = (pkgs.formats.toml { }).generate "herdr-config.toml" {
+    keys = {
+      prefix = "ctrl+space";
+      reload_config = "prefix+r";
+      resize_mode = "prefix+shift+r";
+      last_pane = "prefix+space";
+
+      focus_pane_left = [
+        "prefix+h"
+        "ctrl+alt+h"
+      ];
+      focus_pane_down = [
+        "prefix+j"
+        "ctrl+alt+j"
+      ];
+      focus_pane_up = [
+        "prefix+k"
+        "ctrl+alt+k"
+      ];
+      focus_pane_right = [
+        "prefix+l"
+        "ctrl+alt+l"
+      ];
+
+      switch_workspace = "prefix+shift+1..9";
+      focus_agent = "prefix+alt+1..9";
+    };
+  };
   summarizePackage = pkgs.callPackage ./summarize.nix {
     nodejs = pkgs.nodejs_22 or pkgs.nodejs;
     pnpm = pkgs.pnpm_10 or pkgs.pnpm;
@@ -124,6 +152,8 @@ in
     # OpenCode commands
     "opencode/command/commit.md".source = ./commands/commit.md;
     "opencode/command/rmslop.md".source = ./commands/rmslop.md;
+
+    "herdr/config.toml".source = herdrConfig;
 
     # Global agent instructions for Claude Code, Codex, and OpenCode.
     # Pi gets a generated mutable copy with pi-specific notes below.
