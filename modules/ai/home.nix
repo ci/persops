@@ -8,6 +8,7 @@
 let
   hostSystem = pkgs.stdenv.hostPlatform.system;
   llmAgents = inputs.llm-agents.packages.${hostSystem};
+  herdrPackage = inputs.herdr.packages.${hostSystem}.default;
   summarizePackage = pkgs.callPackage ./summarize.nix {
     nodejs = pkgs.nodejs_22 or pkgs.nodejs;
     pnpm = pkgs.pnpm_10 or pkgs.pnpm;
@@ -141,6 +142,7 @@ in
         # llmAgents.copilot-cli
         llmAgents.cursor-agent
         # llmAgents.gemini-cli # disabled: stale vs Homebrew package
+        herdrPackage
         llmAgents.hunk
         llmAgents.mcporter
         llmAgents.opencode
