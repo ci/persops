@@ -10,6 +10,8 @@ let
   llmAgents = inputs.llm-agents.packages.${hostSystem};
   herdrPackage = inputs.herdr.packages.${hostSystem}.default;
   herdrConfig = (pkgs.formats.toml { }).generate "herdr-config.toml" {
+    onboarding = false;
+
     keys = {
       prefix = "ctrl+space";
       reload_config = "prefix+r";
@@ -35,6 +37,11 @@ let
 
       switch_workspace = "prefix+shift+1..9";
       focus_agent = "prefix+alt+1..9";
+    };
+
+    ui = {
+      show_agent_labels_on_pane_borders = true;
+      toast.delivery = "system";
     };
   };
   summarizePackage = pkgs.callPackage ./summarize.nix {
