@@ -1,0 +1,8 @@
+source = ogulcancelik/herdr
+source_type = github
+profile = all
+installed_at = 2026-06-19T19:34:13Z
+requested_source = https://github.com/ogulcancelik/herdr/blob/master/SKILL.md
+via = manual vendor of root SKILL.md after add-skill copied full repo
+upstream_commit = 052f20214b1be904924df8d50d01e31198098922
+sha256 = 75826452ca09623a7309c0a0d9bd6b29b24c55cf100632fc83bd69a685241f17
