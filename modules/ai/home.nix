@@ -17,6 +17,14 @@ let
       reload_config = "prefix+r";
       resize_mode = "prefix+shift+r";
       last_pane = "prefix+space";
+      rename_tab = [
+        "prefix+comma"
+        "prefix+shift+t"
+      ];
+      split_vertical = [
+        "prefix+v"
+        "prefix+|"
+      ];
 
       focus_pane_left = [
         "prefix+h"
