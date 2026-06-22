@@ -223,11 +223,12 @@ in
     # Home Manager checks link targets. Only repo-managed skill names are touched.
     activation.prepareAgentSkillLinks = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
       agents_dir="$HOME/.agents/skills"
+      backup_root="$HOME/.agents/skill-backups"
       backup_dir=""
 
       ensure_backup_dir() {
         if [ -z "$backup_dir" ]; then
-          backup_dir="$agents_dir/backups/$(date -u +%Y%m%dT%H%M%SZ)"
+          backup_dir="$backup_root/$(date -u +%Y%m%dT%H%M%SZ)"
           install -d "$backup_dir"
           echo "Backing up existing ~/.agents/skills entries under $backup_dir" >&2
         fi
@@ -237,6 +238,9 @@ in
         path="$1"
         name="$2"
         ensure_backup_dir
+        if [ -d "$path" ] && [ ! -L "$path" ]; then
+          chmod -R u+w "$path" 2>/dev/null || true
+        fi
         if [ -e "$backup_dir/$name" ] || [ -L "$backup_dir/$name" ]; then
           name="$name.$(date -u +%s)"
         fi
