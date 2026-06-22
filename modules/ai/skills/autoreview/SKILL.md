@@ -81,7 +81,7 @@ Committed single change:
 or with the helper:
 
 ```bash
-~/.codex/skills/autoreview/scripts/autoreview --mode commit --commit HEAD
+~/.agents/skills/autoreview/scripts/autoreview --mode commit --commit HEAD
 ```
 
 Use commit review for already-landed or already-pushed work on `main`. Reviewing
@@ -138,7 +138,7 @@ Run the helper directly so target selection, engine choice, structured validatio
 Bundled helper:
 
 ```bash
-~/.codex/skills/autoreview/scripts/autoreview --help
+~/.agents/skills/autoreview/scripts/autoreview --help
 ```
 
 Repo vendored helper:

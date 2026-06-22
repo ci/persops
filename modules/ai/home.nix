@@ -46,20 +46,20 @@ let
   skillBaseProfiles = {
     all = [
       ".claude/skills"
-      ".codex/skills"
+      ".agents/skills"
       ".openclaw/skills"
       ".pi/agent/skills"
     ];
     coding = [
       ".claude/skills"
-      ".codex/skills"
+      ".agents/skills"
       ".pi/agent/skills"
     ];
     claw = [
       ".openclaw/skills"
     ];
     codex = [
-      ".codex/skills"
+      ".agents/skills"
     ];
   };
   localSkillOverrides = builtins.fromJSON (builtins.readFile ./skill-overrides.json);
@@ -95,6 +95,22 @@ let
   agentsFile = pkgs.writeText "AGENTS.md" agentsText;
   piAgentsFile = pkgs.writeText "pi-AGENTS.md" (
     agentsText + "\n\n" + (builtins.readFile ./pi/AGENTS.extra.md)
+  );
+  skillTargets = localSkillTargets ++ [
+    {
+      name = "summarize";
+      source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize";
+    }
+    {
+      name = "openhue";
+      source = ./openhue;
+    }
+  ];
+  agentSkillTargets = lib.filter (
+    skill: builtins.elem ".agents/skills" (skill.bases or skillBaseProfiles.all)
+  ) skillTargets;
+  managedAgentSkillNames = lib.concatStringsSep "\n" (
+    lib.unique (map (skill: skill.name) agentSkillTargets)
   );
 in
 {
@@ -188,16 +204,6 @@ in
             };
           };
         };
-        skillTargets = localSkillTargets ++ [
-          {
-            name = "summarize";
-            source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize";
-          }
-          {
-            name = "openhue";
-            source = ./openhue;
-          }
-        ];
         mkSkillEntry = base: skill: {
           name = "${base}/${skill.name}";
           value = {
@@ -212,6 +218,78 @@ in
           skill: map (base: mkSkillEntry base skill) (skill.bases or skillBaseProfiles.all)
         ) skillTargets
       );
+
+    # Move pre-existing mutable ~/.agents/skills entries out of the way before
+    # Home Manager checks link targets. Only repo-managed skill names are touched.
+    activation.prepareAgentSkillLinks = lib.hm.dag.entryBefore [ "checkLinkTargets" ] ''
+      agents_dir="$HOME/.agents/skills"
+      backup_dir=""
+
+      ensure_backup_dir() {
+        if [ -z "$backup_dir" ]; then
+          backup_dir="$agents_dir/backups/$(date -u +%Y%m%dT%H%M%SZ)"
+          install -d "$backup_dir"
+          echo "Backing up existing ~/.agents/skills entries under $backup_dir" >&2
+        fi
+      }
+
+      backup_agent_skill() {
+        path="$1"
+        name="$2"
+        ensure_backup_dir
+        if [ -e "$backup_dir/$name" ] || [ -L "$backup_dir/$name" ]; then
+          name="$name.$(date -u +%s)"
+        fi
+        mv "$path" "$backup_dir/$name"
+        echo "Backed up $path -> $backup_dir/$name" >&2
+      }
+
+      install -d "$agents_dir"
+
+      while IFS= read -r name; do
+        [ -n "$name" ] || continue
+        path="$agents_dir/$name"
+        [ -e "$path" ] || [ -L "$path" ] || continue
+
+        if [ -L "$path" ]; then
+          target="$(readlink "$path" || true)"
+          case "$target" in
+            /nix/store/*) rm -f "$path" ;;
+            *) backup_agent_skill "$path" "$name" ;;
+          esac
+        else
+          backup_agent_skill "$path" "$name"
+        fi
+      done <<'EOF'
+      ${managedAgentSkillNames}
+      EOF
+    '';
+
+    # Remove stale Home Manager symlinks from the old Codex skill location.
+    # Non-symlinks and symlinks outside /nix/store are left alone.
+    activation.cleanupOldCodexSkillLinks = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      old_dir="$HOME/.codex/skills"
+
+      if [ -d "$old_dir" ]; then
+        while IFS= read -r name; do
+          [ -n "$name" ] || continue
+          path="$old_dir/$name"
+          [ -L "$path" ] || continue
+
+          target="$(readlink "$path" || true)"
+          case "$target" in
+            /nix/store/*)
+              rm -f "$path"
+              echo "Removed old Home Manager Codex skill link $path" >&2
+              ;;
+          esac
+        done <<'EOF'
+      ${managedAgentSkillNames}
+      EOF
+
+        rmdir "$old_dir" 2>/dev/null || true
+      fi
+    '';
 
     # Pi config files are copied, not symlinked, so /settings and /reload workflows can write to them.
     # Source of truth stays in modules/ai/pi; make local overwrites generated copies after backing up drift.
