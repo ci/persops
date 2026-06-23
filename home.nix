@@ -176,7 +176,7 @@ in
 
         # chat
         element-desktop
-        discord
+        # discord
         # signal-desktop # broken in current version? mismatching sha
         slack
         zoom-us
