@@ -37,9 +37,6 @@
   programs.zsh.enable = true;
   programs.fish.enable = true;
 
-  # Use TouchID for sudo
-  security.pam.services.sudo_local.touchIdAuth = true;
-
   environment = {
     shells = with pkgs; [
       bashInteractive
@@ -54,12 +51,14 @@
     ];
     # https://write.rog.gr/writing/using-touchid-with-tmux/
     # https://github.com/LnL7/nix-darwin/pull/787
+    # Manage sudo_local directly instead of touchIdAuth so Watch/Touch ID
+    # prompts before FIDO fallback.
     etc."pam.d/sudo_local".text = ''
       # Managed by Nix Darwin
       auth       optional       ${pkgs.pam-reattach}/lib/pam/pam_reattach.so ignore_ssh
-      auth       sufficient     ${pkgs.pam_u2f}/lib/security/pam_u2f.so cue userverification=0 pinverification=0
       auth       sufficient     ${pkgs.pam-watchid}/lib/pam_watchid.so
       auth       sufficient     pam_tid.so
+      auth       sufficient     ${pkgs.pam_u2f}/lib/security/pam_u2f.so cue userverification=0 pinverification=0
     '';
   };
 }
