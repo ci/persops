@@ -66,16 +66,36 @@ let
         "prefix+s"
         "prefix+w"
       ];
+      navigate_workspace_up = [
+        "up"
+        "k"
+      ];
+      navigate_workspace_down = [
+        "down"
+        "j"
+      ];
+      navigate_pane_up = "";
+      navigate_pane_down = "";
       resize_mode = "prefix+shift+r";
       last_pane = "prefix+space";
       rename_tab = [
         "prefix+comma"
         "prefix+shift+t"
       ];
+      previous_tab = [
+        "prefix+shift+h"
+        "prefix+p"
+      ];
+      next_tab = [
+        "prefix+shift+l"
+        "prefix+n"
+      ];
       split_vertical = [
         "prefix+v"
         "prefix+|"
       ];
+      swap_pane_left = "";
+      swap_pane_right = "";
 
       focus_pane_left = [
         "prefix+h"
@@ -94,7 +114,10 @@ let
         "ctrl+alt+l"
       ];
 
-      switch_workspace = "prefix+shift+1..9";
+      # Shifted digits arrive as punctuation in many terminals, so keep
+      # indexed workspace jumps on plain digits.
+      switch_tab = "";
+      switch_workspace = "prefix+1..9";
       focus_agent = "prefix+alt+1..9";
       command = [
         (navCommand "ctrl+h" "left")
