@@ -184,10 +184,10 @@ in
     file =
       let
         baseFiles = {
-          # Claude Code: shared AGENTS.md pulled in via @import, plus a
-          # Claude-only section other agents never load.
-          ".claude/AGENTS.md".source = agentsFile;
-          ".claude/CLAUDE.md".text = "@AGENTS.md\n\n" + builtins.readFile ./CLAUDE.extra.md;
+          # Claude Code: shared AGENTS.md content plus a Claude-only section
+          # other agents never load. Concatenated in nix; @AGENTS.md imports
+          # don't expand from the symlinked store path.
+          ".claude/CLAUDE.md".text = agentsText + "\n\n" + builtins.readFile ./CLAUDE.extra.md;
           ".codex/AGENTS.md".source = agentsFile;
           ".summarize/config.json".text = builtins.toJSON {
             model = {
