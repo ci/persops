@@ -184,7 +184,10 @@ in
     file =
       let
         baseFiles = {
-          ".claude/CLAUDE.md".source = agentsFile;
+          # Claude Code: shared AGENTS.md pulled in via @import, plus a
+          # Claude-only section other agents never load.
+          ".claude/AGENTS.md".source = agentsFile;
+          ".claude/CLAUDE.md".text = "@AGENTS.md\n\n" + builtins.readFile ./CLAUDE.extra.md;
           ".codex/AGENTS.md".source = agentsFile;
           ".summarize/config.json".text = builtins.toJSON {
             model = {
