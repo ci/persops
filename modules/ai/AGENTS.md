@@ -4,7 +4,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 - Workspace: `~/p/`. Missing @ci repo: clone `https://github.com/ci/<repo>.git` (use ssh). 3rd-party/OSS (non-ci): `~/p/foss`.
 - `~/p/persops`: private ops - nixos configs, dotfiles, scripts, etc.
-- “Make a note” => edit AGENTS.md (shortcut; not a blocker). Ignore `CLAUDE.md` (imports AGENTS.md; Claude-only extras live in `~/p/persops/modules/ai/CLAUDE.extra.md`).
+- “Make a note” => edit AGENTS.md (shortcut; not a blocker). Ignore `CLAUDE.md` (generated: AGENTS.md + Claude-only extras from `~/p/persops/modules/ai/CLAUDE.extra.md`).
 - Read: nothing manual — root `AGENTS.md` + `~/p/persops/modules/ai/AGENTS.md` are auto-injected into prompt. Edit root `AGENTS.md` only for persops repo-local instructions; edit this file for global shipped agent instructions.
 - Skills are canonical for tool-specific workflows. Keep this file to hard rules only.
 - Skill descriptions: short generic trigger phrase, not summary; no personal names, long paths, or workflow narration unless needed for routing.
