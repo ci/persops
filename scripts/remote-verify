@@ -99,5 +99,4 @@ check_optional_system_unit samba-smbd.service
 check_optional_system_unit sea16-quota-init.service
 show_mount /srv/sea16
 show_mount /archive
-show_mount /srv/timemachine
 REMOTE
