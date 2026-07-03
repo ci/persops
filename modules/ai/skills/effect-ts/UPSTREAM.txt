@@ -1,0 +1,6 @@
+source = Effect-TS/skills
+source_type = github
+profile = coding
+installed_at = 2026-07-03T20:08:31Z
+via = bunx --bun skills add https://github.com/Effect-TS/skills --skill \* --agent \* --yes --copy
+computed_hash = 301521e167410dd42d834dd0e7cedbe9cfffa519f630a12241dbea7b1d932324

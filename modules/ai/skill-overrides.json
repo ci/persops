@@ -10,5 +10,8 @@
   },
   "spotify-player": {
     "profile": "claw"
+  },
+  "effect-ts": {
+    "profile": "coding"
   }
 }
