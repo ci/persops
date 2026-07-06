@@ -45,7 +45,7 @@
     "npm:@victor-software-house/pi-curated-themes",
     "npm:pi-terminal-theme"
   ],
-  "lastChangelogVersion": "0.80.2",
+  "lastChangelogVersion": "0.80.3",
   "theme": "catppuccin-mocha",
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.5",
