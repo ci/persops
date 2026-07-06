@@ -1,47 +1,30 @@
 {
   lib,
-  buildNpmPackage,
-  fetchFromGitHub,
+  fetchurl,
   git,
   jujutsu,
   makeWrapper,
   nodejs_22,
   stdenv,
-  tsx,
   xdg-utils,
 }:
 
-buildNpmPackage rec {
+stdenv.mkDerivation (finalAttrs: {
   pname = "skepsis";
-  version = "unstable-2026-04-29";
+  version = "0.2.1";
 
-  src = fetchFromGitHub {
-    owner = "oxidecomputer";
-    repo = "skepsis";
-    rev = "5130471eb908ccaecb31c6c8b2cc2282439db897";
-    hash = "sha256-ovFeshhlkCEnds8sPDsyLf61J9AeO3NJgoIIxHyfuCU=";
+  src = fetchurl {
+    url = "https://registry.npmjs.org/@oxide/skepsis/-/skepsis-${finalAttrs.version}.tgz";
+    hash = "sha512-yDWL2eP5XJFdgHk0ZUh8oEC+Tja662XPMgB01l2a/BhZKBg419wb/QURWCSxD7MmLv8sk4o2EXo6tykkhWUd+A==";
   };
 
-  nodejs = nodejs_22;
+  sourceRoot = "package";
+
   nativeBuildInputs = [ makeWrapper ];
+  dontConfigure = true;
+  dontBuild = true;
 
-  # Upstream's lockfile omits registry metadata for some entries, which breaks
-  # Nix's offline npm fetcher. Use the same locked versions with metadata filled in.
-  postPatch = ''
-      cp ${./package-lock.json} package-lock.json
-      substituteInPlace package.json \
-        --replace-fail '"name": "skepsis",' '"name": "skepsis",
-    "version": "${version}",'
-  '';
-
-  # The production bundle is checked in upstream; no Vite build needed here.
-  dontNpmBuild = true;
-  npmInstallFlags = [ "--omit=dev" ];
-  npmPruneFlags = [ "--omit=dev" ];
-  npmDepsFetcherVersion = 2;
-  npmDepsHash = "sha256-AEtSPKD4Kgxh3psX6Ew4HrqeCCJpIb2mUSIowcz1Qsk=";
-
-  postInstall =
+  installPhase =
     let
       runtimePath = lib.makeBinPath (
         [
@@ -52,11 +35,17 @@ buildNpmPackage rec {
       );
     in
     ''
-      mkdir -p $out/bin
-      makeWrapper ${lib.getExe tsx} $out/bin/skepsis \
-        --add-flags "$out/lib/node_modules/skepsis/cli.ts" \
+      runHook preInstall
+
+      appDir=$out/lib/node_modules/@oxide/skepsis
+      mkdir -p "$appDir" "$out/bin"
+      cp -R dist package.json README.md LICENSE "$appDir"/
+      makeWrapper ${lib.getExe nodejs_22} $out/bin/skepsis \
+        --add-flags "$appDir/dist/cli.js" \
         --prefix PATH : ${runtimePath}
       ln -s skepsis $out/bin/sk
+
+      runHook postInstall
     '';
 
   meta = {
@@ -66,4 +55,4 @@ buildNpmPackage rec {
     mainProgram = "skepsis";
     platforms = lib.platforms.unix;
   };
-}
+})
