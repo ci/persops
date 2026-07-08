@@ -47,6 +47,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - Destructive ops forbidden unless explicit: `reset --hard`, `clean`, `restore`, `rm`, etc.
 - Prefer HTTPS for pull/fetch when public.
 - Commits: Conventional Commits (`feat|fix|refactor|build|ci|chore|docs|style|perf|test`).
+- Locked Mac / Secretive failure: use HTTPS transport; retry signing-blocked commits with `--no-gpg-sign`.
 - No repo-wide S/R scripts; keep edits small/reviewable.
 - If user types a command ("pull and push"), that's consent for that command.
 - No amend unless asked.
