@@ -1,0 +1,7 @@
+source = steipete/agent-scripts
+source_type = github
+profile = coding
+installed_at = 2026-07-08T20:59:06Z
+requested_source = https://github.com/steipete/agent-scripts/blob/main/skills/codex-first/SKILL.md
+via = bunx --bun skills add https://github.com/steipete/agent-scripts --skill codex-first --agent \* --yes --copy
+computed_hash = 1ff82a567f3a6e8a112df69cd9e1fcf0435753449670aa637fd9bc2c82bdf7d5

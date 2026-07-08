@@ -1,0 +1,7 @@
+source = openclaw/agent-skills
+source_type = github
+profile = all
+installed_at = 2026-07-08T20:59:13Z
+requested_source = https://github.com/openclaw/agent-skills/tree/main/skills/session-viewer
+via = bunx --bun skills add https://github.com/openclaw/agent-skills --skill session-viewer --agent \* --yes --copy
+computed_hash = e451eccd35f095b291fba86492ae80b0bd072066342c5a6c72c7d71e97f6d2b6
