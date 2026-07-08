@@ -20,8 +20,8 @@ Follow the official CLI get-started steps. Don't guess install commands.
 2. Verify CLI present inside tmux: `op --version`.
 3. REQUIRED: create exactly one persistent named tmux session for the whole secret task.
 4. Try scoped service-account access first when a matching token/workflow exists; no dialogs.
-5. If service-account access is missing or lacks the exact item/field needed, stop and ask before desktop-app sign-in.
-6. Desktop fallback: confirm app integration/unlock, then `op signin` once inside the same session.
+5. If service-account access is missing or lacks the exact item/field needed, automatically try the desktop-app fallback in the same session. Do not ask for chat permission first.
+6. Desktop fallback: trigger app integration/unlock, then `op signin` once inside the same session. The 1Password prompt is the user approval boundary; ask in chat only if the prompt cannot be surfaced or completed.
 7. Verify chosen access path inside that same session: `op whoami`.
 8. If multiple accounts: use `--account` or `OP_ACCOUNT`.
 9. If a command fails, reuse the same tmux session with `tmux send-keys`; do not start a second session just to retry.
@@ -38,13 +38,12 @@ Follow the official CLI get-started steps. Don't guess install commands.
 
 - Prefer service-account tokens before any interactive 1Password flow. User dialogs are fallback only.
 - 1Password service accounts are non-interactive tokens for a specific vault/scope, useful for automation without unlocking the desktop app.
-- Peter's default service-account token is exported from `~/.profile` as `OP_SERVICE_ACCOUNT_TOKEN` in a Codex-managed block. It is scoped to the restricted `Molty` vault.
-- Older shells may expose the same value as `MOLTY_OP_SERVICE_ACCOUNT_TOKEN`; treat that as a fallback alias for known `Molty` vault items.
-- If the token is not already exported, not applicable, or cannot read the exact known item/field required, ask the user before using the desktop-app 1Password flow below.
-- Export/pass it only for the single command that needs it: `OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op item get "<known item>" --vault Molty ...`.
-- Service-account `op` reads require an explicit vault query; omitting `--vault Molty` fails even when the token is valid.
+- If `~/.profile` exports `OP_SERVICE_ACCOUNT_TOKEN`, use it for scoped service-account commands.
+- If the token is not already exported, not applicable, or cannot read the exact known item/field required, use the desktop-app 1Password flow below automatically. Ask only when an actual unlock or other user interaction remains blocked.
+- Export/pass it only for the single command that needs it: `OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" op item get "<known item>" --vault "<known vault>" ...`.
+- Service-account `op` reads require an explicit vault query; omitting `--vault` can fail even when the token is valid.
 - Keep the tmux rule: every `op` command, including service-account reads, still runs inside one named tmux session.
-- Do not enumerate vaults/items with service accounts by default. If the user explicitly asks to search, gives a screenshot/listing, or gives only a fuzzy item name, use the safe metadata search below before asking.
+- Do not enumerate vaults/items with service accounts by default. If the user explicitly asks to search, gives a screenshot/listing, or gives only a fuzzy item name, use the safe metadata search below before desktop fallback.
 - Print presence/shape only, never token or secret values.
 
 ## Required Persistent Tmux Session
@@ -72,7 +71,7 @@ Target the session as `$SESSION:` instead of assuming window `0`; older sessions
 ## Service-Specific Workflows
 
 - Keep service-specific auth details in the owning skill.
-- For npm registry/package work, use `$npm`; it documents the `npmjs` item, username/password/TOTP flow, and package reservation helper.
+- For npm registry/package work, use `$npm`; it documents npm-specific auth flow and package reservation helper.
 - This skill owns only the generic 1Password rules: tmux-only `op`, targeted reads, one persistent session, no broad enumeration, no secret output.
 
 ## Known working secret-write pattern
@@ -120,7 +119,7 @@ set -euo pipefail
 set +x
 ITEM_TITLE="Known API Credential Item"
 FIELD_LABEL="api_token"
-VAULT="Molty"
+VAULT="Known Vault"
 value="$(
   OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" \
     op item get "$ITEM_TITLE" --vault "$VAULT" --format json |
@@ -145,7 +144,7 @@ cat > /tmp/op-find-item.sh <<'SCRIPT'
 #!/usr/bin/env bash
 set -euo pipefail
 set +x
-VAULT="Molty"
+VAULT="Known Vault"
 QUERY="minimax"
 OP_SERVICE_ACCOUNT_TOKEN="$OP_SERVICE_ACCOUNT_TOKEN" \
   op item list --vault "$VAULT" --format json |
@@ -166,7 +165,7 @@ chmod 700 /tmp/op-find-item.sh
 tmux -S "$SOCKET" send-keys -t "$SESSION:" -- "bash /tmp/op-find-item.sh; rm -f /tmp/op-find-item.sh" C-m
 ```
 
-After choosing a candidate, switch back to exact item/field JSON extraction and shape-only validation. Do not broaden from a restricted service-account vault to all vaults without explicit user approval.
+After choosing a candidate, switch back to exact item/field JSON extraction and shape-only validation. An exact known personal item may use desktop fallback automatically; do not broadly enumerate personal vaults unless the user asked to search.
 
 ## Redacted debugging
 
@@ -191,4 +190,5 @@ tmux -S "$SOCKET" send-keys -t "$SESSION" -- "bash /tmp/op-debug.sh; rm -f /tmp/
 - Prefer `op run` / `op inject` over writing secrets to disk.
 - If sign-in without app integration is needed, use `op account add`.
 - If a command returns "account is not signed in", re-run `op signin` inside tmux and authorize in the app.
+- Let the desktop 1Password unlock prompt request user interaction directly; do not add a separate chat permission round trip first.
 - Do not run `op` outside tmux; stop and ask if tmux is unavailable.
