@@ -16,5 +16,8 @@
   },
   "codex-first": {
     "profile": "coding"
+  },
+  "claude-consult": {
+    "profile": "codex"
   }
 }

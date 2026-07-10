@@ -1,0 +1,6 @@
+source = persops (repo-local, original)
+source_type = local
+profile = codex
+installed_at = 2026-07-10
+requested_source = authored in persops modules/ai/skills/claude-consult
+via = original skill, analogous in form to modules/ai/skills/codex-first
