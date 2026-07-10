@@ -65,6 +65,41 @@
         inputs.jujutsu.overlays.default
         inputs.zig.overlays.default
         inputs."codex-cli-nix".overlays.default
+        (_: prev: {
+          # codex-cli-nix installs only the main codex binary, but codex >= 0.144 spawns
+          # a sibling codex-code-mode-host for ALL shell execution — without it every
+          # `codex exec` dies with "failed to spawn code-mode host". Graft the matching
+          # release asset next to codex-raw. The hash map throws on version bumps so the
+          # host can't silently drift from the CLI (prefetch the new asset hash with:
+          # nix store prefetch-file <github release asset url>).
+          codex =
+            if prev.stdenv.hostPlatform.system != "aarch64-darwin" then
+              prev.codex
+            else
+              prev.codex.overrideAttrs (
+                old:
+                let
+                  hostHashes = {
+                    "0.144.0" = "sha256-bPkoJDC+/lQTacfLKARgSn8N2UFvOjJB42dtsiAiokY=";
+                  };
+                  hostTarball = prev.fetchurl {
+                    url = "https://github.com/openai/codex/releases/download/rust-v${old.version}/codex-code-mode-host-aarch64-apple-darwin.tar.gz";
+                    hash =
+                      hostHashes.${old.version}
+                        or (throw "codex ${old.version}: add the codex-code-mode-host asset hash to hostHashes in flake.nix");
+                  };
+                in
+                {
+                  postInstall = (old.postInstall or "") + ''
+                    tar -xzf ${hostTarball} -C $out/bin
+                    if [ -e $out/bin/codex-code-mode-host-aarch64-apple-darwin ]; then
+                      mv $out/bin/codex-code-mode-host-aarch64-apple-darwin $out/bin/codex-code-mode-host
+                    fi
+                    chmod +x $out/bin/codex-code-mode-host
+                  '';
+                }
+              );
+        })
         inputs."claude-code-nix".overlays.default
         inputs.jj-starship.overlays.default
         inputs.tmux-sessionizer.overlays.default
