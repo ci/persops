@@ -1,0 +1,4 @@
+interface:
+  display_name: "Claude Consult"
+  short_description: "Ask Claude Fable for a scoped second opinion"
+  default_prompt: "Use $claude-consult to ask Claude Fable for a scoped second opinion on this question."
