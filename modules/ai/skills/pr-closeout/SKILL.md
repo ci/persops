@@ -1,6 +1,6 @@
 ---
 name: pr-closeout
-description: "Close out a branch or PR with clean commit boundaries, autoreview loops, focused fixes, validation gates, and a draft PR when appropriate."
+description: "Close out a branch or PR with clean commit boundaries, autoreview loops, focused fixes, validation gates, and stacked-PR support."
 ---
 
 # PR Closeout
@@ -15,8 +15,9 @@ This skill is about turning working code into a reviewable branch. Use
 
 - Preserve reviewable commit boundaries. Do not squash or amend unless asked.
 - Make follow-up fixes as new focused commits so the user can track the loop.
-- Open or update remote PRs only when the user asked for that outcome; default
-  to draft when opening a PR.
+- Open or update remote PRs only when the user asked for that outcome; the
+  draft/non-draft state follows the global AGENTS.md preference unless the
+  user says otherwise.
 - Use a worktree only when the user asks, the current checkout has unrelated
   changes, or the main checkout must stay untouched.
 - Push only when the user asked to push, open/update a PR, fix CI, or otherwise
@@ -44,7 +45,8 @@ This skill is about turning working code into a reviewable branch. Use
      downstream generated clients, snapshots, docs, and consumers
    - regenerate only the surfaces required by the repo's established commands
 5. PR handling:
-   - if no PR exists and the user wants one, open a draft PR
+   - if no PR exists and the user wants one, open a PR (draft state per the
+     global preference or the user's ask)
    - if a PR exists, simplify the body to problem, changes, and tests when the
      user asks for cleanup
    - write PR bodies through a temp file and `--body-file`; inspect before
@@ -53,6 +55,21 @@ This skill is about turning working code into a reviewable branch. Use
    - run the requested or repo-standard closeout gate
    - report commits, tests, autoreview result, PR URL/state, and any residual
      risk
+
+## Stacked PRs
+
+For phased or multi-part work when the user asks for stacked PRs:
+
+- One branch per phase, stacked on the previous. Keep each PR small: target
+  under 500 changed lines, avoid exceeding ~1k — split further instead.
+- Run the full closeout loop (gate + autoreview) per phase before opening its
+  PR.
+- Phase N's PR bases on phase N-1's branch; after a parent merges, retarget
+  the child to main.
+- When a parent branch changes (review fixes), rebase the children on top and
+  re-push them.
+- Between phases, report what's next with a go/no-go recommendation and wait
+  for the user's signal, unless they pre-approved all phases up front.
 
 ## Output
 

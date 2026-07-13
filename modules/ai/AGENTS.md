@@ -27,7 +27,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 - `fix ci`: consent to pull, commit, push; fix/rerun/watch until CI green.
 - Replies: cite fix + file/line; resolve threads only after fix lands.
 - Pre-commit code changes: use `$autoreview` until no accepted/actionable findings remain, unless equivalent manual review already done, trivial/docs-only, or user opts out.
-- When opening a PR, prefer draft unless user asks otherwise.
+- When opening a PR, open it ready-for-review (non-draft) unless user asks otherwise.
 
 ## Runtime safety
 
