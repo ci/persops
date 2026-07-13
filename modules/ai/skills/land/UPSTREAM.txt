@@ -1,0 +1,7 @@
+source = persops (repo-local, original)
+source_type = local
+profile = coding
+installed_at = 2026-07-13
+requested_source = authored in persops modules/ai/skills/land
+via = original skill, no upstream
+local_changes = n/a

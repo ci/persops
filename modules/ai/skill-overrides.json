@@ -19,5 +19,9 @@
   },
   "claude-consult": {
     "profile": "codex"
+  },
+  "land": {
+    "profile": "coding",
+    "excludeMachines": ["work"]
   }
 }

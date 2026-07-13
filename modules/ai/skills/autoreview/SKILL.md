@@ -22,7 +22,8 @@ Use when:
 - Read dependency docs/source/types when the finding depends on external behavior.
 - Reject unrealistic edge cases, speculative risks, broad rewrites, and fixes that over-complicate the codebase.
 - Prefer small fixes at the right ownership boundary; no refactor unless it clearly improves the bug class.
-- Keep going until structured review returns no accepted/actionable findings.
+- Keep going until structured review returns no accepted/actionable findings, capped at 5 rounds per closeout. If the cap hits, stop, tell the user the cap was reached, and list what was still open.
+- Nitpick escape hatch: if the remaining findings are style-only, taste-level, or speculative edge-casing with no real bug, reject them and stop early — but say so explicitly: report that you stopped early and summarize what the rejected findings said.
 - If a review-triggered fix changes code, rerun focused tests and rerun the structured review helper.
 - For security-audit suppression changes, verify accepted findings remain auditable: suppressed findings stay in structured output, active output keeps an unsuppressible suppression notice, and aggregate findings cannot hide unrelated active risk.
 - Never switch or override the requested review engine/model. If the review hits model capacity, retry the same command a few times with the same engine/model.
