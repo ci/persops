@@ -1,0 +1,9 @@
+source = geoffreylitt/a29df1b5f9865506e8952488eac3d524
+source_type = github-gist
+profile = all
+installed_at = 2026-07-14T22:03:41Z
+requested_source = https://gist.github.com/geoffreylitt/a29df1b5f9865506e8952488eac3d524#file-explain-diff-html-md
+via = manual vendor; gist file is not a SKILL.md repository
+upstream_file = explain-diff-html.md
+upstream_revision = 126e7fe9eecaafadfe1ac8bb183d135812b608f2
+local_changes = renamed skill from explain-diff-html to explain-diff; quoted description frontmatter
