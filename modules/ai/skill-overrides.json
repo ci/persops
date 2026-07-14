@@ -23,5 +23,9 @@
   "land": {
     "profile": "coding",
     "excludeMachines": ["work"]
+  },
+  "share-page": {
+    "profile": "all",
+    "excludeMachines": ["work"]
   }
 }
