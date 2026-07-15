@@ -96,6 +96,14 @@ in
   systemd.services."restic-backups-archive-daily" = {
     requires = [ "archive.mount" ];
     after = [ "archive.mount" ];
-    unitConfig.ConditionPathIsMountPoint = "/archive";
+    unitConfig = {
+      ConditionPathIsMountPoint = "/archive";
+      StartLimitIntervalSec = "6h";
+      StartLimitBurst = 4;
+    };
+    serviceConfig = {
+      Restart = "on-failure";
+      RestartSec = "5m";
+    };
   };
 }
