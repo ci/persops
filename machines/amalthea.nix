@@ -210,6 +210,7 @@ in
     ./hardware/amalthea.nix
     ../modules/specialization/i3.nix
     ../modules/backup/restic-nixos.nix
+    ../modules/backup/restic-storage-box-nixos.nix
   ];
 
   nix = {
