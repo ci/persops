@@ -282,6 +282,16 @@ let
 
     show_restic_darwin() {
       section "restic"
+      if have restic-storage-box; then
+        ok "storage box client" "installed"
+      else
+        warn "storage box client" "missing"
+      fi
+      if [ -r "$HOME/.config/restic-storage-box/password" ] && [ -r "$HOME/.ssh/hetzner-storage-box-aglaea" ]; then
+        ok "storage box secrets" "readable"
+      else
+        warn "storage box secrets" "missing or unreadable"
+      fi
       check_launch_agent "backup agent" "org.nixos.restic-backup"
       check_launch_agent "prune agent" "org.nixos.restic-prune"
       check_launch_agent "check agent" "org.nixos.restic-check"
@@ -300,7 +310,13 @@ let
         return
       fi
 
-      for unit in restic-backups-home-hourly.timer restic-backups-home-prune-daily.timer restic-backups-home-check-weekly.timer; do
+      for unit in \
+        restic-backups-home-hourly.timer \
+        restic-backups-home-prune-daily.timer \
+        restic-backups-home-check-weekly.timer \
+        restic-backups-archive-daily.timer \
+        restic-backups-archive-prune-monthly.timer \
+        restic-backups-archive-check-weekly.timer; do
         if systemctl list-unit-files "$unit" --no-legend 2>/dev/null | grep -q .; then
           if systemctl is-active --quiet "$unit"; then
             ok "$unit" "active"

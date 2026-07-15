@@ -97,6 +97,9 @@ check_user_unit codex-remote-control.service
 check_user_unit claude-remote-control.service
 check_optional_system_unit samba-smbd.service
 check_optional_system_unit sea16-quota-init.service
+check_optional_system_unit restic-backups-archive-daily.timer
+check_optional_system_unit restic-backups-archive-prune-monthly.timer
+check_optional_system_unit restic-backups-archive-check-weekly.timer
 show_mount /srv/sea16
 show_mount /archive
 REMOTE
