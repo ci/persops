@@ -177,6 +177,8 @@ The helper:
 - supports `--base`, `--head`, and `--remote` for explicit branch/stack targets
 - refreshes the selected remote before a live branch review and fails closed on
   fetch errors; use `--no-fetch` only when intentionally reviewing local refs
+- exits successfully without invoking any engine when the computed diff has no
+  changed paths
 - supports `--engine codex`, `claude`, `droid`, and `copilot`; default is `AUTOREVIEW_ENGINE` or `codex`; Codex should remain the default when nothing is set
 - use `--mode commit --commit <ref>` for already-committed work, especially clean `main` after landing
 - should be left in `--mode auto` or forced to `--mode branch` for PR/branch work; do not force `--mode local` after committing
