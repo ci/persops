@@ -40,16 +40,19 @@ Never (stop and report instead):
 Default to not editing — describe the change instead. Only apply one when you
 genuinely need to run it to answer the question. Then, in order of preference:
 
-1. Isolate it. In a git/jj repo, spin up a throwaway worktree and work there so
-   the user's checkout is untouched:
-   - `git worktree add /tmp/thoughts-<slug> HEAD` (remove with
-     `git worktree remove` when done), or
-   - `jj workspace add /tmp/thoughts-<slug>`.
-   Run, observe, then tear it down — or report its path if it holds something
-   worth keeping.
-2. Edit in place only if a worktree doesn't apply (not a repo, or a trivial
-   check) AND the working tree has no other pending changes to entangle. Keep it
-   minimal and revert afterward, or clearly flag what's left.
+1. Isolate it. Run `jj status` first. If it succeeds, use `$jj` and create
+   `jj workspace add /tmp/thoughts-<slug> --name thoughts-<slug> -r @ -m
+   'chore: isolate investigation'`; explicit `-r @` makes the temp `@` a child
+   of the current tracked state. In plain Git, use `git worktree add
+   /tmp/thoughts-<slug> HEAD`. Run and observe there. During teardown, discard
+   only edits made in that temp checkout. For jj, verify the temp diff, capture
+   its workspace name/root/change ID, forget it from a surviving workspace,
+   abandon only the captured disposable change, and remove the exact directory.
+   For Git, use `git worktree remove`. If anything is worth keeping, leave it
+   and report the exact path.
+2. Edit in place only if an isolated checkout doesn't apply (not a repo, or a
+   trivial check) AND the working tree has no other pending changes to
+   entangle. Keep it minimal and revert afterward, or clearly flag what's left.
 3. Either way: local only. Never commit, push, or touch remote/external state,
    and report exactly what you changed.
 
@@ -72,8 +75,8 @@ Keep it tight; scale to the question.
 - **Findings** — what's true, what's uncertain, risks/edge cases noticed.
 - **Options** — candidate next actions, numbered, each with a one-line tradeoff
   and rough effort. Mark a recommendation if you have one.
-- **No lasting changes made.** — state it, and note any temp worktree/edit and
-  its location.
+- **No lasting changes made.** — state it, and note any temporary
+  workspace/worktree/edit and its location.
 
 End by inviting the user to pick an option or stop. Do not proceed without a
 go-ahead.

@@ -3,9 +3,9 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: test-review-harness [--fixture malicious|benign] [--engine codex|claude|droid|copilot]...
+Usage: test-review-harness [--fixture malicious|benign] [--vcs git|jj] [--engine codex|claude|droid|copilot]...
 
-Creates a temporary git repo with either a deliberately unsafe patch or a
+Creates a temporary Git or non-colocated jj repo with either a deliberately unsafe patch or a
 security-sensitive-but-safe patch, then verifies each selected engine through
 autoreview.
 Default engines: codex, claude.
@@ -14,10 +14,15 @@ EOF
 
 engines=()
 fixture=malicious
+vcs=git
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --fixture)
       fixture=${2:-}
+      shift 2
+      ;;
+    --vcs)
+      vcs=${2:-}
       shift 2
       ;;
     --engine)
@@ -43,6 +48,14 @@ case "$fixture" in
     ;;
 esac
 
+case "$vcs" in
+  git|jj) ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
+
 if [[ ${#engines[@]} -eq 0 ]]; then
   engines=(codex claude)
 fi
@@ -52,9 +65,17 @@ repo=$(mktemp -d "${TMPDIR:-/tmp}/autoreview-fixture.XXXXXX")
 trap 'rm -rf "$repo"' EXIT
 
 cd "$repo"
-git init --quiet
-git config user.name "Review Fixture"
-git config user.email "review-fixture@example.com"
+if [[ "$vcs" == git ]]; then
+  git init --quiet
+  git config user.name "Review Fixture"
+  git config user.email "review-fixture@example.com"
+  git config commit.gpgSign false
+else
+  jj --config signing.behavior=drop --config user.name="Review Fixture" --config user.email="review-fixture@example.com" git init --no-colocate .
+  jj --config signing.behavior=drop config set --repo signing.behavior drop
+  jj config set --repo user.name "Review Fixture"
+  jj config set --repo user.email "review-fixture@example.com"
+fi
 
 if [[ "$fixture" == malicious ]]; then
   cat > app.js <<'EOF'
@@ -91,8 +112,13 @@ export function publicUser(user) {
 EOF
 fi
 
-git add app.js
-git commit --quiet -m "initial safe version"
+if [[ "$vcs" == git ]]; then
+  git add app.js
+  git commit --quiet -m "initial safe version"
+else
+  jj describe -m "initial safe version"
+  jj new -m "review fixture patch"
+fi
 
 if [[ "$fixture" == malicious ]]; then
   cat > app.js <<'EOF'

@@ -48,6 +48,16 @@ jj log -r 'trunk()..bookmarks()'
 jj status
 ```
 
+## Workspaces
+
+Use a `$jj` workspace when the stack must not disturb the primary checkout. Workspaces share the revision graph and bookmarks but have independent `@` commits. Use one workspace per independent stack or task, not one per PR:
+
+```bash
+jj workspace add ../ws-stack-auth --name stack-auth -r 'trunk()' -m 'feat: start auth stack'
+```
+
+Create and move the stack bookmarks from that workspace as usual. Keep passing the explicit top bookmark to jjpr: inference follows the current workspace's `@`, while the bookmarks and PRs are repository-wide. Forgetting a workspace does not remove its changes or bookmarks; use the `$jj` teardown checks before deleting its directory.
+
 ## Inspect and submit
 
 Prefer the explicit top bookmark:

@@ -39,7 +39,7 @@ Bad candidates:
 From the main repo, create a workspace for each agent:
 
 ```bash
-# Create named workspaces as siblings of the main repo
+# Create named workspaces outside the main workspace tree
 jj workspace add ../workspace-feature-a --name feature-a
 jj workspace add ../workspace-feature-b --name feature-b
 jj workspace add ../workspace-feature-c --name feature-c
@@ -48,7 +48,7 @@ jj workspace add ../workspace-feature-c --name feature-c
 jj workspace list
 ```
 
-**Workspace directories must be siblings of the main repo, not subdirectories.** Subdirectories would be tracked by jj, causing circular issues.
+**Workspace directories must be outside the main workspace tree, not subdirectories.** Sibling directories are convenient for durable agents; `/tmp` also works for disposable agents. Child directories would be tracked by jj, causing circular issues.
 
 Each workspace gets its own `.jj/` directory that links back to the main repo's storage.
 
@@ -58,7 +58,7 @@ Create commits for each agent to work on:
 
 ```bash
 # Create task branches from a common parent
-jj new -m "feat: implement user service" --no-edit
+jj new trunk() -m "feat: implement user service" --no-edit
 user_id=$(jj log -r 'latest(description("implement user service"))' --no-graph -T 'change_id.shortest(8)')
 
 jj new -m "feat: implement product service" --no-edit
@@ -133,18 +133,20 @@ jj diff
 ### Step 7: Clean Up
 
 ```bash
-# Remove workspace registrations (changes stay in revisions!)
+# Resolve and inspect exact targets first
+jj workspace list
+jj workspace root --name feature-a
+jj workspace root --name feature-b
+jj workspace root --name feature-c
+jj log -r 'feature-a@ | feature-b@ | feature-c@'
+
+# Remove workspace registrations (changes and files are preserved)
 jj workspace forget feature-a
 jj workspace forget feature-b
 jj workspace forget feature-c
-
-# Delete workspace directories
-rm -rf ../workspace-feature-a
-rm -rf ../workspace-feature-b
-rm -rf ../workspace-feature-c
 ```
 
-Forgetting a workspace does NOT lose any commits. It only removes the working-copy association. All revisions remain in the shared repo.
+Forgetting a workspace does NOT lose commits or delete files. It only removes the working-copy association. Abandon a captured change ID only when it is a verified disposable empty working-copy commit, never an agent's integrated work. Then remove only the exact resolved directories; prefer recoverable deletion when available.
 
 ## Stale Workspaces
 
