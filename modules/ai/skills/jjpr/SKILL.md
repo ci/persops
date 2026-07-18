@@ -82,7 +82,9 @@ jjpr submit <top> --ready
 ```
 
 - Reviewer scope defaults to `bottom`; alternatives are `leaf` and `all`.
-- New PRs are ready unless `--draft` is supplied.
+- New PRs are ready unless `--draft` is supplied. When the active AGENTS policy
+  defaults to draft PRs (for example the work machine), pass `--draft` on every
+  first submit and promote with `--ready` only on user ask.
 - Use `--base` only to override incorrect auto-detection, such as an unpushed foreign base.
 
 Read status without changing the forge:
