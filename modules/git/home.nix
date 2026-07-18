@@ -100,7 +100,6 @@ in
     delta
     git
     git-absorb
-    git-branchless
     git-revise
     lazygit
   ];
