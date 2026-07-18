@@ -18,8 +18,10 @@ This skill is about turning working code into a reviewable branch. Use
 - Open or update remote PRs only when the user asked for that outcome; the
   draft/non-draft state follows the global AGENTS.md preference unless the
   user says otherwise.
-- Use a worktree only when the user asks, the current checkout has unrelated
-  changes, or the main checkout must stay untouched.
+- Use an isolated checkout only when the user asks, the current checkout has
+  unrelated changes, or the primary checkout must stay untouched. When
+  `jj status` succeeds, use a `$jj` workspace outside the current workspace
+  tree; use a Git worktree only in a plain Git repo.
 - Push only when the user asked to push, open/update a PR, fix CI, or otherwise
   gave clear remote-write consent.
 
@@ -60,14 +62,18 @@ This skill is about turning working code into a reviewable branch. Use
 
 For phased or multi-part work when the user asks for stacked PRs:
 
-- One branch per phase, stacked on the previous. Keep each PR small: target
-  under 500 changed lines, avoid exceeding ~1k — split further instead.
+- In a jj repo, use `$jjpr`: one bookmark per PR and one workspace per
+  independent stack, not per PR. Preview and submit the explicit top bookmark.
+- In a plain Git repo, use one branch per phase, stacked on the previous.
+- Keep each PR small: target under 500 changed lines, avoid exceeding ~1k —
+  split further instead.
 - Run the full closeout loop (gate + autoreview) per phase before opening its
   PR.
-- Phase N's PR bases on phase N-1's branch; after a parent merges, retarget
-  the child to main.
-- When a parent branch changes (review fixes), rebase the children on top and
-  re-push them.
+- With `$jjpr`, let submit repair PR bases and let merge reconcile the remaining
+  stack. A rewritten lower change makes jj rebase descendants; inspect the
+  graph, then dry-run and resubmit rather than manually retargeting GitHub.
+- In plain Git, phase N bases on phase N-1; after a parent merges, retarget and
+  rebase the child as needed.
 - Between phases, report what's next with a go/no-go recommendation and wait
   for the user's signal, unless they pre-approved all phases up front.
 

@@ -34,7 +34,9 @@ locally, report, and stop.
    - use the repo package manager and local docs
    - use the requested runtime/version; try nix-comma or `nix shell` when the
      tool is missing
-   - keep scratch harnesses in `/tmp` or a throwaway worktree when needed
+   - keep scratch harnesses in `/tmp`; when repo isolation is needed, follow
+     `$thoughts` and use a jj workspace when jj is available, otherwise a Git
+     worktree
 3. Increase fidelity only as needed:
    - CLI/unit repro
    - target runtime/version

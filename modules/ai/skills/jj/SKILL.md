@@ -20,7 +20,7 @@ Jujutsu is a Git-compatible VCS with mutable commits, automatic change tracking,
 | Write revset, fileset, or template expressions | [revsets.md](revsets.md) |
 | Push, pull, manage bookmarks, or work with GitHub | [sharing.md](sharing.md) |
 | Split, rebase, squash, or resolve conflicts | [history.md](history.md) |
-| Run parallel agents with isolated working copies | [workspaces.md](workspaces.md) |
+| Use isolated working copies or run parallel agents | [workspaces.md](workspaces.md) |
 | Configure jj, set up aliases, or customize diffs | [config.md](config.md) |
 
 ## Mental Model
@@ -130,6 +130,8 @@ Bookmarks must be set before pushing — they don't auto-advance.
 | Restore to earlier state | `jj op restore <op-id>` |
 | Create/move bookmark | `jj bookmark create <n> -r @` / `jj bookmark set <n> -r @` |
 | Push / fetch | `jj git push -b <bookmark>` / `jj git fetch` |
+| Create isolated workspace | `jj workspace add <path> --name <name> -r <revision> -m "<message>"` |
+| List / forget workspaces | `jj workspace list` / `jj workspace forget <name>` |
 
 For Git translations: [references/git-to-jj.md](references/git-to-jj.md)
 
@@ -156,7 +158,7 @@ jj evolog -r <change-id>     # see how a change evolved
 | Using commit IDs instead of change IDs | Change IDs (letters k–z) survive rewrites |
 | Unquoted revset expressions | Always single-quote: `'mine() & ::@'` |
 | Confusing `::` vs `..` operators | `::` = ancestry path, `..` = range (see [revsets.md](revsets.md)) |
-| Creating workspaces as subdirectories | Must be sibling dirs, not children |
+| Creating a workspace inside another workspace | Use a sibling directory or `/tmp`, never a child path |
 
 ## Reference Index
 

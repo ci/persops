@@ -5,4 +5,4 @@ installed_at = 2026-05-25T23:19:40Z
 requested_source = https://github.com/openclaw/agent-skills/tree/main/skills/autoreview
 via = manual vendor from https://github.com/openclaw/agent-skills/commit/32df07d334db8699ab913a87b626d89ebbf5d4a7
 upstream_commit = 32df07d334db8699ab913a87b626d89ebbf5d4a7
-local_changes = adjusted helper path examples for persops/global installs; removed unused cache-repair guidance; reject out-of-scope findings instead of silently cleaning them
+local_changes = adjusted helper paths; removed cache-repair guidance; reject out-of-scope findings; native jj local/branch/commit bundles and non-colocated harness coverage

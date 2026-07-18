@@ -13,6 +13,7 @@ import textwrap
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 
 ENGINES = ("codex", "claude", "droid", "copilot")
@@ -128,7 +129,20 @@ def git(repo: Path, *args: str, check: bool = True) -> str:
     return run(["git", *args], repo, check=check).stdout
 
 
+def jj(repo: Path, *args: str, check: bool = True) -> str:
+    return run(["jj", "--no-pager", *args], repo, check=check).stdout
+
+
 def repo_root() -> Path:
+    if shutil_which("jj"):
+        result = subprocess.run(
+            ["jj", "workspace", "root"],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if result.returncode == 0:
+            return Path(result.stdout.strip()).resolve()
     result = subprocess.run(
         ["git", "rev-parse", "--show-toplevel"],
         text=True,
@@ -140,31 +154,155 @@ def repo_root() -> Path:
     return Path(result.stdout.strip()).resolve()
 
 
+def is_jj_repo(repo: Path) -> bool:
+    return (repo / ".jj").exists() and bool(shutil_which("jj"))
+
+
+def vcs_name(repo: Path) -> str:
+    return "jj" if is_jj_repo(repo) else "git"
+
+
 def current_branch(repo: Path) -> str:
+    if is_jj_repo(repo):
+        bookmarks = jj(
+            repo,
+            "log",
+            "-r",
+            "latest(::@ & bookmarks())",
+            "--no-graph",
+            "-T",
+            'bookmarks.map(|b| b.name()).join(",") ++ "\\n"',
+            check=False,
+        ).strip()
+        return bookmarks or "detached"
     return git(repo, "branch", "--show-current", check=False).strip() or "detached"
 
 
 def is_dirty(repo: Path) -> bool:
+    if is_jj_repo(repo):
+        return bool(jj(repo, "diff", "-r", "@", "--summary").strip())
     return bool(git(repo, "status", "--porcelain").strip())
 
 
-def choose_target(repo: Path, mode: str, base_ref: str | None) -> tuple[str, str | None]:
+def choose_target(repo: Path, mode: str, base_ref: str | None, head_ref: str, remote: str) -> tuple[str, str | None]:
     branch = current_branch(repo)
     if mode == "local" or (mode == "auto" and is_dirty(repo)):
         return "local", None
     if mode == "commit":
         return "commit", None
-    if mode == "branch" or (mode == "auto" and branch != "main"):
-        return "branch", base_ref or detect_pr_base(repo) or "origin/main"
+    if mode == "branch":
+        default_base = "trunk()" if is_jj_repo(repo) else f"{remote}/main"
+        return "branch", base_ref or detect_pr_base(repo, head_ref, remote) or default_base
+    if is_jj_repo(repo):
+        return "branch", base_ref or detect_pr_base(repo, head_ref, remote) or "trunk()"
+    if mode == "auto" and branch != "main":
+        return "branch", base_ref or detect_pr_base(repo, head_ref, remote) or f"{remote}/main"
     raise SystemExit("no review target: clean main checkout and no forced mode")
 
 
-def detect_pr_base(repo: Path) -> str | None:
+def remote_url(repo: Path, remote: str) -> str | None:
+    if is_jj_repo(repo):
+        output = jj(repo, "git", "remote", "list", check=False)
+        for line in output.splitlines():
+            name, separator, url = line.partition(" ")
+            if name == remote and separator and url.strip():
+                return url.strip()
+        return None
+    output = git(repo, "remote", "get-url", remote, check=False).strip()
+    return output or None
+
+
+def github_repo_slug(repo: Path, remote: str) -> str | None:
+    url = remote_url(repo, remote)
+    if not url:
+        return None
+    host: str | None
+    path: str
+    if "://" in url:
+        parsed = urlparse(url)
+        host = parsed.hostname
+        path = parsed.path
+    elif ":" in url and "@" in url.split(":", 1)[0]:
+        authority, path = url.split(":", 1)
+        host = authority.rsplit("@", 1)[-1]
+    else:
+        return None
+    parts = path.strip("/").removesuffix(".git").split("/")
+    if not host or len(parts) != 2 or not all(parts):
+        return None
+    slug = "/".join(parts)
+    return slug if host == "github.com" else f"{host}/{slug}"
+
+
+def jj_head_bookmarks(repo: Path, head_ref: str, remote: str) -> list[str]:
+    local_output = jj(
+        repo,
+        "log",
+        "-r",
+        f"({head_ref}) & bookmarks()",
+        "--no-graph",
+        "-T",
+        'local_bookmarks.map(|b| b.name()).join("\\n") ++ "\\n"',
+        check=False,
+    )
+    names = [name for name in local_output.splitlines() if name]
+    remote_output = jj(
+        repo,
+        "log",
+        "-r",
+        f"({head_ref}) & remote_bookmarks()",
+        "--no-graph",
+        "-T",
+        'remote_bookmarks.map(|b| b.name() ++ "@" ++ b.remote()).join("\\n") ++ "\\n"',
+        check=False,
+    )
+    for ref in remote_output.splitlines():
+        name, separator, ref_remote = ref.rpartition("@")
+        if separator and ref_remote == remote and name:
+            names.append(name)
+    suffix = f"@{remote}"
+    if not names and head_ref.endswith(suffix):
+        names.append(head_ref[: -len(suffix)])
+    return list(dict.fromkeys(names))
+
+
+def git_head_branches(repo: Path, head_ref: str, remote: str) -> list[str]:
+    if head_ref == "HEAD":
+        branch = current_branch(repo)
+        return [] if branch == "detached" else [branch]
+    symbolic = git(repo, "rev-parse", "--symbolic-full-name", "--verify", head_ref, check=False).strip()
+    local_prefix = "refs/heads/"
+    remote_prefix = f"refs/remotes/{remote}/"
+    if symbolic.startswith(local_prefix):
+        return [symbolic.removeprefix(local_prefix)]
+    if symbolic.startswith(remote_prefix):
+        return [symbolic.removeprefix(remote_prefix)]
+    return []
+
+
+def detect_pr_base(repo: Path, head_ref: str, remote: str) -> str | None:
     if not shutil_which("gh"):
         return None
-    result = run(["gh", "pr", "view", "--json", "baseRefName", "--jq", ".baseRefName"], repo, check=False)
-    base = result.stdout.strip()
-    return f"origin/{base}" if result.returncode == 0 and base else None
+    slug = github_repo_slug(repo, remote)
+    if not slug:
+        return None
+    heads = (
+        jj_head_bookmarks(repo, head_ref, remote)
+        if is_jj_repo(repo)
+        else git_head_branches(repo, head_ref, remote)
+    )
+    for head in heads:
+        if head == "detached":
+            continue
+        result = run(
+            ["gh", "pr", "view", head, "--repo", slug, "--json", "baseRefName", "--jq", ".baseRefName"],
+            repo,
+            check=False,
+        )
+        base = result.stdout.strip()
+        if result.returncode == 0 and base:
+            return f"{base}@{remote}" if is_jj_repo(repo) else f"{remote}/{base}"
+    return None
 
 
 def shutil_which(name: str) -> str | None:
@@ -200,6 +338,16 @@ def read_text(path: Path, limit: int = 40_000) -> str:
 
 
 def local_bundle(repo: Path) -> str:
+    if is_jj_repo(repo):
+        return "\n\n".join(
+            [
+                "# JJ Status",
+                jj(repo, "status"),
+                "# Working-copy Diff",
+                jj(repo, "diff", "-r", "@", "--stat"),
+                bounded(jj(repo, "diff", "-r", "@", "--git")),
+            ]
+        )
     parts = [
         "# Git Status",
         git(repo, "status", "--short"),
@@ -219,19 +367,48 @@ def local_bundle(repo: Path) -> str:
     return "\n\n".join(parts)
 
 
-def branch_bundle(repo: Path, base_ref: str) -> str:
-    git(repo, "fetch", "origin", "--quiet", check=False)
+def jj_branch_base(base_ref: str, head_ref: str) -> str:
+    return f"fork_point(({base_ref}) | ({head_ref}))"
+
+
+def branch_bundle(repo: Path, base_ref: str, head_ref: str, remote: str, *, fetch_remote: bool = True) -> str:
+    if is_jj_repo(repo):
+        if fetch_remote:
+            jj(repo, "git", "fetch", "--remote", remote)
+        diff_base = jj_branch_base(base_ref, head_ref)
+        return "\n\n".join(
+            [
+                "# JJ Branch Diff",
+                f"base: {base_ref}",
+                f"head: {head_ref}",
+                f"fork point: {diff_base}",
+                jj(repo, "diff", "--from", diff_base, "--to", head_ref, "--stat"),
+                bounded(jj(repo, "diff", "--from", diff_base, "--to", head_ref, "--git")),
+            ]
+        )
+    if fetch_remote:
+        git(repo, "fetch", remote, "--quiet")
     return "\n\n".join(
         [
             "# Branch Diff",
             f"base: {base_ref}",
-            git(repo, "diff", "--stat", f"{base_ref}...HEAD"),
-            bounded(git(repo, "diff", "--patch", "--find-renames", f"{base_ref}...HEAD")),
+            f"head: {head_ref}",
+            git(repo, "diff", "--stat", f"{base_ref}...{head_ref}"),
+            bounded(git(repo, "diff", "--patch", "--find-renames", f"{base_ref}...{head_ref}")),
         ]
     )
 
 
 def commit_bundle(repo: Path, commit_ref: str) -> str:
+    if is_jj_repo(repo):
+        return "\n\n".join(
+            [
+                "# JJ Change Diff",
+                f"change: {commit_ref}",
+                jj(repo, "show", "-r", commit_ref, "--stat"),
+                bounded(jj(repo, "show", "-r", commit_ref, "--git")),
+            ]
+        )
     return "\n\n".join(
         [
             "# Commit Diff",
@@ -242,9 +419,19 @@ def commit_bundle(repo: Path, commit_ref: str) -> str:
     )
 
 
-def review_paths(repo: Path, target: str, target_ref: str | None, commit_ref: str) -> set[str]:
+def review_paths(repo: Path, target: str, target_ref: str | None, head_ref: str, commit_ref: str) -> set[str]:
     names: set[str] = set()
-    if target == "local":
+    if is_jj_repo(repo):
+        if target == "local":
+            sources = [jj(repo, "diff", "-r", "@", "--name-only")]
+        elif target == "branch":
+            assert target_ref
+            sources = [
+                jj(repo, "diff", "--from", jj_branch_base(target_ref, head_ref), "--to", head_ref, "--name-only")
+            ]
+        else:
+            sources = [jj(repo, "diff", "-r", commit_ref, "--name-only")]
+    elif target == "local":
         sources = [
             git(repo, "diff", "--name-only", "--cached"),
             git(repo, "diff", "--name-only"),
@@ -252,7 +439,7 @@ def review_paths(repo: Path, target: str, target_ref: str | None, commit_ref: st
         ]
     elif target == "branch":
         assert target_ref
-        sources = [git(repo, "diff", "--name-only", f"{target_ref}...HEAD")]
+        sources = [git(repo, "diff", "--name-only", f"{target_ref}...{head_ref}")]
     else:
         sources = [git(repo, "show", "--name-only", "--format=", commit_ref)]
     for source in sources:
@@ -286,7 +473,7 @@ def build_prompt(repo: Path, target: str, target_ref: str | None, bundle: str, e
     target_line = f"{target} {target_ref}" if target_ref else target
     return textwrap.dedent(
         f"""
-        You are a senior code reviewer. Review the provided git change bundle only.
+        You are a senior code reviewer. Review the provided VCS change bundle only.
 
         Hard rules:
         - Return exactly one JSON object and nothing else. Do not wrap it in Markdown.
@@ -296,7 +483,7 @@ def build_prompt(repo: Path, target: str, target_ref: str | None, bundle: str, e
         - Do not invoke nested reviewers or review tools.
         - Forbidden nested review commands include: codex review, autoreview, claude review, oracle review.
         - You may use read-only tools and web search to inspect files, dependency contracts, upstream docs, current behavior, and security implications.
-        - Shell commands, if available, must be read-only inspection commands. Do not run tests, formatters, package installs, generators, network mutation commands, git mutation commands, or commands that write files.
+        - Shell commands, if available, must be read-only inspection commands. Do not run tests, formatters, package installs, generators, network mutation commands, VCS mutation commands, or commands that write files.
         - Report only actionable defects introduced or exposed by this change.
         - Prefer high-signal findings over style feedback.
         - Include security findings: injection, secret leaks, authz/authn bypass, path traversal, unsafe deserialization, unsafe filesystem or shell use, privacy leaks, and credential handling.
@@ -336,9 +523,11 @@ def run_codex(args: argparse.Namespace, repo: Path, prompt: str) -> str:
         cmd.extend(["--model", args.model])
     if args.thinking:
         cmd.extend(["-c", f'model_reasoning_effort="{args.thinking}"'])
+    cmd.append("exec")
+    if is_jj_repo(repo) and not (repo / ".git").exists():
+        cmd.append("--skip-git-repo-check")
     cmd.extend(
         [
-            "exec",
             "--ephemeral",
             "-C",
             str(repo),
@@ -644,7 +833,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Bundle-driven AI code review.")
     parser.add_argument("--mode", choices=["auto", "local", "branch", "commit"], default="auto")
     parser.add_argument("--base")
-    parser.add_argument("--commit", default="HEAD")
+    parser.add_argument("--head", help="Branch/stack head. Defaults to @- in jj repos and HEAD in Git repos.")
+    parser.add_argument("--remote", default="origin", help="Remote to fetch and use for detected base refs.")
+    parser.add_argument("--no-fetch", dest="fetch_remote", action="store_false", default=True, help="Use existing local refs without refreshing the selected remote.")
+    parser.add_argument("--commit", help="Commit/change to review. Defaults to @- in jj repos and HEAD in Git repos.")
     parser.add_argument("--engine", choices=ENGINES, default=os.environ.get("AUTOREVIEW_ENGINE", "codex"))
     parser.add_argument("--reviewers", help="Comma-separated review panel, e.g. codex,claude or codex:gpt-5:high.")
     parser.add_argument("--panel", action="store_true", help="Run a Codex/Claude review panel unless --engine changes the first reviewer.")
@@ -842,8 +1034,11 @@ def main() -> int:
     args = parse_args()
     reviewers = reviewer_args(args)
     repo = repo_root()
-    target, target_ref = choose_target(repo, args.mode, args.base)
+    head_ref = args.head or ("@-" if is_jj_repo(repo) else "HEAD")
+    commit_ref = args.commit or ("@-" if is_jj_repo(repo) else "HEAD")
+    target, target_ref = choose_target(repo, args.mode, args.base, head_ref, args.remote)
     print(f"autoreview target: {target}")
+    print(f"vcs: {vcs_name(repo)}")
     print(f"branch: {current_branch(repo)}")
     if len(reviewers) == 1 and not args.reviewers and not args.panel:
         print(f"engine: {reviewers[0].engine}")
@@ -855,23 +1050,29 @@ def main() -> int:
         print(f"reviewers: {', '.join(reviewer_label(reviewer) for reviewer in reviewers)}")
     print(f"tools: {'on' if args.tools else 'off'}")
     print(f"web_search: {'on' if args.web_search else 'off'}")
-    display_ref = args.commit if target == "commit" else target_ref
+    display_ref = commit_ref if target == "commit" else f"{target_ref}...{head_ref}" if target == "branch" else None
     if display_ref:
         print(f"ref: {display_ref}")
-    if args.dry_run:
-        return 0
 
     if target == "local":
         bundle = local_bundle(repo)
     elif target == "branch":
         assert target_ref
-        bundle = branch_bundle(repo, target_ref)
+        bundle = branch_bundle(
+            repo,
+            target_ref,
+            head_ref,
+            args.remote,
+            fetch_remote=args.fetch_remote and not args.dry_run,
+        )
     else:
-        bundle = commit_bundle(repo, args.commit)
-        target_ref = args.commit
-    prompt = build_prompt(repo, target, target_ref, bundle, load_extra_prompt(args), load_datasets(args))
-    changed_paths = review_paths(repo, target, target_ref, args.commit)
+        bundle = commit_bundle(repo, commit_ref)
+    prompt = build_prompt(repo, target, display_ref, bundle, load_extra_prompt(args), load_datasets(args))
+    changed_paths = review_paths(repo, target, target_ref, head_ref, commit_ref)
     print(f"bundle: {len(prompt)} chars")
+    print(f"changed_paths: {len(changed_paths)}")
+    if args.dry_run:
+        return 0
 
     tests_proc: tuple[subprocess.Popen, float] | None = None
     if args.parallel_tests:

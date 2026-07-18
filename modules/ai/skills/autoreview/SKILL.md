@@ -1,6 +1,6 @@
 ---
 name: autoreview
-description: "Auto Review closeout. Codex review is the default when no engine is set and is the recommended reviewer."
+description: "Auto Review closeout for Git and Jujutsu changes. Codex is the default and recommended reviewer."
 ---
 
 # Auto Review
@@ -54,11 +54,28 @@ or branch diff instead; do not force `--mode local` / `--uncommitted` just
 because the helper docs mention dirty work first. A clean local review
 only proves there is no local patch.
 
+In a jj repo, the helper uses native `jj diff`/`jj show`, including in
+non-colocated repos and additional workspaces. Run `jj status` first. Local mode
+reviews the current workspace's `@` diff.
+
 Branch/PR work:
 
 ```bash
 <autoreview-helper> --mode branch --base origin/main
 ```
+
+For jj, use revsets/bookmarks and select the head explicitly when needed:
+
+```bash
+<autoreview-helper> --mode branch --base 'main@origin' --head '<bookmark>'
+```
+
+The jj defaults are `trunk()` for the base and `@-` for the head. Those are
+appropriate for a normal empty `@` above one finished change, but not enough to
+identify an arbitrary stack. Use `$jjpr` to inspect the stack, then review each
+PR-sized bookmark against its immediate lower bookmark, or review the whole
+stack by passing its bottom base and explicit top bookmark. Branch mode diffs
+from the base/head fork point, matching Git's three-dot review shape.
 
 Optional review context is first-class:
 
@@ -84,6 +101,9 @@ or with the helper:
 ```bash
 ~/.agents/skills/autoreview/scripts/autoreview --mode commit --commit HEAD
 ```
+
+In jj mode, `--commit` accepts a jj change ID, bookmark, or revset; prefer the
+stable change ID. When omitted, it defaults to `@-`; Git defaults to `HEAD`.
 
 Use commit review for already-landed or already-pushed work on `main`. Reviewing
 clean `main` against `origin/main` is usually an empty diff after push. For a
@@ -150,9 +170,13 @@ modules/ai/skills/autoreview/scripts/autoreview --help
 
 The helper:
 
-- chooses dirty local changes first
+- detects jj before Git and uses native jj bundles; Git remains the fallback
+- chooses dirty local changes first, scoped to the current jj workspace's `@`
 - otherwise uses current PR base if `gh pr view` works
-- otherwise uses `origin/main` for non-main branches
+- otherwise uses `trunk()`/`@-` in jj or `origin/main`/`HEAD` in Git
+- supports `--base`, `--head`, and `--remote` for explicit branch/stack targets
+- refreshes the selected remote before a live branch review and fails closed on
+  fetch errors; use `--no-fetch` only when intentionally reviewing local refs
 - supports `--engine codex`, `claude`, `droid`, and `copilot`; default is `AUTOREVIEW_ENGINE` or `codex`; Codex should remain the default when nothing is set
 - use `--mode commit --commit <ref>` for already-committed work, especially clean `main` after landing
 - should be left in `--mode auto` or forced to `--mode branch` for PR/branch work; do not force `--mode local` after committing
