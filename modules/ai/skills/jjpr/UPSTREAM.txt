@@ -1,0 +1,6 @@
+source = persops (repo-local, original)
+source_type = local
+profile = coding
+installed_at = 2026-07-19
+requested_source = authored in persops modules/ai/skills/jjpr
+via = original skill based on validated jjpr 0.34.1 workflows
