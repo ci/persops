@@ -108,10 +108,6 @@ let
       name = "summarize";
       source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize";
     }
-    {
-      name = "openhue";
-      source = ./openhue;
-    }
   ];
   agentSkillTargets = lib.filter (
     skill: builtins.elem ".agents/skills" (skill.bases or skillBaseProfiles.all)
@@ -146,10 +142,6 @@ in
         };
       };
     };
-
-    # OpenCode commands
-    "opencode/command/commit.md".source = ./commands/commit.md;
-    "opencode/command/rmslop.md".source = ./commands/rmslop.md;
 
     # Global agent instructions for Claude Code, Codex, and OpenCode.
     # Pi gets a generated mutable copy with pi-specific notes below.
