@@ -1,0 +1,4 @@
+interface:
+  display_name: "JJPR"
+  short_description: "Manage stacked pull requests from Jujutsu"
+  default_prompt: "Use $jjpr to create, submit, inspect, or merge this Jujutsu PR stack safely."

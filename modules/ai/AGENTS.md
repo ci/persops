@@ -57,6 +57,7 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 - Always use jj if exists.
 - Consult $jj skill once per session for context before usage if using jj.
+- Use $jjpr for bookmark-per-PR stack submission, status, reconciliation, and landing.
 - Finish changes with empty `@` unless user asks otherwise: use `jj commit -m ...` or `jj describe ... && jj new`; never only `jj describe` for handoff.
 
 ## Tools
