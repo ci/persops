@@ -53,7 +53,7 @@ in
     merge_method = "squash"
     required_approvals = 1
     require_ci_pass = true
-    reconcile_strategy = "rebase"
+    reconcile_strategy = "merge"
     stack_nav = "comment"
   '';
 }
