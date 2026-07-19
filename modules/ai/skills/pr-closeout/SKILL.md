@@ -18,10 +18,11 @@ This skill is about turning working code into a reviewable branch. Use
 - Open or update remote PRs only when the user asked for that outcome; the
   draft/non-draft state follows the global AGENTS.md preference unless the
   user says otherwise.
-- Use an isolated checkout only when the user asks, the current checkout has
-  unrelated changes, or the primary checkout must stay untouched. When
-  `jj status` succeeds, use a `$jj` workspace outside the current workspace
-  tree; use a Git worktree only in a plain Git repo.
+- Close out where the work already lives — per the global start-in-isolation
+  default that is usually a `$jj` workspace or Git worktree. Create a new
+  isolated checkout only when the user asks, the current checkout has unrelated
+  changes, or the primary checkout must stay untouched; jj workspaces go
+  outside the current workspace tree, Git worktrees are for plain Git repos.
 - Push only when the user asked to push, open/update a PR, fix CI, or otherwise
   gave clear remote-write consent.
 
@@ -30,6 +31,8 @@ This skill is about turning working code into a reviewable branch. Use
 1. Inspect state:
    - run `jj status` first; use `jj` if it succeeds, otherwise git
    - identify branch, base, existing PR, dirty files, and unrelated changes
+   - note which checkout holds the work; create a new workspace/worktree only
+     per the contract, and then do all closeout work there
    - read repo docs and PR/CI guidance relevant to the touched surface
 2. Establish commit shape:
    - if work is dirty but coherent, suggest or create a commit before review
@@ -55,8 +58,8 @@ This skill is about turning working code into a reviewable branch. Use
      sending
 6. Final gate:
    - run the requested or repo-standard closeout gate
-   - report commits, tests, autoreview result, PR URL/state, and any residual
-     risk
+   - report commits, tests, autoreview result, PR URL/state, the isolated
+     checkout's path (it stays for `$land` teardown), and any residual risk
 
 ## Stacked PRs
 
