@@ -102,8 +102,12 @@ or with the helper:
 ~/.agents/skills/autoreview/scripts/autoreview --mode commit --commit HEAD
 ```
 
-In jj mode, `--commit` accepts a jj change ID, bookmark, or revset; prefer the
-stable change ID. When omitted, it defaults to `@-`; Git defaults to `HEAD`.
+In jj mode, `--head` and `--commit` accept a jj change ID, bookmark, or revset;
+prefer a concrete change ID when passing a revision through helper scripts.
+Revsets are passed without a shell hop, but `description("...")` matches the
+complete description and can miss because of description formatting. Use a
+change ID, or deliberately use `description(substring:"...")`. When omitted,
+`--commit` defaults to `@-`; Git defaults to `HEAD`.
 
 Use commit review for already-landed or already-pushed work on `main`. Reviewing
 clean `main` against `origin/main` is usually an empty diff after push. For a
