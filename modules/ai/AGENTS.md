@@ -22,6 +22,8 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 ## PR/CI
 
+- PR scope: one logical, independently landable addition per PR. Soft targets: <500 changed lines, split before ~1k — split by logical unit, never just to duck the number. Generated files (lockfiles, codegen types/snapshots) don't count toward the limit.
+- Multi-part work: stack small PRs instead of one big PR — `$jjpr` in jj repos, branch-per-phase in plain git; `$pr-closeout` has the mechanics.
 - PR refs: use `gh pr view/diff`, not web search.
 - CI: `gh run list/view`; rerun/fix until green when asked.
 - `fix ci`: consent to pull, commit, push; fix/rerun/watch until CI green.
