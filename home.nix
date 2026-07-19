@@ -27,6 +27,7 @@ in
   imports = [
     ./modules/fish.nix
     ./modules/tmux.nix
+    ./modules/jj.nix
     ./modules/jjpr.nix
     ./modules/jjui.nix
     ./modules/git/home.nix

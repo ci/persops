@@ -126,7 +126,23 @@ The restore workflow gives you full control without any interactive prompts.
 
 ### Splitting Immutable Commits
 
-Commits with descendants or in shared history are immutable by default. Override with `--ignore-immutable`:
+Inspect why a commit is immutable before overriding it:
+
+```bash
+jj log -r <change-id> -T 'if(immutable, "immutable\n", "mutable\n")'
+jj config get 'revset-aliases."immutable_heads()"'
+jj bookmark list --all-remotes
+```
+
+Tracked owned remote bookmarks are mutable under the default policy. The same
+commit can become immutable when its remote bookmark is untracked. Track an
+owned bookmark before considering an override:
+
+```bash
+jj bookmark track <name>@<remote>
+```
+
+Override only when the exact rewrite is authorized:
 
 ```bash
 jj edit <change-id> --ignore-immutable
@@ -137,7 +153,8 @@ jj split --ignore-immutable src/module.rs -m "refactor: extract module"
 
 **When `--ignore-immutable` is safe:**
 - The commits are local-only (not pushed)
-- You own all descendant commits
+- Or the published branch is yours and force-pushing that exact range is authorized
+- You own all descendant commits and bookmarks
 - No collaborators are affected
 
 **What happens:** all descendant commits are rewritten with new commit IDs. Change IDs stay the same. Bookmarks on affected commits follow the rewrite.
@@ -379,6 +396,6 @@ After any major history rewrite (split, rebase, large squash):
 - **Using `jj squash -i`** — interactive, hangs in agent environments. Use `jj squash` (all) or `jj squash <paths>` (specific files).
 - **Forgetting `-m` on squash** — opens an editor. Always `jj squash -m "message"`.
 - **Not checking for conflicts after rebase** — rebase succeeds even with conflicts. Always `jj st` afterward.
-- **Using `--ignore-immutable` on shared history** — rewrites commit IDs, breaking collaborators. Only use on local-only commits.
+- **Using `--ignore-immutable` without proving ownership** — rewrites commit IDs and can break collaborators. Prefer tracking your owned remote bookmark; override only for an explicitly authorized range.
 - **Abandoning merge commits carelessly** — merge commits may carry resolution data. Check with `jj show` first.
 - **Not using `jj undo` for recovery** — if a split, squash, or rebase goes wrong, `jj undo` immediately reverses it. Don't try to manually fix broken state.

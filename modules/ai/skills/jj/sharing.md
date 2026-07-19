@@ -82,8 +82,15 @@ Push is safe by default (like `--force-with-lease`). It rejects if the remote ch
 
 ```bash
 jj git fetch
+jj log -r 'conflicts() & trunk()..<bookmark>'
+jj git push --dry-run -b <bookmark>
 jj git push -b feat-auth
 ```
+
+Check the whole pushed range, not only `@`: a clean tip can have a conflicted
+ancestor. Current jj rejects `jj git push` when any pushed commit has conflicts,
+including a clean empty tip above one. Raw `git push` bypasses jj's checks and is
+never the workaround.
 
 ## Fetching Changes
 
@@ -98,6 +105,31 @@ jj git fetch
 # Rebase your work onto updated trunk
 jj rebase -s 'all:roots(trunk()..mine())' -o trunk()
 ```
+
+### Squash Merges and Git-Unreachable Commits
+
+By default, Git import abandons commits that lose every Git reference and rebases
+their descendants. A forge squash merge followed by branch deletion can trigger
+this before stack reconciliation when local work above the merged branch is
+unbookmarked. The descendant may be rebased onto the old trunk and acquire a
+conflict that disappears on the correct base.
+
+Prefer this user configuration:
+
+```toml
+[git]
+abandon-unreachable-commits = false
+```
+
+The persops-managed jj config sets it. In an unmanaged environment, bookmark
+local descendants before fetching an expected squash merge. If abandonment
+already happened, inspect `jj op log` and the old graph, then rebase the oldest
+unmerged descendant onto current trunk. Do not hand-resolve a conflict that
+vanishes on the correct base, and do not rebase a published merge-reconciled
+stack without first following the `$jjpr` recovery flow.
+
+Tradeoff: Git-unreachable history remains until explicitly abandoned. Inspect
+old heads and abandon them deliberately instead of accepting fetch-time rewrites.
 
 ### Bookmark Tracking
 
@@ -276,6 +308,7 @@ In colocated repos, `gh` works normally.
 1. Verify commit has a description: `jj log -r @`
 2. Ensure a bookmark points at it: `jj bookmark list`
 3. If not, create/set one: `jj bookmark set <name> -r @`
-4. Check for conflicts: `jj st`
-5. Push: `jj git push -b <name>`
-6. Verify: `jj bookmark list` — no `*` on the pushed bookmark
+4. Check the pushed range: `jj log -r 'conflicts() & trunk()..<name>'`
+5. Preview: `jj git push --dry-run -b <name>`
+6. Push: `jj git push -b <name>`
+7. Verify: `jj bookmark list` — no `*` on the pushed bookmark

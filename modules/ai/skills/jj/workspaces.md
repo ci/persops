@@ -133,11 +133,25 @@ Rules:
 
 ## Stale Working Copies
 
-When another workspace modifies a commit that affects your workspace, `jj st` warns about a stale working copy.
+An independent operation in another workspace does not make every workspace
+stale. Staleness occurs when another operation rewrites or updates the commit
+recorded as this workspace's working copy.
 
 **Fix:** `jj workspace update-stale`
 
-This is normal and expected. If an operation was lost (`jj op abandon`), `update-stale` creates a recovery commit preserving the workspace's disk state.
+Run it explicitly, then re-inspect before moving shared bookmarks:
+
+```bash
+jj workspace update-stale
+jj status
+jj log -r '@ | @- | bookmarks()'
+```
+
+Do not hide it in `jj workspace update-stale 2>/dev/null || true`; that masks
+real errors and permits later commands to use an unverified graph. If an
+operation was lost (`jj op abandon`), `update-stale` creates a recovery commit
+preserving the workspace's disk state. `snapshot.auto-update-stale = true` is
+available, but explicit fail-closed recovery is safer for agent sessions.
 
 **Authority:** jj official docs (working-copy.md — stale working copy section).
 
@@ -166,6 +180,7 @@ Conflicts at integration are normal jj conflicts — edit markers, verify with `
 - **Omitting `-r` for isolated branch work** — the new `@` becomes a sibling of the current `@`, not a child of the target branch. Pass the intended revision explicitly.
 - **Using relative paths in agent instructions** — agents navigate; paths break. Always use absolute paths.
 - **Forgetting to `jj edit <change-id>`** before starting work — the agent works on the wrong commit.
-- **Panicking over "workspace stale" messages** — run `jj workspace update-stale`, it's normal.
+- **Treating every concurrent operation as stale** — only graph changes that affect this workspace's recorded commit stale it.
+- **Ignoring a real stale message** — run `jj workspace update-stale`, then re-check status and bookmarks.
 - **Thinking `forget` deletes work** — it only unregisters the workspace. Commits remain in the repo.
 - **Assuming `forget` cleans everything** — it leaves both files and commits. Resolve and verify each exact target before separate commit or directory cleanup.

@@ -59,6 +59,11 @@ jj workspace add ../ws-stack-auth --name stack-auth -r 'trunk()' -m 'feat: start
 
 Create and move the stack bookmarks from that workspace as usual. Keep passing the explicit top bookmark to jjpr: inference follows the current workspace's `@`, while the bookmarks and PRs are repository-wide. Forgetting a workspace does not remove its changes or bookmarks; use the `$jj` teardown checks before deleting its directory.
 
+Workspaces do not isolate bookmarks. One session owns and moves a stack's
+bookmarks at a time. A fetch, submit, or reconciliation in any workspace can
+advance their shared local or remote positions; re-run `jj bookmark list
+--all-remotes` and `jj log` before bookmark moves after those operations.
+
 ## Inspect and submit
 
 Prefer the explicit top bookmark:
@@ -67,6 +72,12 @@ Prefer the explicit top bookmark:
 jjpr status stack/03-flow
 jjpr submit stack/03-flow --dry-run
 jjpr submit stack/03-flow
+```
+
+Before submission, check the entire pushed range rather than only `@`:
+
+```bash
+jj log -r 'conflicts() & trunk()..<top>'
 ```
 
 Bare inference only works when the working copy is at or below a bookmarked commit. The normal empty `@` above a finished stack does not match; pass the top bookmark.
@@ -145,7 +156,9 @@ Keep these separate:
 - `merge_method = "squash"` controls how the forge lands each PR.
 - `reconcile_strategy = "merge"` controls how jjpr syncs the remaining stack afterward.
 
-After a squash merge creates a new trunk commit, merge reconciliation adds that commit as a second parent of a new commit on each surviving bookmark. It does not linearize the local graph:
+After a squash merge creates a new trunk commit, a clean merge reconciliation
+adds that commit as a second parent of a new commit on each surviving bookmark.
+It does not linearize the local graph:
 
 ```text
 old-main--C1A--C1B--C2A--C2B--M--C2C
@@ -164,7 +177,27 @@ jjpr submit <leaf> --dry-run
 jjpr submit <leaf>
 ```
 
-This keeps downstream pushes fast-forward, but every reconciliation changes the PR head and can retrigger CI or affect approval state. In jjpr 0.34.1, repeating reconciliation can also append a redundant merge commit even when trunk did not move. Accept this history only when clean GitHub diffs and no force-pushes matter more than branch history.
+This keeps downstream pushes fast-forward, but every reconciliation changes the
+PR head and can retrigger CI or affect approval state. In jjpr 0.34.1, repeating
+reconciliation appends a redundant merge commit even when trunk is already an
+ancestor. An immediate retry can therefore move the head again while GitHub is
+still computing mergeability. Stop retrying, wait for the same head to become
+mergeable, then use a direct forge merge only after independently checking the
+same gates and confirming that action is within the landing authority.
+
+Merge reconciliation can also produce a genuine conflict when the squashed
+lower PR and a surviving PR touch the same path, especially an add in the lower
+PR followed by edits above it. jjpr 0.34.1 stops and does not push that conflict.
+Inspect the two-parent merge and its pre-reconcile upper parent. If the ancestor
+chain is intact, resolve the merge to the intended combined tree, verify the
+whole conflict range, and resubmit. Do not misdiagnose this as the rebase orphan
+bug or blindly accept forge state. A rebase onto new trunk is a fallback only
+when rewriting the surviving PR head is acceptable.
+
+JJ's default Git import can separately abandon unbookmarked descendants when a
+squash-merged branch disappears. The persops-managed config prevents this with
+`git.abandon-unreachable-commits = false`; see `$jj` sharing guidance. This does
+not prevent genuine content conflicts in the reconciliation merge.
 
 Use rebase reconciliation only when explicitly chosen:
 
@@ -223,6 +256,14 @@ jjpr submit <top> --remote <remote> --dry-run
 ```
 
 Use the same remote selected for the original submit or merge. Resolve conflicts or bookmark divergence with the `jj` skill, then re-run `jjpr submit <top> --remote <remote>`. Use the oldest change in the affected segment when a manual rebase is necessary; rebasing only the bookmark tip can strand earlier commits. Never blindly move a bookmark to its remote counterpart or discard local divergence.
+
+Classify a reconcile conflict before repairing it:
+
+- A conflicted two-parent `Merge <trunk> into <top>` with the original upper
+  chain intact is usually a real merge conflict. Resolve that merge while
+  preserving both parents, then run the conflict-range check and submit dry-run.
+- A conflicted tip whose earlier changes vanished from its ancestry is the
+  legacy rebase-orphan shape below. Restore the chain before rebasing anything.
 
 For merge reconciliation, first verify that local trunk is tracked and equal to its remote counterpart:
 

@@ -79,9 +79,13 @@ jj diff 'src/*.rs'
 
 # Literal path with special characters
 jj diff 'cwd:"src/[special].rs"'
+
+# Expo Router parentheses are fileset syntax; quote the path inside the fileset
+jj diff -- '"apps/mobile/app/(app)/(tabs)/home.tsx"'
 ```
 
-Watch out for `[` brackets in patterns — they're interpreted as character classes, not literals.
+Watch out for brackets and parentheses in paths — fileset syntax interprets
+them unless the path itself is a quoted string literal.
 
 ## Shell Quoting
 
