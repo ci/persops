@@ -39,6 +39,8 @@ Work style: telegraph; noun-phrases ok; drop grammar; min tokens.
 
 ## VCS
 
+- Starting non-trivial implementation work: begin in an isolated checkout by default — `$jj` workspace in jj repos, git worktree otherwise — unless the session is already isolated, the change is small/quick, or the user says work in place.
+
 ### Git
 
 - Verify if jj exists before using git: `jj status` first (works from subdirs); use `jj` instead of `git` if it succeeds.
