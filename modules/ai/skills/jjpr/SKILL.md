@@ -14,6 +14,7 @@ Use with the `jj` skill. Let `jj` manage the local change graph; let `jjpr` map 
 - Treat `jjpr submit` as push/PR-write, `jjpr merge` as remote merge, and `jjpr watch` as a live remote mutation loop. Require matching user authorization.
 - Preview with `jjpr submit --dry-run` or `jjpr merge --dry-run` before the first live operation or after a graph rewrite.
 - Never use raw `git push` in a jj repository.
+- Before merge reconciliation, ensure the local trunk bookmark tracks the selected remote and matches `<trunk>@<remote>`. jjpr reconciles against the local bookmark name after fetching.
 - On persops-managed machines, edit `modules/jjpr.nix` rather than the generated `~/.config/jjpr/config.toml`.
 
 ## Model the stack
@@ -72,6 +73,15 @@ Bare inference only works when the working copy is at or below a bookmarked comm
 
 `submit` is idempotent. Re-run it after edits, rebases, restacks, or bookmark movement to push bookmarks, create or update PRs, repair PR bases, and update stack navigation.
 
+Treat the dry-run's proposed base as a correctness assertion, not ceremony. Every new higher PR must target the immediately lower bookmark. If it unexpectedly proposes trunk while that lower PR is still open, stop: an automatic fetch may have advanced a tracked lower bookmark away from the upper chain. This is independent of reconciliation strategy. Inspect before repairing:
+
+```bash
+jj bookmark list --all-remotes
+jj log -r '<lower> | <top> | (<lower> & ::<top>)'
+```
+
+If the new lower position is intended, restack or merge the surviving upper chain onto it, then repeat the dry-run. Otherwise restore the intended bookmark position. Do not submit the duplicate trunk-based PR.
+
 Reviewer behavior:
 
 ```bash
@@ -121,29 +131,48 @@ jjpr submit <top> --dry-run
 
 ## Land the stack
 
-Use squash merge plus rebase reconciliation by default:
+Use squash merge plus merge reconciliation by default:
 
 ```bash
 jjpr merge <top> --dry-run
 jjpr merge <top>
 ```
 
-For each PR from the bottom, jjpr verifies draft state, CI, approvals, requested changes, and conflicts; merges it; fetches the updated trunk; rebases the remaining unique changes; pushes their bookmarks; and retargets the next PR. Re-run after a blocker clears.
+For each PR from the bottom, jjpr verifies draft state, CI, approvals, requested changes, and conflicts; merges it; fetches the updated trunk; syncs the remaining stack; pushes its bookmarks; and retargets the next PR. Re-run after a blocker clears.
 
 Keep these separate:
 
 - `merge_method = "squash"` controls how the forge lands each PR.
-- `reconcile_strategy = "rebase"` controls how jjpr syncs the remaining stack afterward.
+- `reconcile_strategy = "merge"` controls how jjpr syncs the remaining stack afterward.
 
-After a squash merge creates a new trunk commit, rebase reconciliation removes the old lower-PR commits from downstream history and replays only their unique changes. Expect force-push events and potentially disrupted GitHub "changes since last review" views; prefer the clean graph for now.
+After a squash merge creates a new trunk commit, merge reconciliation adds that commit as a second parent of a new commit on each surviving bookmark. It does not linearize the local graph:
 
-Use merge reconciliation only when explicitly chosen:
-
-```bash
-jjpr merge <top> --reconcile-strategy merge
+```text
+old-main--C1A--C1B--C2A--C2B--M--C2C
+    \-------------new-main------/
 ```
 
-It keeps downstream pushes fast-forward by adding merge commits. The Changed Files view stays focused, but old lower-PR commits remain in GitHub's Commits view and branch history grows merge commits.
+GitHub retargets the surviving PR to `main`; its normal Changed Files view contains only C2A/C2B/C2C, while its Commits view retains C1A/C1B and the merge commits. A later trunk advance adds another merge commit. The PR diff against current trunk remains focused, but a head-to-head comparison across that reconciliation includes the newly landed trunk files. GitHub's "changes since last review" can therefore still be polluted when the review predates reconciliation.
+
+New leaf work should start from the reconciled leaf bookmark, not the pre-reconcile working-copy commit:
+
+```bash
+jj new <leaf> -m 'fix: follow-up'
+# Make the change.
+jj bookmark set <leaf> -r @
+jjpr submit <leaf> --dry-run
+jjpr submit <leaf>
+```
+
+This keeps downstream pushes fast-forward, but every reconciliation changes the PR head and can retrigger CI or affect approval state. In jjpr 0.34.1, repeating reconciliation can also append a redundant merge commit even when trunk did not move. Accept this history only when clean GitHub diffs and no force-pushes matter more than branch history.
+
+Use rebase reconciliation only when explicitly chosen:
+
+```bash
+jjpr merge <top> --reconcile-strategy rebase
+```
+
+It produces cleaner branch history but rewrites surviving PR heads. With jjpr 0.34.1, squash-merging below a surviving multi-change PR can orphan its bookmark tip and create phantom conflicts; do not use it for that shape unless the installed version has a verified fix.
 
 Do not bypass CI or approval requirements unless explicitly authorized. `--merge-method` changes landing style; it is not a reconciliation strategy.
 
@@ -166,7 +195,7 @@ Precedence: CLI flags, repo-local `.jj/jjpr.toml`, global config, built-in defau
 merge_method = "squash"
 required_approvals = 1
 require_ci_pass = true
-reconcile_strategy = "rebase"
+reconcile_strategy = "merge"
 stack_nav = "comment"
 ```
 
@@ -194,3 +223,12 @@ jjpr submit <top> --remote <remote> --dry-run
 ```
 
 Use the same remote selected for the original submit or merge. Resolve conflicts or bookmark divergence with the `jj` skill, then re-run `jjpr submit <top> --remote <remote>`. Use the oldest change in the affected segment when a manual rebase is necessary; rebasing only the bookmark tip can strand earlier commits. Never blindly move a bookmark to its remote counterpart or discard local divergence.
+
+For merge reconciliation, first verify that local trunk is tracked and equal to its remote counterpart:
+
+```bash
+jj bookmark track <trunk> --remote=<remote>
+jj log -r '<trunk> | <trunk>@<remote>'
+```
+
+If legacy rebase reconciliation after a squash merge leaves only the surviving bookmark tip conflicted, inspect `jj log -r '::<top> & ~::trunk()'` and the pre-reconcile graph in `jj op log`. If the earlier changes disappeared from the tip's ancestry, reconciliation orphaned the tip. Re-parent the tip onto its previous parent first; conflicts disappearing confirms the diagnosis. Then rebase the oldest restored change onto current trunk and resubmit. Do not accept forge state or hand-resolve those phantom conflicts before restoring the chain.
