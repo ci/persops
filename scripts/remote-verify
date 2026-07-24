@@ -95,6 +95,7 @@ fi
 
 check_user_unit codex-remote-control.service
 check_user_unit claude-remote-control.service
+check_system_unit cliproxyapi.service
 check_optional_system_unit samba-smbd.service
 check_optional_system_unit sea16-quota-init.service
 check_optional_system_unit restic-backups-archive-daily.timer
