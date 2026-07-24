@@ -75,6 +75,7 @@
   };
 
   imports = [
+    ../modules/cliproxyapi-darwin.nix
     ../modules/backup/restic-darwin.nix
     ../modules/backup/restic-storage-box.nix
     ../modules/postgres.nix
