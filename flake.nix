@@ -43,10 +43,6 @@
       url = "github:jrmoulton/tmux-sessionizer";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    nix-steipete-tools = {
-      url = "github:clawdbot/nix-steipete-tools";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
     nix-yazi-plugins = {
       url = "github:lordkekz/nix-yazi-plugins";
       inputs.nixpkgs.follows = "nixpkgs";
