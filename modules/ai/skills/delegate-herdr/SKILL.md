@@ -105,25 +105,44 @@ herdr pane list
 ```
 
 If outside Herdr, proceed only because the user explicitly requested Herdr
-delegation. List sessions, choose a unique task-specific name, and launch it in
-a dedicated PTY:
+delegation. List sessions, choose a unique task-specific name, and start a
+headless server in a long-lived process:
 
 ```bash
 herdr session list
-herdr --session "$HERDR_SESSION_NAME"
+herdr --session "$HERDR_SESSION_NAME" server
 ```
 
-Keep that PTY alive while controlling the session from another shell. Address
-every control command explicitly:
+Keep the headless server process alive while controlling it from another shell
+or tool call. A TUI client is optional. Address every control command
+explicitly and verify the nested server fields:
 
 ```bash
-herdr --session "$HERDR_SESSION_NAME" status --json
+STATUS_JSON=$(herdr --session "$HERDR_SESSION_NAME" status --json)
+printf '%s' "$STATUS_JSON" | jq '{
+  session: .server.session,
+  status: .server.status,
+  running: .server.running,
+  detached: .server.capabilities.detached_server_daemon
+}'
+printf '%s' "$STATUS_JSON" |
+  jq -e '.server.running == true and .server.status == "running"'
 ```
 
-The exact named `status --json` result is authoritative. A sandboxed controller
-may need approval to reach Herdr's local Unix socket; request access only for
-the exact named session command. An unprivileged `session list` can incorrectly
-look stopped when socket access is blocked.
+If a harness launches `herdr --session "$HERDR_SESSION_NAME"` without a TTY,
+the Ratatui client can exit 101 with `failed to initialize terminal` and
+`Device not configured` after starting the detached daemon. Do not treat the
+client crash itself as success or failure. Continue only when the exact named
+`status --json` response proves `.server.running == true` and
+`.server.status == "running"`. When
+`.server.capabilities.detached_server_daemon == true`, the client process does
+not need to remain alive.
+
+A sandboxed controller may need approval to reach Herdr's local Unix socket;
+request access only for the exact named session command. An unprivileged
+`session list` can incorrectly look stopped when socket access is blocked.
+Do not use `--no-session` for this workflow: it is a monolithic escape hatch
+without the persistent server/client control plane.
 
 ## Create an isolated agent pane
 
@@ -134,33 +153,48 @@ WORKSPACE_JSON=$(herdr --session "$HERDR_SESSION_NAME" workspace create \
   --cwd "$TARGET_DIR" \
   --label "$WORKSPACE_LABEL" \
   --no-focus)
+WORKSPACE_ID=$(printf '%s' "$WORKSPACE_JSON" |
+  jq -r '.result.root_pane.workspace_id')
 PANE_ID=$(printf '%s' "$WORKSPACE_JSON" | jq -r '.result.root_pane.pane_id')
 ```
 
 Inside Herdr, use the same command without `--session "$HERDR_SESSION_NAME"`.
 
-Always parse IDs from the current response. IDs such as `w2:p1` are live
-session identifiers and can change after objects close; never guess or retain
-them across topology changes.
+Workspace and pane IDs are nested under `.result.root_pane`; there is no
+top-level `.result.workspace_id`. Always parse IDs from the current response.
+IDs such as `w2:p1` are live session identifiers and can change after objects
+close; never guess or retain them across topology changes.
 
 `agent start` requires an existing pane sitting at an interactive shell prompt.
 Launch the canonical agent kind and pass all agent-specific arguments after
 `--`:
 
 ```bash
-herdr --session "$HERDR_SESSION_NAME" agent start "$AGENT_NAME" \
-  --kind "$AGENT_KIND" \
-  --pane "$PANE_ID" \
-  --timeout 30000 \
-  -- <verified-agent-arguments>
+START_JSON=$(
+  herdr --session "$HERDR_SESSION_NAME" agent start "$AGENT_NAME" \
+    --kind "$AGENT_KIND" \
+    --pane "$PANE_ID" \
+    --timeout 30000 \
+    -- <verified-agent-arguments>
+)
+printf '%s' "$START_JSON" | jq '{
+  agent: .result.agent.agent,
+  name: .result.agent.name,
+  interactive_ready: .result.agent.interactive_ready,
+  agent_status: .result.agent.agent_status,
+  argv: .result.argv
+}'
 ```
 
-Require the response to show:
+Require the start response to show:
 
-- `interactive_ready: true`
-- the requested `agent` kind and `name`
-- an initial settled `agent_status`, normally `idle`
-- the exact forwarded `argv`
+- `.result.agent.interactive_ready == true`
+- the requested `.result.agent.agent` kind and `.result.agent.name`
+- an initial settled `.result.agent.agent_status`, normally `idle`
+- the exact forwarded arguments in `.result.argv`
+
+`agent get` and `agent list` return agent records but do not repeat `argv`.
+Capture the `agent start` response if launch arguments matter.
 
 For Codex Luna at low reasoning:
 
@@ -244,14 +278,22 @@ herdr --session "$HERDR_SESSION_NAME" agent read "$AGENT_NAME" \
 Report:
 
 - agent name, kind, pane, and `agent_session.value`
-- exact model and reasoning shown in launch `argv` and the agent banner
-- requested permission mode shown in launch `argv`; for Claude auto mode,
+- exact model and reasoning shown in the start response's `.result.argv` and
+  the agent banner
+- requested permission mode shown in `.result.argv`; for Claude auto mode,
   cross-check the terminal indicator when visible
 - observed settled state and, when useful, `state_change_seq`
 - the requested result from the transcript
 
 Do not report success from `done` alone. The agent can finish with an error,
 refusal, or incomplete answer. Read the transcript.
+
+Startup transcripts can include unrelated MCP authentication failures,
+experimental-feature warnings, tips, and desktop-app notices. For Codex, anchor
+task verification on the relevant `Ran` command/result block and final response;
+use the equivalent tool-result block for other agents. Treat a startup warning
+as blocking only when launch failed or the delegated task depends on the named
+component.
 
 Use detection diagnostics when state and visible output disagree:
 
@@ -311,6 +353,9 @@ only the workspace or pane created for this task when cleanup was authorized.
 
 ## Failure guide
 
+- `failed to initialize terminal` / `Device not configured`: a TUI client ran
+  without a TTY. Verify `.server.running` and `.server.status`; use
+  `herdr --session NAME server` for a clean headless launch.
 - `Operation not permitted`: the controller cannot access the named Unix
   socket. Re-run the exact session-scoped command with narrow approval.
 - `agent_prompt_stalled`: no detectable state change occurred within 5000 ms.
