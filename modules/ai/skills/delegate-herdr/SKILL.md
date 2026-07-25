@@ -41,6 +41,31 @@ Map the user's requested model and reasoning words to exact installed CLI
 values. Do not silently substitute a nearby model. If the requested value is
 ambiguous or unavailable, show the live candidates and ask.
 
+For Claude Code, inspect the installed CLI and auto-mode configuration:
+
+```bash
+claude --help
+claude auto-mode --help
+claude auto-mode config
+```
+
+Claude model and reasoning arguments:
+
+```bash
+--model MODEL_ID --effort EFFORT
+```
+
+Default to Claude's auto mode for delegated work:
+
+```bash
+--permission-mode auto
+```
+
+Auto mode uses Claude's permission classifier. Do not substitute
+`bypassPermissions`. For Sonnet 5 at medium effort, use
+`--model claude-sonnet-5 --effort medium --permission-mode auto`, after
+re-checking the installed CLI because model IDs and modes can change.
+
 For Codex, inspect the live model catalog and filter it before printing; the
 raw catalog is large:
 
@@ -59,15 +84,14 @@ Example: resolve “Luna Light” live, then normally launch it as
 `--model gpt-5.6-luna -c model_reasoning_effort=low`. Re-check the catalog in
 every new session because slugs and availability can change.
 
-Resolve permissions separately from model choice. For a harmless command probe,
-Codex can use:
+Default to the current Codex CLI equivalent of “Approve for me”:
 
 ```bash
---sandbox read-only --ask-for-approval never
+--sandbox workspace-write --ask-for-approval on-request
 ```
 
-For implementation, select the narrowest mode that permits the requested work,
-usually `workspace-write` with normal approvals. Never add
+Resolve permissions separately from model choice and honor an explicit user
+override. Do not substitute deprecated `--full-auto`. Never add
 `--dangerously-bypass-approvals-and-sandbox` by default.
 
 ## Select or start the Herdr session
@@ -147,8 +171,20 @@ herdr --session "$HERDR_SESSION_NAME" agent start "$AGENT_NAME" \
   --timeout 30000 \
   -- --model gpt-5.6-luna \
      -c model_reasoning_effort=low \
-     --sandbox read-only \
-     --ask-for-approval never
+     --sandbox workspace-write \
+     --ask-for-approval on-request
+```
+
+For Claude Sonnet 5 at medium effort:
+
+```bash
+herdr --session "$HERDR_SESSION_NAME" agent start "$AGENT_NAME" \
+  --kind claude \
+  --pane "$PANE_ID" \
+  --timeout 30000 \
+  -- --model claude-sonnet-5 \
+     --effort medium \
+     --permission-mode auto
 ```
 
 ## Prompt and wait
@@ -209,6 +245,8 @@ Report:
 
 - agent name, kind, pane, and `agent_session.value`
 - exact model and reasoning shown in launch `argv` and the agent banner
+- requested permission mode shown in launch `argv`; for Claude auto mode,
+  cross-check the terminal indicator when visible
 - observed settled state and, when useful, `state_change_seq`
 - the requested result from the transcript
 
