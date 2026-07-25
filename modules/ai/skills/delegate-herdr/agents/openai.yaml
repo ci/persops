@@ -1,0 +1,4 @@
+interface:
+  display_name: "Delegate with Herdr"
+  short_description: "Delegate tasks through Herdr-managed agents"
+  default_prompt: "Use $delegate-herdr to run this task through a Herdr-managed agent and verify its status and response."
