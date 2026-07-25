@@ -42,7 +42,6 @@ let
         cudaPackages = cudaPkgs;
       };
   isLinux = pkgs.stdenv.isLinux;
-  summarizeEnabled = true;
   skillBaseProfiles = {
     all = [
       ".claude/skills"
@@ -153,10 +152,8 @@ in
         gifgrepPackage
         osgrepPackage
         spogoPackage
-        # llm
-      ]
-      ++ lib.optionals (summarizeEnabled && isLinux && hostSystem == "x86_64-linux") [
         summarizePackage
+        # llm
       ]
       ++ lib.optionals (sherpaOnnxOfflinePackage != null) [
         sherpaOnnxOfflinePackage
