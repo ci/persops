@@ -102,12 +102,7 @@ let
   piAgentsFile = pkgs.writeText "pi-AGENTS.md" (
     agentsText + "\n\n" + (builtins.readFile ./pi/AGENTS.extra.md)
   );
-  skillTargets = localSkillTargets ++ [
-    {
-      name = "summarize";
-      source = "${inputs.nix-steipete-tools}/tools/summarize/skills/summarize";
-    }
-  ];
+  skillTargets = localSkillTargets;
   agentSkillTargets = lib.filter (
     skill: builtins.elem ".agents/skills" (skill.bases or skillBaseProfiles.all)
   ) skillTargets;

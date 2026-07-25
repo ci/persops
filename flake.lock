@@ -586,26 +586,6 @@
         "type": "github"
       }
     },
-    "nix-steipete-tools": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1780271468,
-        "narHash": "sha256-wIv6m70fLczuFh/AA9+KqJYmA7JZM8BjaM3a9sSj+oE=",
-        "owner": "clawdbot",
-        "repo": "nix-steipete-tools",
-        "rev": "d7f01dbac1e813c4ab502e4602f243ce8e69fa71",
-        "type": "github"
-      },
-      "original": {
-        "owner": "clawdbot",
-        "repo": "nix-steipete-tools",
-        "type": "github"
-      }
-    },
     "nix-yazi-plugins": {
       "inputs": {
         "flake-utils": "flake-utils_5",
@@ -774,7 +754,6 @@
         "llm-agents": "llm-agents",
         "nix-darwin": "nix-darwin",
         "nix-snapd": "nix-snapd",
-        "nix-steipete-tools": "nix-steipete-tools",
         "nix-yazi-plugins": "nix-yazi-plugins",
         "nixpkgs": "nixpkgs_3",
         "nixpkgs-master": "nixpkgs-master",

@@ -1,5 +1,6 @@
-source = nix-steipete-tools/tools/summarize/skills/summarize
-source_type = flake_input
+source = clawdbot/nix-steipete-tools/tools/summarize/skills/summarize
+source_type = github
 profile = all
 installed_at = unknown
-local_changes = provenance file added after the skill had already been vendored locally
+upstream_rev = d7f01dbac1e813c4ab502e4602f243ce8e69fa71
+local_changes = vendored from the final locked flake input before removing it
