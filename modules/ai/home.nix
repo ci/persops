@@ -127,17 +127,6 @@ in
       };
     };
 
-    # Oh My OpenCode configuration
-    "opencode/oh-my-opencode.json".text = builtins.toJSON {
-      "$schema" =
-        "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json";
-      agents = {
-        explore = {
-          model = "anthropic/claude-haiku-4-5";
-        };
-      };
-    };
-
     # Global agent instructions for Claude Code, Codex, and OpenCode.
     # Pi gets a generated mutable copy with pi-specific notes below.
     "opencode/AGENTS.md".source = agentsFile;
