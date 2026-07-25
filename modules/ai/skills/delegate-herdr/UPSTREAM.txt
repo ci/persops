@@ -3,4 +3,4 @@ source_type = local
 profile = all
 installed_at = 2026-07-25
 requested_source = authored in persops modules/ai/skills/delegate-herdr
-via = original skill based on Herdr 0.7.5 CLI behavior
+via = original skill based on live Herdr, Claude Code, and Codex CLI behavior
