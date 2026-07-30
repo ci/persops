@@ -1,0 +1,7 @@
+source = mattpocock/skills
+source_type = github
+profile = all
+installed_at = 2026-07-30T23:13:48Z
+via = bunx --bun skills add https://github.com/mattpocock/skills --agent \* --yes --copy --skill to-spec --skill to-tickets --skill wayfinder --skill code-review --skill research --skill implement --skill grilling --skill domain-modeling --skill setup-matt-pocock-skills --skill tdd
+computed_hash = 2139cfedf24791adbc839aaab6019cff158af1e28bfead020ec6e0ce01b3e74d
+local_changes = moved unsupported invocation key under metadata
