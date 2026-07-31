@@ -242,7 +242,6 @@ in
       "$HOME/.local/share/pnpm"
       "$HOME/.npm-global/bin"
       "$HOME/go/bin"
-      "$HOME/p/posthog/tools/infra-scripts/mcp"
     ];
   };
 }

@@ -9,18 +9,12 @@
 let
   inherit (pkgs.stdenv) isDarwin;
 
-  workSshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGzV767GrAPq9JZ/Iv7B4Yg6wiA2AH2AwjnZWE23r3HX";
   personalSshKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFP05x9Bg50efrFPX0NXfV45RwcsYmgpKUKTnR2Ee7LA";
   secretiveSigningConfigs = {
     aglaea = {
       identities = "catalin.irimie@gmail.com,6650666+ci@users.noreply.github.com,ci@users.noreply.github.com,4375373-cat@users.noreply.gitlab.com";
       key = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBC5hHouSghgUsKasZMfCkMiuOCU0kU4KwMyN6tCelex+LHxp++ZsMQCtdZJN6q0tyxN31wQ7D3F8DjSM/F412L4= ci-ghgl-signing@secretive.aglaea.local";
       path = "/Users/${currentSystemUser}/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/PublicKeys/a9cbb4c069d69eec1b485cf51b58aec1.pub";
-    };
-    work = {
-      identities = "catalin.i@posthog.com,268578347+cat-ph@users.noreply.github.com,cat-ph@users.noreply.github.com";
-      key = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBLUXi3FNs2AOfnfulYgOdNbznvgUfRvI3iNNl1O1aBPTAS6bbYtH/gX/3DiWx2/jAjIHGuFg/EEpEhoQKLD9OBA= catalin.i@posthog.com";
-      path = "/Users/${currentSystemUser}/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/PublicKeys/a513f11a72d3cfbbb3193115ac1bad5b.pub";
     };
   };
   secretiveSigningConfig =
@@ -55,11 +49,9 @@ in
     };
 
     # Local trust DB for SSH commit/tag signatures.
-    # Work key: GitHub cat-ph SSH signing key 858365.
     # Personal key: GitHub ci SSH auth key; ci currently publishes no SSH signing keys.
     "git/allowed_signers" = {
       text = ''
-        catalin.i@posthog.com,268578347+cat-ph@users.noreply.github.com,cat-ph@users.noreply.github.com namespaces="git" ${workSshKey}
         catalin.irimie@gmail.com,6650666+ci@users.noreply.github.com,ci@users.noreply.github.com namespaces="git" ${personalSshKey}
       ''
       + lib.optionalString useSecretiveSigning ''

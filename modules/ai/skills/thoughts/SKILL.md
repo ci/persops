@@ -22,7 +22,7 @@ Freely allowed (read + local verification):
 - Run builds, typecheck, lint, tests, the app, and ad-hoc queries to verify
   behavior locally.
 - Read remote/service state read-only: `gh pr/issue/run view`, `gh ... diff`,
-  read-only MCP/API queries (e.g. PostHog/Grafana/GitHub reads).
+  read-only MCP/API queries (e.g. Grafana/GitHub reads).
 - Write scratch notes to `/tmp`.
 
 Never (stop and report instead):

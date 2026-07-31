@@ -10,8 +10,8 @@ NIXNAME ?= amalthea
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 FLAKE_DIR := git+file:$(MAKEFILE_DIR)
 HOSTNAME := $(shell hostname -s 2>/dev/null || hostname)
-# Work machine (ph) uses the "work" darwin config; everything else is aglaea.
-ifeq ($(HOSTNAME), ph)
+# The secondary machine uses the "work" Darwin config; everything else is aglaea.
+ifeq ($(HOSTNAME), work)
 DARWIN_FLAKE := $(FLAKE_DIR)\#work
 else
 DARWIN_FLAKE := $(FLAKE_DIR)\#aglaea
@@ -35,8 +35,8 @@ NIX_FAST_BUILD ?= nix develop --command nix-fast-build
 .PHONY: local switch build check fast-check test remote-guard r/copy r/preflight r/test r/switch r/verify r/apply r/rdp
 
 remote-guard:
-ifeq ($(HOSTNAME), ph)
-	@echo "remote targets disabled on host ph"
+ifeq ($(HOSTNAME), work)
+	@echo "remote targets disabled on host work"
 	@exit 1
 endif
 
