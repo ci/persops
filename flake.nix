@@ -61,6 +61,15 @@
         inputs.jujutsu.overlays.default
         inputs.zig.overlays.default
         inputs."codex-cli-nix".overlays.default
+        (
+          _: prev:
+          let
+            master = inputs.nixpkgs-master.legacyPackages.${prev.stdenv.hostPlatform.system};
+          in
+          {
+            inherit (master) gh gh-stack;
+          }
+        )
         (_: prev: {
           # codex-cli-nix installs only the main codex binary, but codex >= 0.144 spawns
           # a sibling codex-code-mode-host for ALL shell execution — without it every

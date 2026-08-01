@@ -29,6 +29,7 @@ in
     ./modules/tmux.nix
     ./modules/jj.nix
     ./modules/jjpr.nix
+    ./modules/gh-stack.nix
     ./modules/jjui.nix
     ./modules/git/home.nix
     ./modules/ssh.nix
