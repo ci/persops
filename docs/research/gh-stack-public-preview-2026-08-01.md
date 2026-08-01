@@ -116,6 +116,99 @@ Properties:
 
 Unstacking can remove open/draft/closed members; merged or queued members stay in the historical Stack. Removing members may dissolve a Stack once fewer than two remain. There is no replace/reorder API. ([REST reference](https://github.com/github/gh-stack/blob/v0.1.0/docs/src/content/docs/reference/rest-api.md))
 
+## Reordering and structural edits: Git-native vs jj/external tools
+
+The apparently richer Git-native behavior does **not** use an unpublished in-place reorder mutation. In `v0.1.0`, `gh stack modify` rewrites the local Git stack; the following `gh stack submit` automates a destructive remote unstack-and-recreate sequence. `gh stack link` deliberately refuses that sequence and exposes only the additive operations that the public Stacks API can express. ([modify guide](https://github.com/github/gh-stack/blob/v0.1.0/docs/src/content/docs/guides/modify.md), [`modify` apply engine](https://github.com/github/gh-stack/blob/v0.1.0/internal/modify/apply.go), [`submit` recreation path](https://github.com/github/gh-stack/blob/v0.1.0/cmd/submit.go), [`link` update validation](https://github.com/github/gh-stack/blob/v0.1.0/cmd/link.go))
+
+### Git-native `modify` then `submit`
+
+`modify` is an interactive TUI. It requires the active stack in a Git checkout, a clean working tree, no rebase, no unmerged PR in a merge queue, and a linear/non-diverged commit chain. Merged rows are locked. Reordering is mutually exclusive with structural actions (drop, fold, insert, rename) in one session. If a remote Stack is affected, a `.git/gh-stack-modify-state` snapshot blocks another `modify` until submission. Conflicts can be continued or aborted, but once the phase reaches `pending_submit`, `modify --abort` does **not** restore the old branch tips; it only tells the user to submit. ([modify CLI](https://github.com/github/gh-stack/blob/v0.1.0/cmd/modify.go), [preconditions](https://github.com/github/gh-stack/blob/v0.1.0/internal/modify/preconditions.go), [recovery state](https://github.com/github/gh-stack/blob/v0.1.0/internal/modify/state.go), [TUI action modes](https://github.com/github/gh-stack/blob/v0.1.0/internal/tui/modifyview/model.go))
+
+On save, the local apply engine:
+
+1. snapshots branch names/tips and local Stack metadata;
+2. locally renames branches and creates inserted branches;
+3. implements fold-down by cherry-picking the folded layer into its lower neighbor, and fold-up by widening the upper neighbor's replay range;
+4. removes dropped/folded branches from Stack metadata without deleting their local branch refs;
+5. rebuilds the requested branch order; and
+6. cascades raw `git rebase --onto <new-parent> <old-parent-tip> <branch>` through active layers, then checks out the best surviving branch.
+
+The rebased layers receive new commit SHAs. Conflicts stop in a recoverable state for `gh stack modify --continue` or `--abort`. ([apply engine](https://github.com/github/gh-stack/blob/v0.1.0/internal/modify/apply.go), [Git operation implementation](https://github.com/github/gh-stack/blob/v0.1.0/internal/git/gitops.go))
+
+The subsequent `gh stack submit` performs this remote sequence:
+
+1. `POST /repos/{owner}/{repo}/stacks/{old-number}/unstack`;
+2. clears the locally remembered remote Stack ID and number;
+3. fetches, then force-with-lease pushes each surviving active branch **sequentially**, bottom to top;
+4. reuses an open PR found for the same head branch, creates a PR if none exists, and—now that the PR is unstacked—uses `PATCH /repos/{owner}/{repo}/pulls/{number}` to correct its base;
+5. `POST /repos/{owner}/{repo}/stacks` with the complete new PR-number order; and
+6. records the returned new Stack ID/number.
+
+This preserves ordinary PR identities when their head branch name is preserved, but it does **not** preserve the Stack object or Stack number. The source explicitly zeroes both old identifiers before `CreateStack`; tests model old Stack `#7` becoming new Stack `#99`. It is also non-atomic: the old Stack is removed before sequential pushes, PR-base edits, and recreation. ([submit implementation and tests](https://github.com/github/gh-stack/blob/v0.1.0/cmd/submit.go), [`TestSubmit_WithPendingModify_SequentialPush`](https://github.com/github/gh-stack/blob/v0.1.0/cmd/submit_test.go), [REST implementation](https://github.com/github/gh-stack/blob/v0.1.0/internal/github/github.go))
+
+One `v0.1.0` recovery sharp edge is visible in source: `runSubmit` does not inspect `syncStack`'s success boolean before clearing the pending-modify state. A failed best-effort remote recreation can therefore leave pushed/retargeted PRs unstacked while `submit` still reaches its normal success path and removes the retry guard. Always read back remote membership rather than trusting the command exit alone. ([submit implementation](https://github.com/github/gh-stack/blob/v0.1.0/cmd/submit.go))
+
+### Identity and rewrite matrix
+
+| Action | Branches/commits | Existing PRs | Remote Stack |
+| --- | --- | --- | --- |
+| Reorder | Same branch names; moved layers and affected descendants are rebased, so commit SHAs change. | Same PR numbers, with corrected direct bases, because head branch names are unchanged. | Old Stack unstacked; new Stack ID/number with the same PR numbers in new order. |
+| Insert | Creates a new empty local branch at its lower parent's tip; surrounding layers remain/rebase as required. | Existing PR numbers stay; the inserted branch needs a new PR number. | Recreated under a new Stack ID/number. |
+| Drop | Dropped branch/ref and its unique commits are excluded from surviving upstack history; the local branch is retained. | Dropped PR is retained and reported as still open, but becomes standalone; surviving PR numbers stay. | Recreated without the dropped PR under a new Stack ID/number. |
+| Fold down/up | Folded local branch remains but leaves Stack metadata; its commits are cherry-picked down or replayed into the upper target. Target and descendants can receive new SHAs. | Folded PR becomes standalone; surviving/target PR numbers stay. | Recreated without the folded PR under a new Stack ID/number. |
+| Rename | `git branch -m` changes only the local branch; submit pushes the new remote ref and does not delete the old remote ref. | Unless an open PR already exists for the new head name, `ensurePR` creates a new PR and overwrites the local association. The old PR remains unstacked; its PR number/review is not migrated. | Recreated with the new PR number and a new Stack ID/number. |
+
+The rename row is a direct source-path consequence (`RenameBranch` is local-only; `submit` looks up PR by the new branch name and creates when absent), but deserves a live preview test because GitHub-side branch-management behavior can add edge cases. ([rename apply](https://github.com/github/gh-stack/blob/v0.1.0/internal/modify/apply.go), [`ensurePR`](https://github.com/github/gh-stack/blob/v0.1.0/cmd/submit.go), [Git rename/push implementation](https://github.com/github/gh-stack/blob/v0.1.0/internal/git/gitops.go))
+
+An inserted branch is intentionally empty at apply time. Before publication it needs a unique commit and the branches above it must be restacked to contain that commit; otherwise GitHub may have no diff from which to create the new PR or the chain may diverge. The exact immediate-`submit` failure mode is another live-test item—the docs currently tell the user to submit after modifying without spelling out this empty-layer interval. ([modify guide](https://github.com/github/gh-stack/blob/v0.1.0/docs/src/content/docs/guides/modify.md), [insert implementation](https://github.com/github/gh-stack/blob/v0.1.0/internal/modify/apply.go))
+
+### Why `link` rejects reorder, insert-in-middle, and drop
+
+The remote mutation API has only:
+
+- `POST /stacks` — create a new Stack from a complete, already-valid PR chain;
+- `POST /stacks/{number}/add` — append a delta to the top; and
+- `POST /stacks/{number}/unstack` — remove every removable member/dissolve the Stack.
+
+There is no replace-members, reorder, insert-at-position, or remove-one-member endpoint; GraphQL Stack fields are read-only. `link` consequently requires the current remote membership to be an exact ordered prefix of the requested order. It prevalidates that no current member is omitted, then `appendDelta` rejects any different position as a reorder/removal. This is an additive-membership design for external tools, not an inability to calculate a desired graph. ([REST reference](https://github.com/github/gh-stack/blob/v0.1.0/docs/src/content/docs/reference/rest-api.md), [GraphQL reference](https://github.com/github/gh-stack/blob/v0.1.0/docs/src/content/docs/reference/graphql-api.md), [`prevalidateStack`, `updateLink`, and `appendDelta`](https://github.com/github/gh-stack/blob/v0.1.0/cmd/link.go))
+
+However, the `v0.1.0` reorder check is **too late to make a rejected call non-mutating**. In create/update mode, `link` first pushes branch arguments, creates missing PRs, and calls `PATCH /pulls/{number}` to make bases match the requested order; only afterward does `upsertStack -> updateLink -> appendDelta` reject the order. Even PR-number arguments avoid only the push, not the base PATCH. Therefore `gh stack link 101 103 102` against remote order `[101, 102, 103]` can change PR bases and then fail without changing Stack membership. `jjpr` must compare the full remote ordered list itself and refuse a non-prefix request **before** invoking `link`. The older partial-mutation report in issue `#374` concerned membership on `v0.0.8`; `v0.1.0` added omission prevalidation, but the late reorder/base-mutation path remains in source. ([`runLinkCreateOrUpdate`, `fixBaseBranches`, and `updateLink`](https://github.com/github/gh-stack/blob/v0.1.0/cmd/link.go), [Issue #374](https://github.com/github/gh-stack/issues/374))
+
+For an all-open jj-managed Stack, a deliberate external rebuild is possible:
+
+```text
+read and journal old Stack/PR/base/head state
+-> unstack old Stack
+-> jj restack and push bookmarks
+-> gh stack link PRs in new bottom-to-top order
+-> verify every PR base/head and the new Stack object
+```
+
+With PR-number arguments, the final `link` does not push and will correct bases before creating the replacement Stack. PR numbers remain stable as long as head bookmark names remain stable; the Stack number changes. This must be an explicit recreate operation with recovery data, not an automatic fallback inside ordinary `link`/submit, because the operation is not transactional. ([external-tool workflow](https://docs.github.com/en/pull-requests/reference/use-other-tools-with-stacked-pull-requests), [`link` implementation](https://github.com/github/gh-stack/blob/v0.1.0/cmd/link.go))
+
+#### Live Git-versus-jj structural test
+
+A second private-repository test on 2026-08-02 validated the replacement mechanics with PRs `#23`, `#24`, and `#25`:
+
+| Operation | Remote identity result | Local-history result |
+| --- | --- | --- |
+| Git-native create | Created Stack `#26` in order `#23, #24, #25`. | Linear branches alpha, beta, gamma. |
+| Git-native reorder | `submit` deleted Stack `#26` (subsequent GET returned 404), preserved the three PR numbers, and created Stack `#27` in order `#23, #25, #24`. All PRs returned `CLEAN`/`MERGEABLE`. | `modify` kept alpha's SHA and rebased gamma and beta to new SHAs. Before `submit`, the remote Stack and PR heads remained completely unchanged while `.git/gh-stack-modify-state` recorded `pending_submit`. |
+| Git-native drop | `submit` deleted Stack `#27`, created two-PR Stack `#28` containing `#23, #24`, and left dropped PR `#25` open with `stack: null`. | The gamma branch/ref remained; beta was rebased directly onto alpha. |
+| jj structural rebuild | An explicit `unstack` plus jj push/base retarget plus PR-number `link` deleted Stack `#28` and created Stack `#29` in order `#23, #25, #24`. Same PR numbers; new Stack number; all PRs clean/mergeable. | A `.git`-less jj workspace first refused to rewrite the published beta head because it was immutable. After deliberate `--ignore-immutable`, jj rebased beta onto gamma, retained its jj change ID, range-checked conflicts, dry-ran the push, then published only beta. |
+
+The rejected jj-workspace command `GH_REPO=ci/jjpr-validation gh stack link --base main 23 25 24` against Stack `#28` also confirmed the late-validation hazard: `link` attempted to PATCH PR `#24`'s base to gamma first; GitHub rejected that PATCH with HTTP 422 because `#24` was still a member of the old Stack; only then did `link` report that new PRs must be added at the top. This instance did not mutate the base, but the attempted write proves `jjpr` cannot use `link` itself as a safe structural preflight.
+
+The test ended by unstacking Stack `#29` and closing all three test PRs. The repository had no open PRs afterward.
+
+Merged and queued history is the hard boundary. Those PRs cannot be unstacked or added anew, so a rebuild leaves them in the old historical Stack while the open tail moves to a new Stack. Official issue `#382` demonstrates the resulting permanent loss of full-stack grouping for a middle insertion. The native pending-modify handler also ignores the `Unstack` response indicating that locked members remain, clears its old ID anyway, and proceeds toward recreation; a partially merged Stack can therefore retain an old merged object and then fail to create the requested replacement. Merged branches can separately block local `modify` when their refs were pruned (`#146`). ([Issue #382](https://github.com/github/gh-stack/issues/382), [pending-modify handler](https://github.com/github/gh-stack/blob/v0.1.0/cmd/submit.go), [`Unstack` return contract](https://github.com/github/gh-stack/blob/v0.1.0/internal/github/github.go), [Issue #146](https://github.com/github/gh-stack/issues/146), [unstack rules](https://github.com/github/gh-stack/blob/v0.1.0/docs/src/content/docs/faq.md))
+
+### Worktree and jj workspace implications
+
+`modify` is not a metadata-only planner: it invokes local branch rename/create, checkout, cherry-pick, and three-argument Git rebase, and requires a clean interactive Git worktree. gh-stack stores `gh-stack`, its lock, and modify recovery under Git's reported `$GIT_DIR`; linked Git worktrees have private administrative Git dirs but share branch refs. The result is isolated gh-stack metadata/locks operating on shared refs, so two worktrees can hold divergent local models and the lock does not serialize their branch rewrites. Branches checked out in another worktree can reject force-updates; the official tracker has a labeled worktree bug for the analogous `sync` trunk update. `modify` also treats untracked files as dirty (`#111`) and can fail if a merged branch was pruned (`#146`). ([stack storage](https://github.com/github/gh-stack/blob/v0.1.0/internal/stack/stack.go), [modify state](https://github.com/github/gh-stack/blob/v0.1.0/internal/modify/state.go), [Git worktree details](https://git-scm.com/docs/git-worktree#_details), [Git operations](https://github.com/github/gh-stack/blob/v0.1.0/internal/git/gitops.go), [worktree issue #87](https://github.com/github/gh-stack/issues/87), [untracked-file issue #111](https://github.com/github/gh-stack/issues/111), [pruned-branch issue #146](https://github.com/github/gh-stack/issues/146))
+
+In a native jj workspace model, raw Git rebases would rewrite shared bookmark targets behind other workspaces, bypass jj's operation/recovery model, and strip jj change-ID commit headers. Therefore jj/jjpr should reproduce only the desired graph with jj operations, then use an explicit remote unstack/re-link transaction when structural replacement is requested. It should never call `gh stack modify` or the Git-local submit recreation path. ([Jujutsu Git compatibility](https://docs.jj-vcs.dev/latest/git-compatibility/), [Jujutsu workspaces](https://docs.jj-vcs.dev/latest/working-copy/#workspaces))
+
 ## APIs and agent integration
 
 REST adds `stack` to PR resources: repository-scoped Stack number/id, size, one-based position, and ultimate base ref/SHA. It also provides list/get/create/add-to-top/unstack endpoints. Create takes 2–100 ordered PR numbers. GraphQL is read-only (`PullRequest.stack`, `stackEntry`, and entries connection). ([REST and GraphQL overview](https://docs.github.com/en/pull-requests/reference/stacked-pull-requests-rest-and-graphql-apis), [REST reference](https://github.com/github/gh-stack/blob/v0.1.0/docs/src/content/docs/reference/rest-api.md), [GraphQL reference](https://github.com/github/gh-stack/blob/v0.1.0/docs/src/content/docs/reference/graphql-api.md))
@@ -189,12 +282,12 @@ These are official-repository reports and should be treated as open preview issu
 1. Require `gh >= 2.97.0`, install/upgrade `github/gh-stack`, and capability-check the target repository.
 2. Preserve current jj workspace, bookmark, push, and PR mechanics.
 3. After creating/updating all PRs, collect their numbers in bottom-to-top order.
-4. Run `GH_REPO=OWNER/REPO gh stack link [--open] PR...`; never pass branch names.
-5. Read back the Stack via REST. Verify ID/number, size, ordering, ultimate base, and each direct PR base. Fail closed on a partial result.
-6. Append only with `gh stack link STACK_NUMBER NEW_PR...`. For insertion/reorder/removal, present the structural limitation instead of silently rebuilding historical membership.
+4. Before invoking `link`, read the current remote membership and classify the desired order as exact match, clean top append, or structural divergence. Never rely on `link` as the preflight because its rejection can follow pushes, PR creation, or base PATCH attempts.
+5. For a new Stack or clean append, run `GH_REPO=OWNER/REPO gh stack link [--open] PR...`; never pass branch names. Read back the Stack via REST and verify ID/number, size, ordering, ultimate base, and every direct PR base. Fail closed on a partial result.
+6. For insertion/reorder/removal, default to explaining that GitHub cannot update membership in place. Offer a separate explicit recreate operation only when every member is removable: journal the jj operation ID plus old Stack/PR/base/head state; restack and range-check locally with jj; unstack the old object; dry-run and push affected bookmarks with expected-head protection; retarget bases/re-link the preserved PR numbers; then verify the complete new Stack. Never recreate across merged or queued members.
 7. Use remote REST state rather than `gh stack view`; avoid `.git/gh-stack` entirely.
-8. If native merging is adopted, use `gh stack merge PR --yes --<method>`, then poll/read every PR, fetch with jj, reconcile rewritten branch heads, and only then continue local work.
+8. If native merging is adopted, use `gh stack merge PR --yes --<method>`, then poll/read every PR, fetch with jj, reconcile remote branch heads, and only then continue local work.
 9. Never call `gh stack init/add/checkout/rebase/sync/push/submit/modify` from the jj mode.
-10. End-to-end test at least: new stack; existing PR chain link; draft/ready; append; PR-base correction; partial merge and jj reconciliation; full merge; closed middle; failed CI; merge queue when enabled; multi-remote; two jj workspaces; failed link/partial-state detection; missing expected Actions run.
+10. End-to-end test at least: new stack; existing PR chain link; draft/ready; append; structural recreate; PR-base correction; partial merge and jj reconciliation; full merge; closed middle; failed CI; merge queue when enabled; multi-remote; two jj workspaces; failed link/partial-state detection; missing expected Actions run.
 
 This gives jj users GitHub's native review/CI/merge semantics without surrendering the local change graph to a Git-first tool.
