@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ inputs, pkgs, ... }:
 
 let
   sea16LuksUuid = "c6ef6695-37d1-4edf-9f8c-8e08cbff15e6";
@@ -330,7 +330,6 @@ in
       interfaces = {
         "tailscale0".allowedTCPPorts = [
           445
-          8123
         ];
         "enp2s0".allowedTCPPorts = [
           445
@@ -409,36 +408,86 @@ in
     home = "/srv/sea16/tm";
   };
 
-  systemd.tmpfiles.rules = [
-    "d /archive 0755 root root -"
-    "d /srv/sea16 0755 root root -"
-  ];
-
-  systemd.services.sea16-quota-init = {
-    description = "Initialize sea16 directories and XFS project quota";
-    wantedBy = [ "multi-user.target" ];
-    wants = [ "srv-sea16.mount" ];
-    after = [ "srv-sea16.mount" ];
-    path = with pkgs; [
-      coreutils
-      xfsprogs
+  systemd = {
+    tmpfiles.rules = [
+      "d /archive 0755 root root -"
+      "d /srv/sea16 0755 root root -"
     ];
-    unitConfig.ConditionPathIsMountPoint = "/srv/sea16";
-    serviceConfig.Type = "oneshot";
-    script = ''
-      install -d -o timemachine -g timemachine -m 0750 /srv/sea16/tm
-      install -d -o timemachine -g timemachine -m 0750 /srv/sea16/tm/aglaea
-      install -d -o cat -g users -m 0750 /srv/sea16/archive
-      install -d -o cat -g users -m 0750 /srv/sea16/restore-tests
 
-      xfs_quota -x \
-        -c 'project -s sea16_tm_aglaea' \
-        -c 'limit -p bhard=3t sea16_tm_aglaea' \
-        /srv/sea16
-    '';
+    services = {
+      sea16-quota-init = {
+        description = "Initialize sea16 directories and XFS project quota";
+        wantedBy = [ "multi-user.target" ];
+        wants = [ "srv-sea16.mount" ];
+        after = [ "srv-sea16.mount" ];
+        path = with pkgs; [
+          coreutils
+          xfsprogs
+        ];
+        unitConfig.ConditionPathIsMountPoint = "/srv/sea16";
+        serviceConfig.Type = "oneshot";
+        script = ''
+          install -d -o timemachine -g timemachine -m 0750 /srv/sea16/tm
+          install -d -o timemachine -g timemachine -m 0750 /srv/sea16/tm/aglaea
+          install -d -o cat -g users -m 0750 /srv/sea16/archive
+          install -d -o cat -g users -m 0750 /srv/sea16/restore-tests
+
+          xfs_quota -x \
+            -c 'project -s sea16_tm_aglaea' \
+            -c 'limit -p bhard=3t sea16_tm_aglaea' \
+            /srv/sea16
+        '';
+      };
+
+      tailscale-services = {
+        description = "Expose named Tailscale Services";
+        wantedBy = [ "multi-user.target" ];
+        requires = [ "tailscaled.service" ];
+        partOf = [ "tailscaled.service" ];
+        wants = [
+          "actual.service"
+          "home-assistant.service"
+        ];
+        after = [
+          "tailscaled.service"
+          "actual.service"
+          "home-assistant.service"
+        ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          Restart = "on-failure";
+          RestartSec = "10s";
+        };
+        script = ''
+          ${pkgs.tailscale}/bin/tailscale serve --service=svc:actual --https=443 --yes http://127.0.0.1:5006
+          ${pkgs.tailscale}/bin/tailscale serve --service=svc:home-assistant --https=443 --yes http://127.0.0.1:8123
+        '';
+        postStop = ''
+          ${pkgs.tailscale}/bin/tailscale serve clear svc:actual || true
+          ${pkgs.tailscale}/bin/tailscale serve clear svc:home-assistant || true
+        '';
+      };
+    };
   };
 
   services = {
+    actual = {
+      enable = true;
+      package = inputs.nixpkgs-master.legacyPackages.${pkgs.stdenv.hostPlatform.system}.actual-server;
+      openFirewall = false;
+      settings = {
+        hostname = "127.0.0.1";
+        port = 5006;
+        loginMethod = "password";
+        allowedLoginMethods = [ "password" ];
+        trustedProxies = [
+          "127.0.0.1"
+          "::1"
+        ];
+      };
+    };
+
     home-assistant = {
       enable = true;
       openFirewall = false;
@@ -456,7 +505,14 @@ in
           time_zone = "Europe/Bucharest";
           unit_system = "metric";
         };
-        http.server_port = 8123;
+        http = {
+          server_port = 8123;
+          use_x_forwarded_for = true;
+          trusted_proxies = [
+            "127.0.0.1"
+            "::1"
+          ];
+        };
       };
     };
 

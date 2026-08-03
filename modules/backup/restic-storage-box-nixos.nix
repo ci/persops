@@ -1,6 +1,7 @@
 {
   currentSystemName,
   currentSystemUser,
+  pkgs,
   ...
 }:
 
@@ -17,8 +18,8 @@ let
   passwordFile = "${secretDir}/password";
   identityFile = "${secretDir}/id_ed25519";
   sftpCommand = "ssh -i ${identityFile} -p ${toString port} -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/etc/ssh/ssh_known_hosts -s ${user}@${host} sftp";
-  storageBoxBackupCommon = {
-    user = currentSystemUser;
+  storageBoxBackupFor = backupUser: {
+    user = backupUser;
     inherit repository passwordFile;
     initialize = false;
     createWrapper = false;
@@ -37,7 +38,47 @@ in
   ];
 
   services.restic.backups = {
-    archive-daily = storageBoxBackupCommon // {
+    actual-daily = storageBoxBackupFor "root" // {
+      # DynamicUser StateDirectory path; /var/lib/actual is only a symlink.
+      paths = [ "/var/lib/private/actual" ];
+      backupPrepareCommand = ''
+        #!${pkgs.runtimeShell}
+        actualState="$(${pkgs.systemd}/bin/systemctl is-active actual.service || true)"
+        case "$actualState" in
+          active|activating)
+            ${pkgs.coreutils}/bin/touch /run/restic-backups-actual-daily/actual-was-active
+            ${pkgs.systemd}/bin/systemctl stop actual.service
+            ;;
+          deactivating)
+            ${pkgs.systemd}/bin/systemctl stop actual.service
+            ;;
+        esac
+      '';
+      backupCleanupCommand = ''
+        #!${pkgs.runtimeShell}
+        if [ -e /run/restic-backups-actual-daily/actual-was-active ]; then
+          ${pkgs.systemd}/bin/systemctl --no-block start actual.service
+        fi
+      '';
+      extraBackupArgs = [
+        "--host"
+        currentSystemName
+        "--tag"
+        "actual"
+        "--one-file-system"
+        "--compression"
+        "auto"
+      ];
+      timerConfig = {
+        OnCalendar = "*-*-* 01:30:00";
+        Persistent = true;
+        RandomizedDelaySec = "15m";
+      };
+      pruneOpts = [ ];
+      runCheck = false;
+    };
+
+    archive-daily = storageBoxBackupFor currentSystemUser // {
       paths = [ "/archive" ];
       extraBackupArgs = [
         "--host"
@@ -60,7 +101,7 @@ in
       runCheck = false;
     };
 
-    archive-prune-monthly = storageBoxBackupCommon // {
+    archive-prune-monthly = storageBoxBackupFor currentSystemUser // {
       paths = [ ];
       timerConfig = {
         OnCalendar = "*-*-01 10:00:00";
@@ -79,7 +120,7 @@ in
       runCheck = false;
     };
 
-    archive-check-weekly = storageBoxBackupCommon // {
+    archive-check-weekly = storageBoxBackupFor currentSystemUser // {
       paths = [ ];
       timerConfig = {
         OnCalendar = "Sun *-*-* 09:00:00";
@@ -93,17 +134,21 @@ in
     };
   };
 
-  systemd.services."restic-backups-archive-daily" = {
-    requires = [ "archive.mount" ];
-    after = [ "archive.mount" ];
-    unitConfig = {
-      ConditionPathIsMountPoint = "/archive";
-      StartLimitIntervalSec = "6h";
-      StartLimitBurst = 4;
-    };
-    serviceConfig = {
-      Restart = "on-failure";
-      RestartSec = "5m";
+  systemd.services = {
+    "restic-backups-actual-daily".after = [ "actual.service" ];
+
+    "restic-backups-archive-daily" = {
+      requires = [ "archive.mount" ];
+      after = [ "archive.mount" ];
+      unitConfig = {
+        ConditionPathIsMountPoint = "/archive";
+        StartLimitIntervalSec = "6h";
+        StartLimitBurst = 4;
+      };
+      serviceConfig = {
+        Restart = "on-failure";
+        RestartSec = "5m";
+      };
     };
   };
 }
