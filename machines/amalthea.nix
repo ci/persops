@@ -3,6 +3,17 @@
 let
   sea16LuksUuid = "c6ef6695-37d1-4edf-9f8c-8e08cbff15e6";
   parakeetModel = "nvidia/parakeet-tdt-0.6b-v3";
+  golinkPackage =
+    inputs.nixpkgs-master.legacyPackages.${pkgs.stdenv.hostPlatform.system}.golink.overrideAttrs
+      (old: {
+        # Service mode only listens on HTTPS; fix its embedded legacy URLs.
+        postPatch = (old.postPatch or "") + ''
+          for template in tmpl/delete.html tmpl/detail.html tmpl/help.html tmpl/home.html tmpl/opensearch.xml; do
+            substituteInPlace "$template" \
+              --replace-fail 'http://{{go}}' 'https://{{go}}'
+          done
+        '';
+      });
   python312OutOnly = pkgs.symlinkJoin {
     name = "python312-out-only";
     paths = [ (pkgs.lib.getOutput "out" pkgs.python312) ];
@@ -415,6 +426,30 @@ in
     ];
 
     services = {
+      golink = {
+        description = "Private go links for the tailnet";
+        wantedBy = [ "multi-user.target" ];
+        wants = [ "network-online.target" ];
+        after = [ "network-online.target" ];
+        serviceConfig = {
+          DynamicUser = true;
+          StateDirectory = "golink";
+          StateDirectoryMode = "0700";
+          Environment = [
+            "HOME=/var/lib/golink"
+            "XDG_CONFIG_HOME=/var/lib/golink"
+          ];
+          # The tsnet identity provides per-user ownership; clients use svc:golink.
+          ExecStart = "${golinkPackage}/bin/golink -advertise-tags=tag:server -hostname=golink.reverse-justitia.ts.net -register-as-service=svc:golink -sqlitedb /var/lib/golink/golink.db";
+          Restart = "on-failure";
+          RestartSec = "10s";
+          NoNewPrivileges = true;
+          PrivateTmp = true;
+          ProtectHome = true;
+          ProtectSystem = "strict";
+        };
+      };
+
       sea16-quota-init = {
         description = "Initialize sea16 directories and XFS project quota";
         wantedBy = [ "multi-user.target" ];

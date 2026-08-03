@@ -78,6 +78,46 @@ in
       runCheck = false;
     };
 
+    golink-daily = storageBoxBackupFor "root" // {
+      # DynamicUser StateDirectory path; /var/lib/golink is only a symlink.
+      paths = [ "/var/lib/private/golink" ];
+      backupPrepareCommand = ''
+        #!${pkgs.runtimeShell}
+        golinkState="$(${pkgs.systemd}/bin/systemctl is-active golink.service || true)"
+        case "$golinkState" in
+          active|activating)
+            ${pkgs.coreutils}/bin/touch /run/restic-backups-golink-daily/golink-was-active
+            ${pkgs.systemd}/bin/systemctl stop golink.service
+            ;;
+          deactivating)
+            ${pkgs.systemd}/bin/systemctl stop golink.service
+            ;;
+        esac
+      '';
+      backupCleanupCommand = ''
+        #!${pkgs.runtimeShell}
+        if [ -e /run/restic-backups-golink-daily/golink-was-active ]; then
+          ${pkgs.systemd}/bin/systemctl --no-block start golink.service
+        fi
+      '';
+      extraBackupArgs = [
+        "--host"
+        currentSystemName
+        "--tag"
+        "golink"
+        "--one-file-system"
+        "--compression"
+        "auto"
+      ];
+      timerConfig = {
+        OnCalendar = "*-*-* 01:45:00";
+        Persistent = true;
+        RandomizedDelaySec = "15m";
+      };
+      pruneOpts = [ ];
+      runCheck = false;
+    };
+
     archive-daily = storageBoxBackupFor currentSystemUser // {
       paths = [ "/archive" ];
       extraBackupArgs = [
@@ -136,6 +176,7 @@ in
 
   systemd.services = {
     "restic-backups-actual-daily".after = [ "actual.service" ];
+    "restic-backups-golink-daily".after = [ "golink.service" ];
 
     "restic-backups-archive-daily" = {
       requires = [ "archive.mount" ];

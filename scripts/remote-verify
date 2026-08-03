@@ -100,6 +100,7 @@ hostname
 show_system_state
 check_system_unit tailscaled.service
 check_system_unit actual.service
+check_system_unit golink.service
 check_system_unit home-assistant.service
 check_system_unit tailscale-services.service
 
@@ -120,6 +121,7 @@ check_system_unit cliproxyapi.service
 check_optional_system_unit samba-smbd.service
 check_optional_system_unit sea16-quota-init.service
 check_optional_system_unit restic-backups-actual-daily.timer
+check_optional_system_unit restic-backups-golink-daily.timer
 check_optional_system_unit restic-backups-archive-daily.timer
 check_optional_system_unit restic-backups-archive-prune-monthly.timer
 check_optional_system_unit restic-backups-archive-check-weekly.timer
@@ -127,14 +129,14 @@ show_mount /srv/sea16
 show_mount /archive
 REMOTE
 
-check_client_https_endpoint() {
+check_client_endpoint() {
 	local name="$1"
 	local url="$2"
 	local attempt
 
 	echo "verify: client access to ${name} at ${url}"
 	for attempt in {1..12}; do
-		if curl --fail --silent --show-error --output /dev/null --connect-timeout 5 --max-time 10 "$url"; then
+		if curl --location --fail --silent --show-error --output /dev/null --connect-timeout 5 --max-time 10 "$url"; then
 			return
 		fi
 		if [ "$attempt" -lt 12 ]; then
@@ -150,5 +152,6 @@ if ! command -v curl >/dev/null 2>&1; then
 	echo "error: curl is required for named service verification" >&2
 	exit 1
 fi
-check_client_https_endpoint actual https://actual.reverse-justitia.ts.net/
-check_client_https_endpoint home-assistant https://home-assistant.reverse-justitia.ts.net/
+check_client_endpoint actual https://actual.reverse-justitia.ts.net/
+check_client_endpoint golink https://golink.reverse-justitia.ts.net/
+check_client_endpoint home-assistant https://home-assistant.reverse-justitia.ts.net/
