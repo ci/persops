@@ -1,0 +1,22 @@
+diff --git a/golink.go b/golink.go
+index 4ebd938..271d64c 100644
+--- a/golink.go
++++ b/golink.go
+@@ -266,6 +266,17 @@ out:
+ 			return fmt.Errorf("service name must start with 'svc:' prefix, got: %q", *serviceName)
+ 		}
+ 
++		// This tsnet node is dedicated to golink. Replace the advertised Service
++		// list so renaming the Service does not retain stale registrations.
++		if _, err := localClient.EditPrefs(context.Background(), &ipn.MaskedPrefs{
++			AdvertiseServicesSet: true,
++			Prefs: ipn.Prefs{
++				AdvertiseServices: []string{*serviceName},
++			},
++		}); err != nil {
++			return fmt.Errorf("updating advertised Services: %w", err)
++		}
++
+ 		log.Printf("Registering as Tailscale Service: %s", *serviceName)
+ 		serviceListener, err := srv.ListenService(*serviceName, tsnet.ServiceModeHTTP{
+ 			HTTPS: true,

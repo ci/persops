@@ -6,11 +6,16 @@ let
   golinkPackage =
     inputs.nixpkgs-master.legacyPackages.${pkgs.stdenv.hostPlatform.system}.golink.overrideAttrs
       (old: {
-        # Service mode only listens on HTTPS; fix its embedded legacy URLs.
+        patches = (old.patches or [ ]) ++ [ ./golink-service-mode.patch ];
+        # Service mode only listens on HTTPS; render its client-facing Service URL.
         postPatch = (old.postPatch or "") + ''
           for template in tmpl/delete.html tmpl/detail.html tmpl/help.html tmpl/home.html tmpl/opensearch.xml; do
             substituteInPlace "$template" \
-              --replace-fail 'http://{{go}}' 'https://{{go}}'
+              --replace-fail 'http://{{go}}' 'https://go.reverse-justitia.ts.net'
+          done
+          for template in tmpl/*.html tmpl/*.xml; do
+            substituteInPlace "$template" \
+              --replace-warn '{{go}}' 'go.reverse-justitia.ts.net'
           done
         '';
       });
@@ -439,8 +444,8 @@ in
             "HOME=/var/lib/golink"
             "XDG_CONFIG_HOME=/var/lib/golink"
           ];
-          # The tsnet identity provides per-user ownership; clients use svc:golink.
-          ExecStart = "${golinkPackage}/bin/golink -advertise-tags=tag:server -hostname=golink.reverse-justitia.ts.net -register-as-service=svc:golink -sqlitedb /var/lib/golink/golink.db";
+          # The tsnet identity provides per-user ownership; clients use svc:go.
+          ExecStart = "${golinkPackage}/bin/golink -advertise-tags=tag:server -hostname=go-host -register-as-service=svc:go -sqlitedb /var/lib/golink/golink.db";
           Restart = "on-failure";
           RestartSec = "10s";
           NoNewPrivileges = true;

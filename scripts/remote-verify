@@ -153,5 +153,5 @@ if ! command -v curl >/dev/null 2>&1; then
 	exit 1
 fi
 check_client_endpoint actual https://actual.reverse-justitia.ts.net/
-check_client_endpoint golink https://golink.reverse-justitia.ts.net/
+check_client_endpoint go https://go.reverse-justitia.ts.net/
 check_client_endpoint home-assistant https://home-assistant.reverse-justitia.ts.net/
