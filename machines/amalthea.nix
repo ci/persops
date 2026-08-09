@@ -475,11 +475,13 @@ in
         partOf = [ "tailscaled.service" ];
         wants = [
           "actual.service"
+          "homepage-dashboard.service"
           "home-assistant.service"
         ];
         after = [
           "tailscaled.service"
           "actual.service"
+          "homepage-dashboard.service"
           "home-assistant.service"
         ];
         serviceConfig = {
@@ -490,10 +492,12 @@ in
         };
         script = ''
           ${pkgs.tailscale}/bin/tailscale serve --service=svc:actual --https=443 --yes http://127.0.0.1:5006
+          ${pkgs.tailscale}/bin/tailscale serve --service=svc:home --https=443 --yes http://127.0.0.1:8082
           ${pkgs.tailscale}/bin/tailscale serve --service=svc:home-assistant --https=443 --yes http://127.0.0.1:8123
         '';
         postStop = ''
           ${pkgs.tailscale}/bin/tailscale serve clear svc:actual || true
+          ${pkgs.tailscale}/bin/tailscale serve clear svc:home || true
           ${pkgs.tailscale}/bin/tailscale serve clear svc:home-assistant || true
         '';
       };
@@ -515,6 +519,49 @@ in
           "::1"
         ];
       };
+    };
+
+    homepage-dashboard = {
+      enable = true;
+      openFirewall = false;
+      listenPort = 8082;
+      allowedHosts = "home.reverse-justitia.ts.net";
+      settings = {
+        title = "Home";
+        headerStyle = "clean";
+        hideVersion = true;
+      };
+      services = [
+        {
+          Apps = [
+            {
+              "Actual Budget" = {
+                icon = "actual-budget.png";
+                href = "https://actual.reverse-justitia.ts.net/";
+                description = "Personal finances";
+              };
+            }
+            {
+              "Home Assistant" = {
+                icon = "home-assistant.png";
+                href = "https://home-assistant.reverse-justitia.ts.net/";
+                description = "Home automation";
+              };
+            }
+          ];
+        }
+        {
+          Utilities = [
+            {
+              GoLink = {
+                icon = "mdi-link-variant";
+                href = "http://go/";
+                description = "Private short links";
+              };
+            }
+          ];
+        }
+      ];
     };
 
     home-assistant = {
