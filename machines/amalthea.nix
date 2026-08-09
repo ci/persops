@@ -8,6 +8,34 @@ let
       (old: {
         patches = (old.patches or [ ]) ++ [ ./golink-advertised-services.patch ];
       });
+  tailscaleServiceTargets = {
+    actual = "http://127.0.0.1:5006";
+    home = "http://127.0.0.1:8082";
+    home-assistant = "http://127.0.0.1:8123";
+    uptime = "http://127.0.0.1:3001";
+  };
+  tailscaleServiceNames = builtins.attrNames tailscaleServiceTargets;
+  tailscaleServiceManifest = pkgs.writeText "tailscale-managed-services" (
+    pkgs.lib.concatMapStrings (name: "svc:${name}\n") tailscaleServiceNames
+  );
+  tailscaleServiceCommands = pkgs.lib.concatMapStringsSep "\n" (
+    name:
+    "${pkgs.tailscale}/bin/tailscale serve --service=svc:${name} --https=443 --yes ${
+      tailscaleServiceTargets.${name}
+    }"
+  ) tailscaleServiceNames;
+  tailscaleWithdrawService = pkgs.writeShellScript "tailscale-withdraw-service" ''
+    service="$1"
+
+    if ! ${pkgs.tailscale}/bin/tailscale serve drain "$service"; then
+      exit 1
+    fi
+
+    # Tailscale does not expose a connection-count wait primitive. Allow active
+    # HTTP requests to finish before deleting the drained service's handlers.
+    ${pkgs.coreutils}/bin/sleep 30
+    ${pkgs.tailscale}/bin/tailscale serve clear "$service"
+  '';
   python312OutOnly = pkgs.symlinkJoin {
     name = "python312-out-only";
     paths = [ (pkgs.lib.getOutput "out" pkgs.python312) ];
@@ -477,28 +505,82 @@ in
           "actual.service"
           "homepage-dashboard.service"
           "home-assistant.service"
+          "uptime-kuma.service"
         ];
         after = [
           "tailscaled.service"
           "actual.service"
           "homepage-dashboard.service"
           "home-assistant.service"
+          "uptime-kuma.service"
         ];
         serviceConfig = {
           Type = "oneshot";
           RemainAfterExit = true;
           Restart = "on-failure";
           RestartSec = "10s";
+          StateDirectory = "tailscale-services";
         };
         script = ''
-          ${pkgs.tailscale}/bin/tailscale serve --service=svc:actual --https=443 --yes http://127.0.0.1:5006
-          ${pkgs.tailscale}/bin/tailscale serve --service=svc:home --https=443 --yes http://127.0.0.1:8082
-          ${pkgs.tailscale}/bin/tailscale serve --service=svc:home-assistant --https=443 --yes http://127.0.0.1:8123
+          managed_services=/var/lib/tailscale-services/managed-services
+          pending_services="''${managed_services}.pending"
+
+          # Record every service this run may mutate before changing Tailscale.
+          if [ -f "$managed_services" ]; then
+            ${pkgs.coreutils}/bin/cp "$managed_services" "$pending_services"
+          else
+            ${pkgs.coreutils}/bin/truncate -s 0 "$pending_services"
+          fi
+          ${pkgs.coreutils}/bin/cat ${tailscaleServiceManifest} >> "$pending_services"
+          ${pkgs.coreutils}/bin/sort -u -o "$pending_services" "$pending_services"
+          ${pkgs.coreutils}/bin/chmod 0600 "$pending_services"
+          ${pkgs.coreutils}/bin/mv "$pending_services" "$managed_services"
+
+          # Reconcile removed services without clearing unchanged host approvals.
+          while IFS= read -r service; do
+            if [ -n "$service" ] && ! ${pkgs.gnugrep}/bin/grep -Fqx "$service" ${tailscaleServiceManifest}; then
+              ${tailscaleWithdrawService} "$service"
+            fi
+          done < "$managed_services"
+
+          ${tailscaleServiceCommands}
+          ${pkgs.coreutils}/bin/install -m 0600 ${tailscaleServiceManifest} "$pending_services"
+          ${pkgs.coreutils}/bin/mv "$pending_services" "$managed_services"
         '';
-        postStop = ''
-          ${pkgs.tailscale}/bin/tailscale serve clear svc:actual || true
-          ${pkgs.tailscale}/bin/tailscale serve clear svc:home || true
-          ${pkgs.tailscale}/bin/tailscale serve clear svc:home-assistant || true
+      };
+
+      # Explicit withdrawal path: systemctl start tailscale-services-decommission.service
+      tailscale-services-decommission = {
+        description = "Withdraw Nix-managed named Tailscale Services";
+        requires = [ "tailscaled.service" ];
+        after = [
+          "tailscaled.service"
+          "tailscale-services.service"
+        ];
+        conflicts = [ "tailscale-services.service" ];
+        serviceConfig = {
+          Type = "oneshot";
+          StateDirectory = "tailscale-services";
+        };
+        script = ''
+          managed_services=/var/lib/tailscale-services/managed-services
+          failed_services="''${managed_services}.failed"
+
+          if [ -f "$managed_services" ]; then
+            ${pkgs.coreutils}/bin/truncate -s 0 "$failed_services"
+            while IFS= read -r service; do
+              if [ -n "$service" ] && ! ${tailscaleWithdrawService} "$service"; then
+                printf '%s\n' "$service" >> "$failed_services"
+              fi
+            done < "$managed_services"
+            ${pkgs.coreutils}/bin/chmod 0600 "$failed_services"
+            ${pkgs.coreutils}/bin/mv "$failed_services" "$managed_services"
+
+            if [ -s "$managed_services" ]; then
+              echo "failed to withdraw one or more managed Tailscale Services" >&2
+              exit 1
+            fi
+          fi
         '';
       };
     };
@@ -561,7 +643,26 @@ in
             }
           ];
         }
+        {
+          Monitoring = [
+            {
+              "Uptime Kuma" = {
+                icon = "uptime-kuma.png";
+                href = "https://uptime.reverse-justitia.ts.net/";
+                description = "Service monitoring";
+              };
+            }
+          ];
+        }
       ];
+    };
+
+    uptime-kuma = {
+      enable = true;
+      settings = {
+        HOST = "127.0.0.1";
+        PORT = "3001";
+      };
     };
 
     home-assistant = {

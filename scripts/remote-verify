@@ -103,6 +103,7 @@ check_system_unit actual.service
 check_system_unit golink.service
 check_system_unit homepage-dashboard.service
 check_system_unit home-assistant.service
+check_system_unit uptime-kuma.service
 check_system_unit tailscale-services.service
 
 if command -v tailscale >/dev/null 2>&1; then
@@ -116,6 +117,7 @@ fi
 check_tailscale_service_config actual http://127.0.0.1:5006
 check_tailscale_service_config home http://127.0.0.1:8082
 check_tailscale_service_config home-assistant http://127.0.0.1:8123
+check_tailscale_service_config uptime http://127.0.0.1:3001
 
 check_user_unit codex-remote-control.service
 check_user_unit claude-remote-control.service
@@ -124,6 +126,7 @@ check_optional_system_unit samba-smbd.service
 check_optional_system_unit sea16-quota-init.service
 check_optional_system_unit restic-backups-actual-daily.timer
 check_optional_system_unit restic-backups-golink-daily.timer
+check_optional_system_unit restic-backups-uptime-kuma-daily.timer
 check_optional_system_unit restic-backups-archive-daily.timer
 check_optional_system_unit restic-backups-archive-prune-monthly.timer
 check_optional_system_unit restic-backups-archive-check-weekly.timer
@@ -158,3 +161,4 @@ check_client_endpoint actual https://actual.reverse-justitia.ts.net/
 check_client_endpoint go http://go/
 check_client_endpoint home https://home.reverse-justitia.ts.net/
 check_client_endpoint home-assistant https://home-assistant.reverse-justitia.ts.net/
+check_client_endpoint uptime https://uptime.reverse-justitia.ts.net/

@@ -118,6 +118,46 @@ in
       runCheck = false;
     };
 
+    uptime-kuma-daily = storageBoxBackupFor "root" // {
+      # DynamicUser StateDirectory path; /var/lib/uptime-kuma is only a symlink.
+      paths = [ "/var/lib/private/uptime-kuma" ];
+      backupPrepareCommand = ''
+        #!${pkgs.runtimeShell}
+        uptimeKumaState="$(${pkgs.systemd}/bin/systemctl is-active uptime-kuma.service || true)"
+        case "$uptimeKumaState" in
+          active|activating)
+            ${pkgs.coreutils}/bin/touch /run/restic-backups-uptime-kuma-daily/uptime-kuma-was-active
+            ${pkgs.systemd}/bin/systemctl stop uptime-kuma.service
+            ;;
+          deactivating)
+            ${pkgs.systemd}/bin/systemctl stop uptime-kuma.service
+            ;;
+        esac
+      '';
+      backupCleanupCommand = ''
+        #!${pkgs.runtimeShell}
+        if [ -e /run/restic-backups-uptime-kuma-daily/uptime-kuma-was-active ]; then
+          ${pkgs.systemd}/bin/systemctl --no-block start uptime-kuma.service
+        fi
+      '';
+      extraBackupArgs = [
+        "--host"
+        currentSystemName
+        "--tag"
+        "uptime-kuma"
+        "--one-file-system"
+        "--compression"
+        "auto"
+      ];
+      timerConfig = {
+        OnCalendar = "*-*-* 02:00:00";
+        Persistent = true;
+        RandomizedDelaySec = "15m";
+      };
+      pruneOpts = [ ];
+      runCheck = false;
+    };
+
     archive-daily = storageBoxBackupFor currentSystemUser // {
       paths = [ "/archive" ];
       extraBackupArgs = [
@@ -177,6 +217,7 @@ in
   systemd.services = {
     "restic-backups-actual-daily".after = [ "actual.service" ];
     "restic-backups-golink-daily".after = [ "golink.service" ];
+    "restic-backups-uptime-kuma-daily".after = [ "uptime-kuma.service" ];
 
     "restic-backups-archive-daily" = {
       requires = [ "archive.mount" ];
