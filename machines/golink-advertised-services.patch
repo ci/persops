@@ -1,0 +1,22 @@
+diff --git a/golink.go b/golink.go
+--- a/golink.go
++++ b/golink.go
+@@ -249,6 +249,18 @@
+ 	fqdn := strings.TrimSuffix(status.Self.DNSName, ".")
+ 
+ 	httpHandler := serveHandler()
++	// Keep this dedicated tsnet node's advertised Service list exact so
++	// switching modes leaves no stale registrations in persisted preferences.
++	var advertisedServices []string
++	if *serviceName != "" {
++		advertisedServices = []string{*serviceName}
++	}
++	if _, err := localClient.EditPrefs(context.Background(), &ipn.MaskedPrefs{
++		AdvertiseServicesSet: true,
++		Prefs:               ipn.Prefs{AdvertiseServices: advertisedServices},
++	}); err != nil {
++		return fmt.Errorf("updating advertised Services: %w", err)
++	}
+ 
+ 	// Service registration mode: use ListenService instead of standard listeners
+ 	if *serviceName != "" {
