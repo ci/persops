@@ -78,27 +78,38 @@
           # host can't silently drift from the CLI (prefetch the new asset hash with:
           # nix store prefetch-file <github release asset url>).
           codex =
-            if prev.stdenv.hostPlatform.system != "aarch64-darwin" then
+            let
+              system = prev.stdenv.hostPlatform.system;
+              hostTargets = {
+                "aarch64-darwin" = "aarch64-apple-darwin";
+                "x86_64-linux" = "x86_64-unknown-linux-musl";
+              };
+              hostTarget = hostTargets.${system} or null;
+            in
+            if hostTarget == null then
               prev.codex
             else
               prev.codex.overrideAttrs (
                 old:
                 let
                   hostHashes = {
-                    "0.144.0" = "sha256-bPkoJDC+/lQTacfLKARgSn8N2UFvOjJB42dtsiAiokY=";
+                    "0.144.0" = {
+                      "aarch64-darwin" = "sha256-bPkoJDC+/lQTacfLKARgSn8N2UFvOjJB42dtsiAiokY=";
+                      "x86_64-linux" = "sha256-JtnGXFqUfCv0iVE+9/geAnsMltwV4ngd5u7V4CoYmT0=";
+                    };
                   };
                   hostTarball = prev.fetchurl {
-                    url = "https://github.com/openai/codex/releases/download/rust-v${old.version}/codex-code-mode-host-aarch64-apple-darwin.tar.gz";
+                    url = "https://github.com/openai/codex/releases/download/rust-v${old.version}/codex-code-mode-host-${hostTarget}.tar.gz";
                     hash =
-                      hostHashes.${old.version}
-                        or (throw "codex ${old.version}: add the codex-code-mode-host asset hash to hostHashes in flake.nix");
+                      hostHashes.${old.version}.${system}
+                        or (throw "codex ${old.version} on ${system}: add the codex-code-mode-host asset hash to hostHashes in flake.nix");
                   };
                 in
                 {
                   postInstall = (old.postInstall or "") + ''
                     tar -xzf ${hostTarball} -C $out/bin
-                    if [ -e $out/bin/codex-code-mode-host-aarch64-apple-darwin ]; then
-                      mv $out/bin/codex-code-mode-host-aarch64-apple-darwin $out/bin/codex-code-mode-host
+                    if [ -e $out/bin/codex-code-mode-host-${hostTarget} ]; then
+                      mv $out/bin/codex-code-mode-host-${hostTarget} $out/bin/codex-code-mode-host
                     fi
                     chmod +x $out/bin/codex-code-mode-host
                   '';
