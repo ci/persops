@@ -29,7 +29,6 @@
     };
     llm-agents = {
       url = "github:numtide/llm-agents.nix";
-      inputs.nixpkgs.follows = "nixpkgs";
     };
     herdr = {
       url = "github:ogulcancelik/herdr/v0.7.5";
@@ -96,6 +95,10 @@
                     "0.144.0" = {
                       "aarch64-darwin" = "sha256-bPkoJDC+/lQTacfLKARgSn8N2UFvOjJB42dtsiAiokY=";
                       "x86_64-linux" = "sha256-JtnGXFqUfCv0iVE+9/geAnsMltwV4ngd5u7V4CoYmT0=";
+                    };
+                    "0.147.0" = {
+                      "aarch64-darwin" = "sha256-Vs2/YYe/kUEI07f+7qWjT/uhXlwWK+3OaeBi7pLd+14=";
+                      "x86_64-linux" = "sha256-AUat+qyDY+yfzbWJX3Yk21suhheig4h5OLf7l6HdQ1Y=";
                     };
                   };
                   hostTarball = prev.fetchurl {
