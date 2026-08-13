@@ -13,7 +13,7 @@ let
     "amalthea"
   ];
   amp = lib.getExe inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.amp;
-  workingDirectory = "${home}/p/persops";
+  workingDirectory = "${home}/p";
   path = lib.concatStringsSep ":" (
     lib.optionals pkgs.stdenv.isDarwin [ "/bin" ]
     ++ [
