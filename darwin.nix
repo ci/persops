@@ -20,6 +20,25 @@
     ];
   };
 
+  launchd.user.envVariables = {
+    PATH = [
+      "/Users/${user}/.local/bin"
+      "/Users/${user}/.nix-profile/bin"
+      "/etc/profiles/per-user/${user}/bin"
+      "/run/current-system/sw/bin"
+      "/nix/var/nix/profiles/default/bin"
+      "/opt/homebrew/bin"
+      "/usr/local/bin"
+      "/usr/bin"
+      "/bin"
+      "/usr/sbin"
+      "/sbin"
+    ];
+    CLAUDE_CLI_PATH = "/etc/profiles/per-user/${user}/bin/claude";
+    CODEX_CLI_PATH = "/etc/profiles/per-user/${user}/bin/codex";
+    AMP_CLI_PATH = "/Users/${user}/.local/bin/amp";
+  };
+
   system = {
     defaults.NSGlobalDomain.ApplePressAndHoldEnabled = false;
 
