@@ -143,6 +143,7 @@ in
         # llmAgents.copilot-cli
         llmAgents.cursor-agent
         # llmAgents.gemini-cli # disabled: stale vs Homebrew package
+        llmAgents.grok
         llmAgents.hunk
         llmAgents.mcporter
         llmAgents.opencode
