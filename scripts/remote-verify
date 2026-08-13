@@ -121,6 +121,7 @@ check_tailscale_service_config uptime http://127.0.0.1:3001
 
 check_user_unit codex-remote-control.service
 check_user_unit claude-remote-control.service
+check_user_unit amp-runner.service
 check_system_unit cliproxyapi.service
 check_optional_system_unit samba-smbd.service
 check_optional_system_unit sea16-quota-init.service

@@ -111,6 +111,7 @@ let
 in
 {
   imports = [
+    ./amp-runner.nix
     ./herdr.nix
   ];
 

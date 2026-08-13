@@ -471,7 +471,7 @@ let
       fi
 
       section "agent services"
-      for unit in codex-remote-control.service claude-remote-control.service; do
+      for unit in codex-remote-control.service claude-remote-control.service amp-runner.service; do
         unit_state="$(systemctl --user is-active "$unit" 2>/dev/null)"
         case "$unit_state" in
           active)
