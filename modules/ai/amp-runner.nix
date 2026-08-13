@@ -14,17 +14,20 @@ let
   ];
   amp = lib.getExe inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.amp;
   workingDirectory = "${home}/p/persops";
-  path = lib.concatStringsSep ":" [
-    "${home}/.local/bin"
-    "${config.home.profileDirectory}/bin"
-    "/run/current-system/sw/bin"
-    "/nix/var/nix/profiles/default/bin"
-    "/usr/local/bin"
-    "/usr/bin"
-    "/bin"
-    "/usr/sbin"
-    "/sbin"
-  ];
+  path = lib.concatStringsSep ":" (
+    lib.optionals pkgs.stdenv.isDarwin [ "/bin" ]
+    ++ [
+      "${home}/.local/bin"
+      "${config.home.profileDirectory}/bin"
+      "/run/current-system/sw/bin"
+      "/nix/var/nix/profiles/default/bin"
+      "/usr/local/bin"
+      "/usr/bin"
+      "/bin"
+      "/usr/sbin"
+      "/sbin"
+    ]
+  );
   arguments = [
     amp
     "--no-tui"
