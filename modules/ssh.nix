@@ -36,6 +36,9 @@ in
     // lib.optionalAttrs isDarwin {
       amalthea = {
         ForwardAgent = "yes";
+        ControlMaster = "auto";
+        ControlPersist = "10m";
+        ServerAliveInterval = 30;
       };
     };
   };
