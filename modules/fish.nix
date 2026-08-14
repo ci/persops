@@ -140,11 +140,11 @@ in
           set -gx PATH $PATH /opt/homebrew/bin
 
           # need this non-interactively to allow tmux to use it
-          alias nixrb "sudo darwin-rebuild switch --flake ~/p/persops/"
+          alias nixrb "nh darwin switch ~/p/persops"
         ''
       else
         ''
-          alias nixrb "sudo nixos-rebuild switch --flake /nix-config"
+          alias nixrb "nh os switch /nix-config"
         ''
     );
   };
