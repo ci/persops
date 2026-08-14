@@ -8,7 +8,7 @@ NIXNAME ?= amalthea
 
 # Get the path to this Makefile and directory
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-FLAKE_DIR := git+file:$(MAKEFILE_DIR)
+FLAKE_DIR := $(MAKEFILE_DIR)
 HOSTNAME := $(shell hostname -s 2>/dev/null || hostname)
 # The secondary machine uses the "work" Darwin config; everything else is aglaea.
 ifeq ($(HOSTNAME), work)
