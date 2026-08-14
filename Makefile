@@ -84,9 +84,10 @@ endif
 
 # copy the Nix configurations into the remote.
 r/copy: remote-guard
-	rsync -av -e 'ssh -p$(NIXPORT)' \
+	rsync -av --delete -e 'ssh -p$(NIXPORT)' \
 		--exclude='.git/' \
 		--exclude='.jj/' \
+		--exclude='.claude/worktrees/' \
 		--rsync-path="sudo rsync" \
 		$(MAKEFILE_DIR)/ $(NIXUSER)@$(NIXADDR):/nix-config
 
