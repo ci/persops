@@ -32,7 +32,7 @@ CHECK_SYSTEMS ?= $(CURRENT_SYSTEM)
 NH ?= nh
 NIX_FAST_BUILD ?= nix develop --command nix-fast-build
 
-.PHONY: local switch build check fast-check test remote-guard r/copy r/preflight r/test r/switch r/verify r/apply r/rdp
+.PHONY: local switch build check eval-machines fast-check test remote-guard r/copy r/preflight r/test r/switch r/verify r/apply r/rdp
 
 remote-guard:
 ifeq ($(HOSTNAME), work)
@@ -62,8 +62,15 @@ else
 endif
 
 check:
-	nix flake check --all-systems --print-build-logs
-	$(MAKE) fast-check
+	nix flake check --print-build-logs
+	$(MAKE) eval-machines
+
+# Force each machine config through the module system without realizing it.
+# `nix flake check` only builds checks.*; it does not eval these attrsets.
+eval-machines:
+	nix eval --raw '.#nixosConfigurations.amalthea.config.system.build.toplevel.drvPath'
+	nix eval --raw '.#darwinConfigurations.aglaea.config.system.build.toplevel.drvPath'
+	nix eval --raw '.#darwinConfigurations.work.config.system.build.toplevel.drvPath'
 
 fast-check:
 	$(NIX_FAST_BUILD) --flake ".#checks" --no-link --skip-cached --systems "$(CHECK_SYSTEMS)"

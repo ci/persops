@@ -10,7 +10,8 @@ Personal configuration managing macOS (darwin) and NixOS systems via Nix flakes.
 | ----------------------------------------------------------- | ----------------------------------------------- |
 | `make switch`                                               | Apply configuration (auto-detects darwin/nixos) |
 | `make test`                                                 | Test build without applying                     |
-| `nix flake check`                                           | Validate flake syntax                           |
+| `make check`                                                | Current-system flake check + eval machine configs |
+| `nix flake check`                                           | Validate flake syntax (current system only)     |
 | `nix flake update`                                          | Update all flake inputs                         |
 | `nix flake update codex-cli-nix claude-code-nix llm-agents` | Update AI agent inputs                          |
 
