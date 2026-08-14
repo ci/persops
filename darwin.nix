@@ -75,7 +75,6 @@
       "libpq" # for ruby `pg` gems through mise
       "sshpass" # ansible ssh automation
       "qemu" # virtualization goodies
-      "tmuxinator" # instead of tmux.tmuxinator.enable
     ];
     casks = [
       "1password"

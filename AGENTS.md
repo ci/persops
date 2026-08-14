@@ -182,5 +182,4 @@ darwinConfigurations."<name>" = mkSystem "<name>" {
 - **stateVersion**: Never change without reading release notes
 - **Homebrew**: Some packages still via homebrew (see darwin.nix)
 - **allowUnfree**: Enabled globally
-- **tmuxinator**: Via homebrew, not nix (version compat)
 - **Fish themes**: Catppuccin fetched from GitHub, pinned by sha256

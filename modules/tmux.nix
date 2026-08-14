@@ -6,8 +6,6 @@
     terminal = "tmux-256color";
     sensibleOnTop = false;
     historyLimit = 100000;
-    # maintained through brew so far until 3.3.4 makes it into nix-unstable
-    # tmuxinator.enable = true;
     plugins = with pkgs; [
       tmuxPlugins.tmux-thumbs
       tmuxPlugins.sensible
@@ -39,7 +37,6 @@
       }
       tmuxPlugins.battery
       tmuxPlugins.cpu
-      # disable for the time being, not acting nicely with tmuxinator
       # tmuxPlugins.better-mouse-mode
       # {
       #     plugin = tmuxPlugins.resurrect;

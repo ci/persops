@@ -12,7 +12,6 @@ in
       sql2md = "pg_format --nocomment - | xargs -0 printf \"\`\`\`sql\\n%s\`\`\`\" | pbcopy";
       # emacsclient = "/opt/homebrew/bin/emacs"; # EmacsForOSX: /Applications/Emacs.app/Contents/MacOS/bin/emacsclient
       ee = "emacsclient -nw -c";
-      mux = "tmuxinator";
       k = "kubectl";
       ls = "eza --all --classify";
       ll = "eza --all --group --header --group-directories-first --long --git";
