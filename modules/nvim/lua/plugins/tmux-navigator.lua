@@ -66,12 +66,6 @@ return {
       },
     },
     config = function()
-      local cmux_select_pane_flags = {
-        left = "-L",
-        down = "-D",
-        up = "-U",
-        right = "-R",
-      }
       local herdr_directions = {
         left = "left",
         down = "down",
@@ -81,16 +75,12 @@ return {
 
       require("smart-splits").setup({
         at_edge = function(ctx)
-          local cmux_cli = vim.env.CMUX_BUNDLED_CLI_PATH
-          local flag = cmux_select_pane_flags[ctx.direction]
           local herdr_direction = herdr_directions[ctx.direction]
           if vim.env.HERDR_ENV == "1" and herdr_direction then
             vim.fn.jobstart(
               { "herdr", "pane", "focus", "--direction", herdr_direction, "--current" },
               { detach = true }
             )
-          elseif cmux_cli and cmux_cli ~= "" and vim.env.CMUX_WORKSPACE_ID and flag then
-            vim.fn.jobstart({ cmux_cli, "__tmux-compat", "select-pane", flag }, { detach = true })
           else
             ctx.wrap()
           end

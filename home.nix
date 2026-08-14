@@ -36,7 +36,6 @@ in
     ./modules/aerospace/aerospace.nix
     # ./modules/emacs/home.nix # unused for now
     ./modules/ghostty.nix
-    ./modules/cmux.nix
     ./modules/starship.nix
     ./modules/mise.nix
     ./modules/direnv.nix
