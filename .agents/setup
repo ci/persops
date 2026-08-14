@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+nix_profile="$HOME/.nix-profile"
+nix_bin="$nix_profile/bin/nix"
+nix_flags=(--extra-experimental-features "nix-command flakes")
+
+printf '\n==> Installing Nix when missing\n'
+if [ ! -x "$nix_bin" ]; then
+	installer="$(mktemp)"
+	trap 'rm -f "$installer"' EXIT
+	curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+		https://nixos.org/nix/install --output "$installer"
+	sh "$installer" --no-daemon --yes
+	rm -f "$installer"
+	trap - EXIT
+else
+	printf 'Nix is already installed\n'
+fi
+
+# The installer cannot update this running process.
+# shellcheck disable=SC1091
+source "$nix_profile/etc/profile.d/nix.sh"
+
+printf '\n==> Building the repository development shell\n'
+"$nix_bin" "${nix_flags[@]}" develop "$repo_root" --command true
+
+printf '\n==> Making the development shell available to Amp login shells\n'
+profile_marker="# persops Nix development shell"
+activation_file="$HOME/.config/amp/persops-nix.sh"
+mkdir -p "$(dirname "$activation_file")"
+cat >"$activation_file" <<EOF
+if [[ -z "\${IN_NIX_SHELL:-}" && "\${PWD}" == "$repo_root" ]]; then
+  eval "\$("$nix_bin" --extra-experimental-features 'nix-command flakes' print-dev-env "$repo_root")"
+fi
+EOF
+if ! grep -Fqx "$profile_marker" "$HOME/.bash_profile" 2>/dev/null; then
+	cat >>"$HOME/.bash_profile" <<EOF
+
+$profile_marker
+source "$activation_file"
+EOF
+fi
+
+printf '\n==> Verifying a clean login shell\n'
+env -i HOME="$HOME" USER="${USER:-user}" PATH=/usr/bin:/bin \
+	/bin/bash -lc 'command -v nix && command -v jj && command -v shellcheck && command -v nixfmt'

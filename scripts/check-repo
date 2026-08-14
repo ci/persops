@@ -9,6 +9,8 @@ section() {
 }
 
 shell_scripts=(
+	.agents/resume
+	.agents/setup
 	scripts/check-repo
 	scripts/remote-preflight
 	scripts/remote-verify

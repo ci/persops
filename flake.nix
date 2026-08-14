@@ -212,6 +212,7 @@
               checkToolPackages pkgs
               ++ workflowToolPackages pkgs
               ++ [
+                nixpkgs.legacyPackages.${system}.jujutsu
                 pythonForChecks
               ];
           };

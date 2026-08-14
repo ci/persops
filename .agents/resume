@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# persops has no long-lived services or tunnels to repair after an orb wakes.
+printf 'No orb resume work is required for persops\n'
