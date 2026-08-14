@@ -111,12 +111,12 @@ r/switch: remote-guard
 r/verify: remote-guard
 	./scripts/remote-verify "$(NIXUSER)" "$(NIXADDR)" "$(NIXPORT)"
 
-# full remote deploy: preflight, local flake check, copy, test, switch, verify.
+# full remote deploy: preflight, local check, copy, switch, verify.
+# r/test is a separate dry-run; switch already realizes the same closure.
 r/apply: remote-guard
 	$(MAKE) r/preflight
 	$(MAKE) check
 	$(MAKE) r/copy
-	$(MAKE) r/test
 	$(MAKE) r/switch
 	$(MAKE) r/verify
 
