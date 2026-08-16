@@ -9,6 +9,7 @@ Personal configuration managing macOS (darwin) and NixOS systems via Nix flakes.
 | Command                                                     | Purpose                                         |
 | ----------------------------------------------------------- | ----------------------------------------------- |
 | `make switch`                                               | Apply configuration (auto-detects darwin/nixos) |
+| `make deploy TARGETS="aglaea amalthea"`                     | Check and deploy selected reachable machines    |
 | `make test`                                                 | Test build without applying                     |
 | `make check`                                                | Current-system flake check + eval machine configs |
 | `nix flake check`                                           | Validate flake syntax (current system only)     |

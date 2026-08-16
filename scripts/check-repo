@@ -12,6 +12,7 @@ shell_scripts=(
 	.agents/resume
 	.agents/setup
 	scripts/check-repo
+	scripts/deploy
 	scripts/remote-preflight
 	scripts/remote-verify
 	modules/ai/scripts/add-skill.sh
@@ -108,7 +109,11 @@ for path in sorted([*ROOT.rglob("*.yaml"), *ROOT.rglob("*.yml")]):
     except yaml.YAMLError as exc:
         errors.append(f"{rel(path)}: invalid YAML: {exc}")
 
-for path in sorted((ROOT / "modules/ai").rglob("SKILL.md")):
+skill_paths = [
+    *(ROOT / ".agents/skills").glob("*/SKILL.md"),
+    *(ROOT / "modules/ai").rglob("SKILL.md"),
+]
+for path in sorted(skill_paths):
     frontmatter = load_frontmatter(path)
     if frontmatter is None:
         continue

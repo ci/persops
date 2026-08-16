@@ -8,16 +8,15 @@ NIXNAME ?= amalthea
 
 # Get the path to this Makefile and directory
 MAKEFILE_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-FLAKE_DIR := $(MAKEFILE_DIR)
+FLAKE ?= path:$(MAKEFILE_DIR)
 HOSTNAME := $(shell hostname -s 2>/dev/null || hostname)
 # The secondary machine uses the "work" Darwin config; everything else is aglaea.
 ifeq ($(HOSTNAME), work)
-DARWIN_FLAKE := $(FLAKE_DIR)\#work
+DARWIN_FLAKE := $(FLAKE)\#work
 else
-DARWIN_FLAKE := $(FLAKE_DIR)\#aglaea
+DARWIN_FLAKE := $(FLAKE)\#aglaea
 endif
-NIXOS_FLAKE := $(FLAKE_DIR)\#$(NIXNAME)
-REMOTE_FLAKE := /nix-config\#$(NIXNAME)
+NIXOS_FLAKE := $(FLAKE)\#$(NIXNAME)
 ARCH := $(shell uname -m)
 
 # We need to do some OS switching below.
@@ -31,8 +30,9 @@ endif
 CHECK_SYSTEMS ?= $(CURRENT_SYSTEM)
 NH ?= nh
 NIX_FAST_BUILD ?= nix develop --command nix-fast-build
+TARGETS ?=
 
-.PHONY: local switch build check eval-machines fast-check test remote-guard r/copy r/preflight r/test r/switch r/verify r/apply r/rdp
+.PHONY: local switch deploy build check eval-machines fast-check test remote-guard r/rdp
 
 remote-guard:
 ifeq ($(HOSTNAME), work)
@@ -54,6 +54,9 @@ else
 	$(NH) os switch "${NIXOS_FLAKE}"
 endif
 
+deploy:
+	NIXADDR="$(NIXADDR)" NIXPORT="$(NIXPORT)" NIXUSER="$(NIXUSER)" ./scripts/deploy $(TARGETS)
+
 build:
 ifeq ($(UNAME), Darwin)
 	$(NH) darwin build "${DARWIN_FLAKE}"
@@ -62,18 +65,19 @@ else
 endif
 
 check:
-	nix flake check --print-build-logs
+	nix flake check --print-build-logs "$(FLAKE)"
 	$(MAKE) eval-machines
 
 # Force each machine config through the module system without realizing it.
 # `nix flake check` only builds checks.*; it does not eval these attrsets.
 eval-machines:
-	nix eval --raw '.#nixosConfigurations.amalthea.config.system.build.toplevel.drvPath'
-	nix eval --raw '.#darwinConfigurations.aglaea.config.system.build.toplevel.drvPath'
-	nix eval --raw '.#darwinConfigurations.work.config.system.build.toplevel.drvPath'
+	nix eval --raw '$(FLAKE)#nixosConfigurations.amalthea.config.system.build.toplevel.drvPath'
+	nix eval --raw '$(FLAKE)#darwinConfigurations.aglaea.config.system.build.toplevel.drvPath'
+	nix eval --raw '$(FLAKE)#darwinConfigurations.work.config.system.build.toplevel.drvPath'
+	nix eval --raw '$(FLAKE)#deploy.nodes.amalthea.profiles.system.path.drvPath'
 
 fast-check:
-	$(NIX_FAST_BUILD) --flake ".#checks" --no-link --skip-cached --systems "$(CHECK_SYSTEMS)"
+	$(NIX_FAST_BUILD) --flake "$(FLAKE)#checks" --no-link --skip-cached --systems "$(CHECK_SYSTEMS)"
 
 test:
 ifeq ($(UNAME), Darwin)
@@ -81,45 +85,6 @@ ifeq ($(UNAME), Darwin)
 else
 	$(NH) os test "${NIXOS_FLAKE}"
 endif
-
-# copy the Nix configurations into the remote.
-r/copy: remote-guard
-	rsync -av --delete -e 'ssh -p$(NIXPORT)' \
-		--exclude='.git/' \
-		--exclude='.jj/' \
-		--exclude='.claude/worktrees/' \
-		--rsync-path="sudo rsync" \
-		$(MAKEFILE_DIR)/ $(NIXUSER)@$(NIXADDR):/nix-config
-
-# preflight remote SSH and Tailscale before copying or switching.
-r/preflight: remote-guard
-	./scripts/remote-preflight "$(NIXUSER)" "$(NIXADDR)" "$(NIXPORT)"
-
-# run a remote nixos-rebuild test against the copied configuration.
-r/test: remote-guard
-	ssh -p$(NIXPORT) $(NIXUSER)@$(NIXADDR) " \
-		sudo nixos-rebuild test --flake \"$(REMOTE_FLAKE)\" \
-	"
-
-# run the nixos-rebuild switch command. This does NOT copy files so you
-# have to run r/copy first.
-r/switch: remote-guard
-	ssh -p$(NIXPORT) $(NIXUSER)@$(NIXADDR) " \
-		sudo nixos-rebuild switch --flake \"$(REMOTE_FLAKE)\" \
-	"
-
-# verify important remote service state after a switch.
-r/verify: remote-guard
-	./scripts/remote-verify "$(NIXUSER)" "$(NIXADDR)" "$(NIXPORT)"
-
-# full remote deploy: preflight, local check, copy, switch, verify.
-# r/test is a separate dry-run; switch already realizes the same closure.
-r/apply: remote-guard
-	$(MAKE) r/preflight
-	$(MAKE) check
-	$(MAKE) r/copy
-	$(MAKE) r/switch
-	$(MAKE) r/verify
 
 r/rdp: remote-guard
 	xfreerdp /u:$(NIXUSER) /p:$$(op items get wdl6vo3pd4vmnf2jz7ydhedspu --fields password) /v:$(NIXADDR) /size:1920x1080

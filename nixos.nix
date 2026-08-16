@@ -21,6 +21,10 @@ in
       "claude-code.cachix.org-1:YeXf2aNu7UTX8Vwrze0za1WEDS+4DuI2kVeWEE4fsRk="
       "niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g="
     ];
+    trusted-users = [
+      "root"
+      user
+    ];
   };
 
   # We need an XDG portal for various applications to work properly,

@@ -19,6 +19,10 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    deploy-rs = {
+      url = "github:serokell/deploy-rs";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     codex-cli-nix = {
       url = "github:sadjow/codex-cli-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -198,6 +202,10 @@
         pkgs.nixfmt
       );
 
+      packages = forAllCheckSystems (system: {
+        deploy-rs = inputs.deploy-rs.packages.${system}.default;
+      });
+
       devShells = forAllCheckSystems (
         system:
         let
@@ -250,6 +258,17 @@
               '';
         }
       );
+
+      deploy.nodes.amalthea = {
+        hostname = "amalthea";
+        sshUser = "cat";
+        remoteBuild = true;
+
+        profiles.system = {
+          user = "root";
+          path = inputs.deploy-rs.lib.x86_64-linux.activate.nixos self.nixosConfigurations.amalthea;
+        };
+      };
 
       darwinConfigurations."aglaea" = mkSystem "aglaea" {
         system = "aarch64-darwin";
