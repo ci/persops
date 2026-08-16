@@ -19,7 +19,7 @@ Do not require autoreview for a change whose entire diff is prose-only internal 
 
 ## Contract
 
-- Default output is P0 only: report issues worth blocking the current change because they materially break the normal flow, outcome, or safety boundary. Use `--max-priority P1`, `P2`, or `P3` only when the caller explicitly asks for a wider review.
+- Default output is P0-P2: blocking defects plus meaningful but non-critical issues; style-tier P3 observations are omitted. Narrow with `--max-priority P0`/`P1` for a blockers-only pass, widen with `--max-priority P3` only when the caller explicitly asks for a full-depth review.
 - Treat review output as advisory. Never blindly apply it.
 - Verify every finding by reading the real code path and adjacent files.
 - Read dependency docs/source/types when the finding depends on external behavior.
@@ -219,7 +219,7 @@ The helper:
 - use `--mode commit --commit <ref>` for already-committed work, especially clean `main` after landing
 - should be left in `--mode auto` or forced to `--mode branch` for PR/branch work; do not force `--mode local` after committing
 - writes only to stdout unless `--output` or `--json-output` is set
-- reports only findings at or above `--max-priority` / `AUTOREVIEW_MAX_PRIORITY` (default `P0`); lower priorities are omitted from output and exit status
+- reports only findings at or above `--max-priority` / `AUTOREVIEW_MAX_PRIORITY` (default `P2`; upstream defaults to `P0`); lower priorities are omitted from output and exit status
 - supports `--dry-run` as a real preflight: builds the bundle, applies the same input validation as a live run, resolves each reviewer binary, and exits nonzero on a broken setup without invoking any engine
 - supports `--parallel-tests`, `--prompt`, `--prompt-file`, `--dataset`, `--no-tools`, `--no-web-search`, and commit refs
 - supports opt-in review panels with `--panel` / `--reviewers`, plus per-engine `--model` and `--thinking` (also via `AUTOREVIEW_MODEL` / `AUTOREVIEW_THINKING`)

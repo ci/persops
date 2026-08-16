@@ -1237,8 +1237,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-priority",
         choices=list(PRIORITIES),
-        default=os.environ.get("AUTOREVIEW_MAX_PRIORITY", "P0"),
-        help="Report findings at or above this priority; lower ones are omitted from output and exit status. Default P0.",
+        default=os.environ.get("AUTOREVIEW_MAX_PRIORITY", "P2"),
+        help="Report findings at or above this priority; lower ones are omitted from output and exit status. Default P2 (upstream defaults to P0).",
     )
     parser.add_argument("--allow-partial-panel", action="store_true", help="Continue panel output when one reviewer fails.")
     parser.add_argument("--codex-bin", default=os.environ.get("CODEX_BIN", "codex"))
