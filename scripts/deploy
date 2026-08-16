@@ -7,6 +7,10 @@ remote_user="${NIXUSER:-cat}"
 remote_host="${NIXADDR:-amalthea}"
 remote_port="${NIXPORT:-22}"
 
+if [ "$controller" = "amalthea" ]; then
+	export PATH="/run/wrappers/bin:${PATH}"
+fi
+
 usage() {
 	cat <<'EOF'
 usage: scripts/deploy [aglaea] [amalthea]
