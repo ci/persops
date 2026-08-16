@@ -1,4 +1,9 @@
-{ lib, pkgs, config, ... }:
+{
+  lib,
+  pkgs,
+  config,
+  ...
+}:
 let
   resticWrapperSrc = ./modules/backup/restic-wrapper.c;
   resticWrapperBin = pkgs.runCommand "restic-wrapper" { nativeBuildInputs = [ pkgs.stdenv.cc ]; } ''
@@ -83,11 +88,7 @@ in
 
     nh = {
       enable = true;
-      flake =
-        if pkgs.stdenv.isDarwin then
-          "${config.home.homeDirectory}/p/persops"
-        else
-          "/nix-config";
+      flake = if pkgs.stdenv.isDarwin then "${config.home.homeDirectory}/p/persops" else "/nix-config";
     };
 
     # nix-index - locate packages by file
