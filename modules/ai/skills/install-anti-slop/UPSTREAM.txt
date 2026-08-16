@@ -1,0 +1,6 @@
+source = dmmulroy/anti-slop
+source_type = github
+profile = all
+installed_at = 2026-08-16T01:54:39Z
+via = bunx --bun skills add https://github.com/dmmulroy/anti-slop --agent \* --yes --copy --skill install-anti-slop
+computed_hash = 8c03582ef9b14d0034d6a21da154449f7b9e6618900fb19886008982b3453f90
