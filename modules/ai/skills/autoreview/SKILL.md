@@ -1,13 +1,13 @@
 ---
 name: autoreview
-description: "Auto Review closeout for Git and Jujutsu changes. Codex is the default and recommended reviewer."
+description: "Auto Review closeout for Git and Jujutsu changes. Uses Amp by default in Amp orbs and Codex elsewhere."
 ---
 
 # Auto Review
 
 Run the bundled structured review helper as a closeout check. This is code review, not Guardian `auto_review` approval routing.
 
-Codex review is the default when no engine is set. It usually delivers the best review results and should remain the normal final closeout engine. Codex defaults to `gpt-5.6-sol` and retries once with `gpt-5.6-terra` only when the account cannot access Sol; thinking follows the Codex CLI config. Claude defaults to `claude-fable-5`. Amp defaults to `openai/gpt-5.6-sol` at `high` reasoning through a generated adapter plugin that reuses the existing `amp login`. Pi and opencode use the model their own CLI is configured for.
+Amp is the default inside an Amp orb, detected by the documented `AMP_ORB=1` environment variable. Codex is the default elsewhere and usually delivers the best local review results. An explicit `--engine` always wins; `AUTOREVIEW_ENGINE` overrides the environment-based default. Codex defaults to `gpt-5.6-sol` and retries once with `gpt-5.6-terra` only when the account cannot access Sol; thinking follows the Codex CLI config. Claude defaults to `claude-fable-5`. Amp defaults to `openai/gpt-5.6-sol` at `high` reasoning through a generated adapter plugin that reuses the existing `amp login`. Pi and opencode use the model their own CLI is configured for.
 
 Use when:
 
@@ -215,7 +215,7 @@ The helper:
   fetch errors; use `--no-fetch` only when intentionally reviewing local refs
 - exits successfully without invoking any engine when the computed diff has no
   changed paths
-- supports `--engine codex`, `claude`, `amp`, `droid`, `copilot`, `pi`, and `opencode`; default is `AUTOREVIEW_ENGINE` or `codex`; Codex should remain the default when nothing is set
+- supports `--engine codex`, `claude`, `amp`, `droid`, `copilot`, `pi`, and `opencode`; default precedence is explicit `--engine`, `AUTOREVIEW_ENGINE`, Amp when `AMP_ORB=1`, then Codex
 - use `--mode commit --commit <ref>` for already-committed work, especially clean `main` after landing
 - should be left in `--mode auto` or forced to `--mode branch` for PR/branch work; do not force `--mode local` after committing
 - writes only to stdout unless `--output` or `--json-output` is set

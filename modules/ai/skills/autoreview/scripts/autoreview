@@ -1347,6 +1347,13 @@ def finish_parallel_tests(proc: subprocess.Popen, started: float) -> int:
     return int(proc.returncode or 0)
 
 
+def default_engine() -> str:
+    configured = os.environ.get("AUTOREVIEW_ENGINE")
+    if configured is not None:
+        return configured
+    return "amp" if os.environ.get("AMP_ORB") == "1" else "codex"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Bundle-driven AI code review.")
     parser.add_argument("--mode", choices=["auto", "local", "branch", "commit"], default="auto")
@@ -1355,7 +1362,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--remote", default="origin", help="Remote to fetch and use for detected base refs.")
     parser.add_argument("--no-fetch", dest="fetch_remote", action="store_false", default=True, help="Use existing local refs without refreshing the selected remote.")
     parser.add_argument("--commit", help="Commit/change to review. Defaults to @- in jj repos and HEAD in Git repos.")
-    parser.add_argument("--engine", choices=ENGINES, default=os.environ.get("AUTOREVIEW_ENGINE", "codex"))
+    parser.add_argument("--engine", choices=ENGINES, default=default_engine())
     parser.add_argument("--reviewers", help="Comma-separated review panel, e.g. codex,claude,amp,pi or codex:gpt-5.6-sol:high.")
     parser.add_argument("--panel", action="store_true", help="Run a Codex/Claude review panel unless --engine changes the first reviewer.")
     parser.add_argument("--model", action="append", help="Model for all reviewers or engine=model. Repeatable. Overrides AUTOREVIEW_MODEL and built-in defaults.")
