@@ -26,7 +26,7 @@ try to activate Aglaea from Amalthea.
 2. Confirm the requested targets. A switch changes live machines and requires
    explicit authorization; a request to inspect, build, or check does not imply it.
 3. Preserve unrelated working-copy changes. The deploy command intentionally
-   snapshots tracked and untracked files from the current checkout.
+   snapshots tracked and non-ignored untracked files from the current checkout.
 
 ## Commands
 
