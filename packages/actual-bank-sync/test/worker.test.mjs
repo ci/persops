@@ -204,6 +204,29 @@ test('plan mode reports companion work without backup, bank sync, or mutation', 
   assert.equal(api.calls.at(-1), 'shutdown');
 });
 
+test('reconcile mode exports through the Actual 26.7 internal API seam', async () => {
+  const api = fakeApi();
+  delete api.exportBudget;
+  api.internal = {
+    async send(message) {
+      api.calls.push(`internal:${message}`);
+      assert.equal(message, 'export-budget');
+      return { data: new Uint8Array([0x50, 0x4b, 0x03, 0x04]) };
+    },
+  };
+
+  const result = await runWorker({
+    api,
+    config,
+    mode: 'reconcile',
+    rates,
+    saveRecovery,
+  });
+
+  assert.equal(result.recovery, 'recovery.zip');
+  assert.ok(api.calls.includes('internal:export-budget'));
+});
+
 test('run mode categorizes both provider exchange legs and adds their exact delta', async () => {
   const api = fakeApi();
   Object.assign(api.transactions[0], {

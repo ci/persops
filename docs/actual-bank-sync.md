@@ -1,10 +1,8 @@
 # Actual bank sync and currency reconciliation
 
-The service and timer are staged in Amalthea's Nix configuration, but the
-timer is intentionally disabled while the live category reorganization is in
-progress. After supervised setup, `actual-bank-sync.timer` will run once per
-day at 06:00 Europe/Bucharest with up to 15 minutes of jitter. The existing
-Actual restic backup runs around 01:30, before the sync.
+`actual-bank-sync.timer` runs once per day at 06:00 Europe/Bucharest with up to
+15 minutes of jitter. The existing Actual restic backup runs around 01:30,
+before the sync.
 
 The service makes one bank-sync attempt and does not retry automatically. It
 refuses to run unless that backup completed successfully within the last eight
@@ -32,10 +30,9 @@ The account IDs, names, currencies, stable
 bridge rates, dedicated adjustment payee, and dedicated FX category are
 private-repository configuration in `modules/actual-bank-sync.nix`.
 
-The payee/category IDs remain explicit `pending-live-setup` sentinels until a
-fresh live snapshot is taken after the category reorganization. The worker
-validates both ID and name before taking a recovery export, syncing a bank, or
-changing a transaction.
+The payee/category IDs are pinned from the supervised setup after the category
+reorganization. The worker validates both ID and name before taking a recovery
+export, syncing a bank, or changing a transaction.
 
 ## Currency behavior
 
@@ -82,7 +79,7 @@ are intentionally not compared or overwritten by the worker.
 
 ## Operations
 
-Inspect the staged units:
+Inspect the units:
 
 ```sh
 systemctl status actual-bank-sync.timer
@@ -90,12 +87,10 @@ systemctl status actual-bank-sync.service
 journalctl -u actual-bank-sync.service
 ```
 
-Before setup is complete, the timer should be present but disabled. Enabling
-it requires a fresh live export, creation or selection of the dedicated payee
-and category, replacement of both sentinel IDs in Nix, a plan-only run, a
-verified restic backup, and one supervised reconciliation. Create the
-`enabled` gate only at that point. Do not enable the timer by hand while the
-sentinel IDs remain.
+The rollout gate is: fresh live export, creation or selection of the dedicated
+payee and category, pinned IDs in Nix, a plan-only run, a verified restic
+backup, and one supervised reconciliation. Remove the `enabled` marker to
+disable both scheduled and manual runs without changing the configuration.
 
 After setup, a manual run is:
 

@@ -12,9 +12,9 @@ let
   package = pkgs.callPackage source { };
   backupGateDir = "/var/lib/private/actual-backup-gate";
   backupStamp = "${backupGateDir}/last-success";
-  # Live category/payee IDs are intentionally unresolved while categories are
-  # being reorganized. Keep the timer disabled until the supervised migration.
-  setupComplete = false;
+  # Enabled only after the supervised backup, live-ID resolution, plan, apply,
+  # and post-apply invariant verification completed successfully.
+  setupComplete = true;
   backupStampWriter = pkgs.writeShellScript "actual-backup-stamp" ''
     set -euo pipefail
     ${pkgs.coreutils}/bin/date +%s > ${backupStamp}.tmp
@@ -25,7 +25,7 @@ let
     builtins.toJSON {
       actualVersion = actualApiVersion;
       adjustmentPayee = {
-        id = "pending-live-setup";
+        id = "8ad5a0d0-7da1-4beb-931a-dc27f3a0f3ff";
         name = "FX Adjustment";
       };
       baseCurrency = "RON";
@@ -45,8 +45,8 @@ let
         }
       ];
       fxCategory = {
-        id = "pending-live-setup";
-        name = "FX Adjustment";
+        id = "3b9719e9-bc25-4e6b-b8e8-54716a7b5c5d";
+        name = "FX adjustments";
       };
       recoveryDir = "/var/lib/actual-bank-sync/recovery";
       serverURL = "http://127.0.0.1:5006";

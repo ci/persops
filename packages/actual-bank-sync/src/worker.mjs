@@ -77,6 +77,17 @@ function plannerInput(config, rates, transactions) {
   };
 }
 
+async function exportBudget(api) {
+  if (typeof api.exportBudget === 'function') {
+    return api.exportBudget();
+  }
+  const result = await api.internal?.send('export-budget');
+  if (!result?.data) {
+    throw new Error('Actual budget export failed');
+  }
+  return result.data;
+}
+
 async function applyPlan(api, plan) {
   await api.batchBudgetUpdates(async () => {
     for (const update of [...plan.sourceUpdates, ...plan.updates]) {
@@ -162,7 +173,7 @@ export async function runWorker({
       mode === 'plan'
         ? null
         : await saveRecovery({
-            data: await api.exportBudget(),
+            data: await exportBudget(api),
             directory: config.recoveryDir,
           });
 

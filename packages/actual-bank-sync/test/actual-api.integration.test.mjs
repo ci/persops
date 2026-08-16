@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import test from 'node:test';
 
 import { planReconciliation } from '../src/reconcile.mjs';
@@ -8,7 +7,7 @@ import { validateBridgeRules } from '../src/rules.mjs';
 
 let api;
 try {
-  api = createRequire(import.meta.url)('@actual-app/api');
+  ({ actualApi: api } = await import('../src/api.mjs'));
 } catch (error) {
   if (error.code !== 'MODULE_NOT_FOUND') throw error;
   // Unit tests also run directly from the checkout, where npm dependencies are absent.
@@ -57,6 +56,12 @@ test(
     try {
       await api.init({ dataDir });
       await api.runImport('FX Integration', async () => {});
+      assert.equal(typeof api.internal?.send, 'function');
+      const recovery = await api.internal.send('export-budget');
+      assert.deepEqual(
+        [...recovery.data.subarray(0, 4)],
+        [0x50, 0x4b, 0x03, 0x04],
+      );
 
       const account = {
         id: await api.createAccount({ name: 'RevPersEUR', offbudget: false }),

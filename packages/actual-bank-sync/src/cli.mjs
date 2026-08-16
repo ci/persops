@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 import { readFile } from 'node:fs/promises';
 
-import * as api from '@actual-app/api';
-
+import { actualApi as api } from './api.mjs';
 import {
   dateInTimeZone,
   parseArgs,
