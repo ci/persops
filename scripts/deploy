@@ -76,8 +76,29 @@ if [ "$deploy_aglaea" -eq 1 ]; then
 fi
 printf '\n'
 
+snapshot_dir="$(mktemp -d)"
+snapshot_source="${snapshot_dir}/source"
+file_list="${snapshot_dir}/files"
+trap 'rm -rf "$snapshot_dir"' EXIT
+mkdir -p "$snapshot_source"
+
+git -C "$repo_root" ls-files --cached --others --exclude-standard -z >"$file_list"
+while IFS= read -r -d '' path; do
+	source_path="${repo_root}/${path}"
+	if [ ! -e "$source_path" ] && [ ! -L "$source_path" ]; then
+		continue
+	fi
+	if [ -d "$source_path" ] && [ ! -L "$source_path" ]; then
+		echo "error: cannot snapshot tracked directory: ${path}" >&2
+		exit 1
+	fi
+	destination_path="${snapshot_source}/${path}"
+	mkdir -p "$(dirname "$destination_path")"
+	cp -pP "$source_path" "$destination_path"
+done <"$file_list"
+
 flake="$(
-	nix flake archive --json --no-write-lock-file "path:${repo_root}" |
+	nix flake archive --json --no-write-lock-file "path:${snapshot_source}" |
 		jq --exit-status --raw-output '.path'
 )"
 echo "snapshot: ${flake}"
@@ -89,6 +110,7 @@ make -C "$repo_root" FLAKE="$flake" check
 if [ "$deploy_amalthea" -eq 1 ]; then
 	if [ "$controller" = "amalthea" ]; then
 		nh os switch "${flake}#amalthea"
+		"$repo_root/scripts/remote-verify"
 	else
 		"$repo_root/scripts/remote-preflight" "$remote_user" "$remote_host" "$remote_port"
 		nix run "${flake}#deploy-rs" -- \
@@ -97,8 +119,8 @@ if [ "$deploy_amalthea" -eq 1 ]; then
 			--ssh-user "$remote_user" \
 			--ssh-opts="-p ${remote_port}" \
 			--targets "${flake}#amalthea"
+		"$repo_root/scripts/remote-verify" "$remote_user" "$remote_host" "$remote_port"
 	fi
-	"$repo_root/scripts/remote-verify" "$remote_user" "$remote_host" "$remote_port"
 fi
 
 if [ "$deploy_aglaea" -eq 1 ]; then

@@ -2,20 +2,24 @@
 set -euo pipefail
 
 usage() {
-	echo "usage: remote-verify <user> <host> <port>" >&2
+	echo "usage: remote-verify [<user> <host> <port>]" >&2
 }
 
-if [ "$#" -ne 3 ]; then
+if [ "$#" -eq 0 ]; then
+	remote_user="$(id -un)"
+	executor=(bash)
+elif [ "$#" -eq 3 ]; then
+	remote_user="$1"
+	remote_host="$2"
+	remote_port="$3"
+	ssh_opts=(-p "$remote_port" -o BatchMode=yes -o ConnectTimeout=10)
+	executor=(ssh "${ssh_opts[@]}" "${remote_user}@${remote_host}" bash)
+else
 	usage
 	exit 2
 fi
 
-remote_user="$1"
-remote_host="$2"
-remote_port="$3"
-ssh_opts=(-p "$remote_port" -o BatchMode=yes -o ConnectTimeout=10)
-
-ssh "${ssh_opts[@]}" "${remote_user}@${remote_host}" bash -s -- "$remote_user" <<'REMOTE'
+"${executor[@]}" -s -- "$remote_user" <<'REMOTE'
 set -euo pipefail
 
 remote_user="$1"
@@ -149,7 +153,7 @@ check_tailscale_service_config() {
 	fi
 }
 
-printf 'verify: remote host '
+printf 'verify: host '
 hostname
 show_system_state
 check_system_unit tailscaled.service
