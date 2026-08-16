@@ -24,9 +24,7 @@ Use this workflow for skills managed in `~/p/persops/modules/ai/skills`.
 3. Review the vendored files under `modules/ai/skills/<name>/`. Keep repo-owned truth there and verify `UPSTREAM.txt`.
 4. If the profile is not default `all`, update `modules/ai/skill-overrides.json`. Use it for `coding`, `claw`, `codex`, or other per-skill exceptions like `recursive = true`.
 5. If you create or update a repo-local skill, keep `SKILL.md` concise, keep `agents/openai.yaml` aligned, and validate the skill with `uv run --with pyyaml python3 /Users/cat/.codex/skills/.system/skill-creator/scripts/quick_validate.py <skill-dir>`.
-6. Run the local and remote apply loop:
-   - `make switch`
-   - `make r/apply`
+6. Run `make deploy` to apply the skill to every target reachable from the current controller.
 7. Verify the expected symlinks locally and on `amalthea`:
    - `~/.claude/skills/<name>` when profile includes Claude
    - `~/.agents/skills/<name>` when profile includes Codex/Agents
@@ -36,6 +34,6 @@ Use this workflow for skills managed in `~/p/persops/modules/ai/skills`.
 
 ## Notes
 
-- `Makefile` uses `path:` flake refs so freshly added uncommitted skill files are visible to local rebuilds.
+- `make deploy` snapshots a `path:` flake so freshly added uncommitted skill files are included consistently on every selected target.
 - Do a quick upstream health check before vendoring external skills, for example `gh repo view <owner/repo> --json pushedAt,stargazerCount,url`.
 - If the user asks for claw-only propagation, do not also wire Claude or Codex.

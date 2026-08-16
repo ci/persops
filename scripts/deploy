@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+controller="$(hostname -s 2>/dev/null || hostname)"
+remote_user="${NIXUSER:-cat}"
+remote_host="${NIXADDR:-amalthea}"
+remote_port="${NIXPORT:-22}"
+
+usage() {
+	cat <<'EOF'
+usage: scripts/deploy [aglaea] [amalthea]
+
+Defaults:
+  aglaea controller:   aglaea amalthea
+  amalthea controller: amalthea
+
+Aglaea currently requires local activation. Amalthea can be activated locally
+or remotely from aglaea.
+EOF
+}
+
+if [ "$#" -eq 1 ] && { [ "$1" = "-h" ] || [ "$1" = "--help" ]; }; then
+	usage
+	exit 0
+fi
+
+if [ "$#" -eq 0 ]; then
+	case "$controller" in
+	aglaea)
+		set -- aglaea amalthea
+		;;
+	amalthea)
+		set -- amalthea
+		;;
+	*)
+		echo "error: ${controller} is not a deployment controller; use the aglaea or amalthea Amp runner" >&2
+		exit 1
+		;;
+	esac
+fi
+
+deploy_aglaea=0
+deploy_amalthea=0
+for target in "$@"; do
+	case "$target" in
+	aglaea)
+		if [ "$controller" != "aglaea" ]; then
+			echo "error: aglaea requires local activation on aglaea until remote SSH is enabled" >&2
+			exit 1
+		fi
+		deploy_aglaea=1
+		;;
+	amalthea)
+		if [ "$controller" != "aglaea" ] && [ "$controller" != "amalthea" ]; then
+			echo "error: amalthea deployment must run on aglaea or amalthea" >&2
+			exit 1
+		fi
+		deploy_amalthea=1
+		;;
+	*)
+		echo "error: unknown deployment target: ${target}" >&2
+		usage >&2
+		exit 2
+		;;
+	esac
+done
+
+echo "controller: ${controller}"
+printf 'targets:'
+if [ "$deploy_amalthea" -eq 1 ]; then
+	printf ' amalthea'
+fi
+if [ "$deploy_aglaea" -eq 1 ]; then
+	printf ' aglaea'
+fi
+printf '\n'
+
+flake="$(
+	nix flake archive --json --no-write-lock-file "path:${repo_root}" |
+		jq --exit-status --raw-output '.path'
+)"
+echo "snapshot: ${flake}"
+
+make -C "$repo_root" FLAKE="$flake" check
+
+# Deploy the remote target before switching the controller. A local switch can
+# restart the Amp runner or alter connectivity needed to finish remote work.
+if [ "$deploy_amalthea" -eq 1 ]; then
+	if [ "$controller" = "amalthea" ]; then
+		nh os switch "${flake}#amalthea"
+	else
+		"$repo_root/scripts/remote-preflight" "$remote_user" "$remote_host" "$remote_port"
+		nix run "${flake}#deploy-rs" -- \
+			--skip-checks \
+			--targets "${flake}#amalthea"
+	fi
+	"$repo_root/scripts/remote-verify" "$remote_user" "$remote_host" "$remote_port"
+fi
+
+if [ "$deploy_aglaea" -eq 1 ]; then
+	nh darwin switch "${flake}#aglaea"
+	ops-status
+fi
