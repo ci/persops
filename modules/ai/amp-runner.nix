@@ -33,12 +33,7 @@ let
     "--no-tui"
     "--runner-id"
     currentSystemName
-    (
-      if currentSystemName == "aglaea" then
-        "--remote-control-terminal"
-      else
-        "--no-remote-control-terminal"
-    )
+    "--remote-control-terminal"
   ];
 in
 {
