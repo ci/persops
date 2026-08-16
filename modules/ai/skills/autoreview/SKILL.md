@@ -7,7 +7,7 @@ description: "Auto Review closeout for Git and Jujutsu changes. Codex is the def
 
 Run the bundled structured review helper as a closeout check. This is code review, not Guardian `auto_review` approval routing.
 
-Codex review is the default when no engine is set. It usually delivers the best review results and should remain the normal final closeout engine. Codex defaults to `gpt-5.6-sol` and retries once with `gpt-5.6-terra` only when the account cannot access Sol; thinking follows the Codex CLI config. Claude defaults to `claude-fable-5`. Amp, pi, and opencode use the model their own CLI is configured for.
+Codex review is the default when no engine is set. It usually delivers the best review results and should remain the normal final closeout engine. Codex defaults to `gpt-5.6-sol` and retries once with `gpt-5.6-terra` only when the account cannot access Sol; thinking follows the Codex CLI config. Claude defaults to `claude-fable-5`. Amp defaults to `openai/gpt-5.6-sol` at `high` reasoning through a generated adapter plugin that reuses the existing `amp login`. Pi and opencode use the model their own CLI is configured for.
 
 Use when:
 
@@ -180,9 +180,9 @@ syntax (`codex=gpt-5.5,claude=sonnet` or a bare global value) and sit between
 CLI flags and built-in defaults.
 
 Thinking per engine: Codex maps to `model_reasoning_effort` (`low`-`max`).
-Claude maps to `--effort` (`low`-`max`). Amp has no model/effort flags; its
-thinking maps to `--mode` (`low`, `medium`, `high`, `ultra`) which picks the
-model, and `--model` is rejected. Pi maps to `--thinking`
+Claude maps to `--effort` (`low`-`max`). Amp maps to the adapter plugin's
+`reasoningEffort` (`none`-`max`, default `high`) and its model must be a
+`provider/model` id (default `openai/gpt-5.6-sol`). Pi maps to `--thinking`
 (`off`-`max`). OpenCode maps to `--variant` (`minimal`-`max`). Engines
 without a real thinking knob reject `--thinking`.
 
@@ -223,7 +223,7 @@ The helper:
 - supports `--dry-run` as a real preflight: builds the bundle, applies the same input validation as a live run, resolves each reviewer binary, and exits nonzero on a broken setup without invoking any engine
 - supports `--parallel-tests`, `--prompt`, `--prompt-file`, `--dataset`, `--no-tools`, `--no-web-search`, and commit refs
 - supports opt-in review panels with `--panel` / `--reviewers`, plus per-engine `--model` and `--thinking` (also via `AUTOREVIEW_MODEL` / `AUTOREVIEW_THINKING`)
-- allows read-only tools and web search by default where the selected CLI supports them; forbids nested review in the prompt; Codex is run through `codex exec` with read-only sandbox and structured output; amp runs in an empty temp dir and reviews the bundle alone; pi gets only its read tool; opencode runs its read-only plan agent
+- allows read-only tools and web search by default where the selected CLI supports them; forbids nested review in the prompt; Codex is run through `codex exec` with read-only sandbox and structured output; amp reviews the bundle alone through a generated `amp.ai.generate` adapter plugin (temp config dir, so no personal plugins load; existing `amp login` credentials are reused); pi gets only its read tool; opencode runs its read-only plan agent
 - keeps droid and copilot adapters even though upstream disabled them; they review with the local trust model, not upstream's isolation contract
 - prints `review still running: <engine> elapsed=<seconds>s pid=<pid>` to stderr at long-running intervals while waiting for the selected review engine; `--stream-engine-output` streams live engine text instead
 - prints `autoreview clean: no accepted/actionable findings reported` when the selected review command exits 0
