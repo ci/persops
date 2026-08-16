@@ -1,5 +1,9 @@
 # Actual Budget currency automation on Amalthea
 
+> Implementation note: the source-row mutation design below was superseded by
+> the immutable bridge plus companion-transaction design documented in
+> `docs/actual-bank-sync.md`. This file remains the original research record.
+
 ## Finding
 
 Deterministic automation is supported through Actual's official Node client,

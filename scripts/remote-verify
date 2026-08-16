@@ -56,6 +56,60 @@ check_optional_system_unit() {
 	systemctl show "$unit" --property=LoadState,UnitFileState,ActiveState,SubState,Result --no-pager
 }
 
+check_enabled_system_unit() {
+	local unit="$1"
+
+	echo "verify: ${unit} enabled and active"
+	systemctl is-enabled --quiet "$unit"
+	systemctl is-active --quiet "$unit"
+	systemctl show "$unit" --property=LoadState,UnitFileState,ActiveState,SubState,Result --no-pager
+}
+
+check_completed_oneshot() {
+	local unit="$1"
+	local active_state
+	local attempt
+	local started
+
+	echo "verify: ${unit} completed successfully"
+	for attempt in {1..900}; do
+		active_state="$(systemctl show "$unit" --property=ActiveState --value)"
+		if [ "$active_state" != "activating" ]; then
+			break
+		fi
+		sleep 1
+	done
+	if [ "$active_state" = "activating" ]; then
+		echo "error: ${unit} did not finish within 15 minutes" >&2
+		return 1
+	fi
+	started="$(systemctl show "$unit" --property=ExecMainStartTimestampMonotonic --value)"
+	if [ -z "$started" ] || [ "$started" = "0" ]; then
+		echo "verify: ${unit} has not run since systemd started"
+		return 0
+	fi
+	if [ "$(systemctl show "$unit" --property=Result --value)" != "success" ] ||
+		[ "$(systemctl show "$unit" --property=ExecMainStatus --value)" != "0" ] ||
+		[ "$(systemctl show "$unit" --property=ExecMainExitTimestampMonotonic --value)" = "0" ]; then
+		echo "error: ${unit} did not complete successfully" >&2
+		return 1
+	fi
+	systemctl show "$unit" --property=ActiveState,SubState,Result,ExecMainStatus,ExecMainStartTimestamp --no-pager
+}
+
+check_root_secret_file() {
+	local path="$1"
+	local metadata
+
+	echo "verify: private credential ${path}"
+	sudo test -s "$path"
+	metadata="$(sudo stat -c '%a:%U:%G' "$path")"
+	if [ "$metadata" != "400:root:root" ]; then
+		echo "error: ${path} has permissions ${metadata}, expected 400:root:root" >&2
+		return 1
+	fi
+}
+
 check_user_unit() {
 	local unit="$1"
 	local uid
@@ -100,6 +154,17 @@ hostname
 show_system_state
 check_system_unit tailscaled.service
 check_system_unit actual.service
+if systemctl is-enabled --quiet actual-bank-sync.timer; then
+	check_completed_oneshot actual-bank-sync.service
+	check_enabled_system_unit actual-bank-sync.timer
+	check_root_secret_file /etc/secrets/actual-automation/enabled
+	check_root_secret_file /etc/secrets/actual-automation/password
+	check_root_secret_file /etc/secrets/actual-automation/sync-id
+else
+	check_optional_system_unit actual-bank-sync.service
+	check_optional_system_unit actual-bank-sync.timer
+	echo "verify: Actual bank automation staged but intentionally disabled"
+fi
 check_system_unit golink.service
 check_system_unit homepage-dashboard.service
 check_system_unit home-assistant.service
