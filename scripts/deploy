@@ -93,6 +93,9 @@ if [ "$deploy_amalthea" -eq 1 ]; then
 		"$repo_root/scripts/remote-preflight" "$remote_user" "$remote_host" "$remote_port"
 		nix run "${flake}#deploy-rs" -- \
 			--skip-checks \
+			--hostname "$remote_host" \
+			--ssh-user "$remote_user" \
+			--ssh-opts="-p ${remote_port}" \
 			--targets "${flake}#amalthea"
 	fi
 	"$repo_root/scripts/remote-verify" "$remote_user" "$remote_host" "$remote_port"
