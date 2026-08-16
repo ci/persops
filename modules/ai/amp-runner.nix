@@ -16,6 +16,7 @@ let
   workingDirectory = "${home}/p";
   path = lib.concatStringsSep ":" (
     lib.optionals pkgs.stdenv.isDarwin [ "/bin" ]
+    ++ lib.optionals pkgs.stdenv.isLinux [ "/run/wrappers/bin" ]
     ++ [
       "${home}/.local/bin"
       "${config.home.profileDirectory}/bin"
