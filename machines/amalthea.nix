@@ -503,6 +503,12 @@ in
         '';
       };
 
+      home-assistant = {
+        after = [ "bluetooth.service" ];
+        requires = [ "bluetooth.service" ];
+        partOf = [ "bluetooth.service" ];
+      };
+
       tailscale-services = {
         description = "Expose named Tailscale Services";
         wantedBy = [ "multi-user.target" ];
@@ -677,11 +683,13 @@ in
       openFirewall = false;
       extraComponents = [
         "airthings"
+        "airthings_ble"
         "default_config"
-        "dhcp"
+        "gardena_bluetooth"
         "hue"
-        "ssdp"
-        "zeroconf"
+        "hue_ble"
+        "husqvarna_automower_ble"
+        "kegtron"
       ];
       config = {
         default_config = { };

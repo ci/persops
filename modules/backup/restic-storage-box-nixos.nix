@@ -158,6 +158,45 @@ in
       runCheck = false;
     };
 
+    home-assistant-daily = storageBoxBackupFor "root" // {
+      paths = [ "/var/lib/hass" ];
+      backupPrepareCommand = ''
+        #!${pkgs.runtimeShell}
+        homeAssistantState="$(${pkgs.systemd}/bin/systemctl is-active home-assistant.service || true)"
+        case "$homeAssistantState" in
+          active|activating)
+            ${pkgs.coreutils}/bin/touch /run/restic-backups-home-assistant-daily/home-assistant-was-active
+            ${pkgs.systemd}/bin/systemctl stop home-assistant.service
+            ;;
+          deactivating)
+            ${pkgs.systemd}/bin/systemctl stop home-assistant.service
+            ;;
+        esac
+      '';
+      backupCleanupCommand = ''
+        #!${pkgs.runtimeShell}
+        if [ -e /run/restic-backups-home-assistant-daily/home-assistant-was-active ]; then
+          ${pkgs.systemd}/bin/systemctl --no-block start home-assistant.service
+        fi
+      '';
+      extraBackupArgs = [
+        "--host"
+        currentSystemName
+        "--tag"
+        "home-assistant"
+        "--one-file-system"
+        "--compression"
+        "auto"
+      ];
+      timerConfig = {
+        OnCalendar = "*-*-* 02:15:00";
+        Persistent = true;
+        RandomizedDelaySec = "15m";
+      };
+      pruneOpts = [ ];
+      runCheck = false;
+    };
+
     archive-daily = storageBoxBackupFor currentSystemUser // {
       paths = [ "/archive" ];
       extraBackupArgs = [
@@ -217,6 +256,7 @@ in
   systemd.services = {
     "restic-backups-actual-daily".after = [ "actual.service" ];
     "restic-backups-golink-daily".after = [ "golink.service" ];
+    "restic-backups-home-assistant-daily".after = [ "home-assistant.service" ];
     "restic-backups-uptime-kuma-daily".after = [ "uptime-kuma.service" ];
 
     "restic-backups-archive-daily" = {
