@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: test-review-harness [--fixture malicious|benign] [--vcs git|jj] [--engine codex|claude|droid|copilot]...
+Usage: test-review-harness [--fixture malicious|benign] [--vcs git|jj] [--engine codex|claude|amp|droid|copilot|pi|opencode]...
 
 Creates a temporary Git or non-colocated jj repo with either a deliberately unsafe patch or a
 security-sensitive-but-safe patch, then verifies each selected engine through

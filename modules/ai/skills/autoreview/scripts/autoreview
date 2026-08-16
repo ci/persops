@@ -6,23 +6,38 @@ import concurrent.futures
 import copy
 import json
 import os
+import queue
+import re
 import subprocess
 import sys
 import tempfile
 import textwrap
+import threading
 import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 
-ENGINES = ("codex", "claude", "droid", "copilot")
+ENGINES = ("codex", "claude", "amp", "droid", "copilot", "pi", "opencode")
 THINKING_LEVELS_BY_ENGINE = {
-    "codex": {"low", "medium", "high", "xhigh"},
+    "codex": {"low", "medium", "high", "xhigh", "max"},
     "claude": {"low", "medium", "high", "xhigh", "max"},
+    # amp -x has no --model/--effort; its --mode picks model+prompt+tools.
+    "amp": {"low", "medium", "high", "ultra"},
     "droid": set(),
     "copilot": set(),
+    "pi": {"off", "minimal", "low", "medium", "high", "xhigh", "max"},
+    # passed to `opencode run --variant` (provider-specific reasoning effort)
+    "opencode": {"minimal", "low", "medium", "high", "max"},
 }
+DEFAULT_MODEL_BY_ENGINE = {
+    "codex": "gpt-5.6-sol",
+    "claude": "claude-fable-5",
+}
+# Retried once when the account cannot access the default Codex model.
+DEFAULT_CODEX_ACCESS_FALLBACK_MODEL = "gpt-5.6-terra"
+PRIORITIES = ("P0", "P1", "P2", "P3")
 
 
 SCHEMA: dict[str, Any] = {
@@ -101,6 +116,7 @@ def run_with_heartbeat(
     input_text: str | None = None,
     label: str,
     heartbeat_seconds: int = 60,
+    stream_display: Any | None = None,
 ) -> subprocess.CompletedProcess[str]:
     started = time.monotonic()
     proc = subprocess.Popen(
@@ -110,7 +126,18 @@ def run_with_heartbeat(
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
+        bufsize=1 if stream_display is not None else -1,
     )
+    if stream_display is not None:
+        return collect_streamed_process(
+            proc,
+            args,
+            input_text=input_text,
+            label=label,
+            heartbeat_seconds=heartbeat_seconds,
+            stream_display=stream_display,
+            started=started,
+        )
     first_communicate = True
     while True:
         try:
@@ -123,6 +150,149 @@ def run_with_heartbeat(
             first_communicate = False
             elapsed = int(time.monotonic() - started)
             print(f"review still running: {label} elapsed={elapsed}s pid={proc.pid}", file=sys.stderr, flush=True)
+
+
+def collect_streamed_process(
+    proc: subprocess.Popen,
+    args: list[str],
+    *,
+    input_text: str | None,
+    label: str,
+    heartbeat_seconds: int,
+    stream_display: Any,
+    started: float,
+) -> subprocess.CompletedProcess[str]:
+    events: queue.Queue[tuple[str, str | None]] = queue.Queue()
+    stdout_parts: list[str] = []
+    stderr_parts: list[str] = []
+
+    def read_stream(name: str, stream: Any) -> None:
+        try:
+            for line in iter(stream.readline, ""):
+                events.put((name, line))
+        finally:
+            events.put((name, None))
+
+    def write_stdin() -> None:
+        if proc.stdin is None or input_text is None:
+            return
+        try:
+            proc.stdin.write(input_text)
+            proc.stdin.close()
+        except BrokenPipeError:
+            return
+
+    threads = [
+        threading.Thread(target=read_stream, args=("stdout", proc.stdout), daemon=True),
+        threading.Thread(target=read_stream, args=("stderr", proc.stderr), daemon=True),
+        threading.Thread(target=write_stdin, daemon=True),
+    ]
+    for thread in threads:
+        thread.start()
+    open_streams = 2
+    while open_streams:
+        try:
+            name, line = events.get(timeout=heartbeat_seconds)
+        except queue.Empty:
+            elapsed = int(time.monotonic() - started)
+            print(f"review still running: {label} elapsed={elapsed}s pid={proc.pid}", file=sys.stderr, flush=True)
+            continue
+        if line is None:
+            open_streams -= 1
+            continue
+        (stdout_parts if name == "stdout" else stderr_parts).append(line)
+        display = stream_display(name, line)
+        if display:
+            target = sys.stdout if name == "stdout" else sys.stderr
+            target.write(strip_control_sequences(display))
+            target.flush()
+    for thread in threads:
+        thread.join(timeout=1)
+    returncode = proc.wait()
+    return subprocess.CompletedProcess(args, returncode, "".join(stdout_parts), "".join(stderr_parts))
+
+
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b.")
+
+
+def strip_control_sequences(text: str) -> str:
+    text = ANSI_ESCAPE_RE.sub("", text)
+    return "".join(ch for ch in text if ch == "\n" or ch == "\t" or ord(ch) >= 0x20)
+
+
+def passthrough_stream_display(name: str, line: str) -> str:
+    return line
+
+
+class JsonlStreamDisplay:
+    """Filter noisy JSONL engine streams down to visible progress lines."""
+
+    def __init__(self, engine: str, *, activity_seconds: int = 20) -> None:
+        self.engine = engine
+        self.activity_seconds = activity_seconds
+        self.hidden_events = 0
+        self.last_visible = time.monotonic()
+
+    def __call__(self, name: str, line: str) -> str | None:
+        if name != "stdout":
+            return line
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            return self.visible(line)
+        if not isinstance(event, dict):
+            return self.visible(line)
+        message = self.event_message(event)
+        if message is not None:
+            return self.visible(self.flush_hidden() + message)
+        self.hidden_events += 1
+        if time.monotonic() - self.last_visible < self.activity_seconds:
+            return None
+        return self.visible(self.flush_hidden())
+
+    def event_message(self, event: dict[str, Any]) -> str | None:
+        if self.engine == "codex":
+            event_type = event.get("type")
+            if event_type == "thread.started":
+                return f"codex thread: {event.get('thread_id', '<unknown>')}\n"
+            if event_type == "turn.started":
+                return "codex turn started\n"
+            if event_type == "turn.completed":
+                return "codex turn completed\n"
+            item = event.get("item")
+            if isinstance(item, dict) and item.get("type") == "agent_message" and isinstance(item.get("text"), str):
+                return item["text"].rstrip() + "\n"
+            return None
+        if self.engine == "claude":
+            event_type = event.get("type")
+            if event_type == "system":
+                return "claude turn started\n"
+            if event_type == "assistant":
+                message = event.get("message")
+                if isinstance(message, dict):
+                    chunks = [
+                        item["text"].rstrip()
+                        for item in message.get("content", [])
+                        if isinstance(item, dict) and item.get("type") == "text" and isinstance(item.get("text"), str)
+                    ]
+                    if chunks:
+                        return "\n".join(chunks) + "\n"
+                return None
+            if event_type == "result":
+                return "claude turn completed\n"
+            return None
+        return None
+
+    def flush_hidden(self) -> str:
+        if not self.hidden_events:
+            return ""
+        count = self.hidden_events
+        self.hidden_events = 0
+        return f"{self.engine} activity: {count} hidden tool/status events\n"
+
+    def visible(self, text: str) -> str:
+        self.last_visible = time.monotonic()
+        return text
 
 
 def git(repo: Path, *args: str, check: bool = True) -> str:
@@ -511,41 +681,83 @@ def write_json_temp(data: dict[str, Any]) -> Path:
     return Path(handle.name)
 
 
+def codex_model_access_failure(result: subprocess.CompletedProcess[str], model: str) -> bool:
+    haystack = f"{result.stdout}\n{result.stderr}".lower()
+    if model.lower() not in haystack:
+        return False
+    return any(
+        marker in haystack
+        for marker in (
+            "does not exist or you do not have access",
+            "do not have access to",
+            "don't have access to",
+            "does not appear in the list of models available to your account",
+            "not supported when using codex",
+        )
+    )
+
+
 def run_codex(args: argparse.Namespace, repo: Path, prompt: str) -> str:
     if not args.tools:
         raise SystemExit("--no-tools is not supported by the Codex engine; use --engine claude --no-tools for a no-tools run")
-    schema_path = write_json_temp(SCHEMA)
-    output_path = Path(tempfile.NamedTemporaryFile("w", suffix=".json", delete=False).name)
-    cmd = [args.codex_bin, "--ask-for-approval", "never"]
-    if args.web_search:
-        cmd.append("--search")
-    if args.model:
-        cmd.extend(["--model", args.model])
-    if args.thinking:
-        cmd.extend(["-c", f'model_reasoning_effort="{args.thinking}"'])
-    cmd.append("exec")
-    if is_jj_repo(repo) and not (repo / ".git").exists():
-        cmd.append("--skip-git-repo-check")
-    cmd.extend(
-        [
-            "--ephemeral",
-            "-C",
-            str(repo),
-            "-s",
-            "read-only",
-            "--output-schema",
-            str(schema_path),
-            "--output-last-message",
-            str(output_path),
-            "-",
-        ]
-    )
-    result = run_with_heartbeat(cmd, repo, input_text=prompt, label="codex")
-    try:
-        output = output_path.read_text()
-    finally:
-        schema_path.unlink(missing_ok=True)
-        output_path.unlink(missing_ok=True)
+
+    def attempt(model: str | None) -> tuple[subprocess.CompletedProcess[str], str]:
+        schema_path = write_json_temp(SCHEMA)
+        output_path = Path(tempfile.NamedTemporaryFile("w", suffix=".json", delete=False).name)
+        cmd = [args.codex_bin, "--ask-for-approval", "never"]
+        if args.web_search:
+            cmd.append("--search")
+        if model:
+            cmd.extend(["--model", model])
+        if args.thinking:
+            cmd.extend(["-c", f'model_reasoning_effort="{args.thinking}"'])
+        cmd.append("exec")
+        if is_jj_repo(repo) and not (repo / ".git").exists():
+            cmd.append("--skip-git-repo-check")
+        if args.stream_engine_output:
+            cmd.append("--json")
+        cmd.extend(
+            [
+                "--ephemeral",
+                "-C",
+                str(repo),
+                "-s",
+                "read-only",
+                "--output-schema",
+                str(schema_path),
+                "--output-last-message",
+                str(output_path),
+                "-",
+            ]
+        )
+        result = run_with_heartbeat(
+            cmd,
+            repo,
+            input_text=prompt,
+            label="codex",
+            stream_display=JsonlStreamDisplay("codex") if args.stream_engine_output else None,
+        )
+        try:
+            output = output_path.read_text()
+        finally:
+            schema_path.unlink(missing_ok=True)
+            output_path.unlink(missing_ok=True)
+        return result, output
+
+    result, output = attempt(args.model)
+    fallback_model = getattr(args, "fallback_model", None)
+    if (
+        result.returncode != 0
+        and args.model
+        and fallback_model
+        and fallback_model != args.model
+        and codex_model_access_failure(result, args.model)
+    ):
+        print(
+            f"codex model {args.model} unavailable to this account; retrying with {fallback_model}",
+            file=sys.stderr,
+        )
+        result, output = attempt(fallback_model)
     if result.returncode != 0:
         raise SystemExit(f"codex engine failed ({result.returncode})\n{result.stderr or result.stdout}")
     return output or result.stdout
@@ -557,10 +769,12 @@ def run_claude(args: argparse.Namespace, repo: Path, prompt: str) -> str:
         "--print",
         "--no-session-persistence",
         "--output-format",
-        "json",
+        "stream-json" if args.stream_engine_output else "json",
         "--json-schema",
         json.dumps(SCHEMA),
     ]
+    if args.stream_engine_output:
+        cmd.append("--verbose")
     if args.tools:
         cmd.extend(["--allowedTools", claude_allowed_tools(args)])
     else:
@@ -569,9 +783,104 @@ def run_claude(args: argparse.Namespace, repo: Path, prompt: str) -> str:
         cmd.extend(["--model", args.model])
     if args.thinking:
         cmd.extend(["--effort", args.thinking])
-    result = run_with_heartbeat(cmd, repo, input_text=prompt, label="claude")
+    result = run_with_heartbeat(
+        cmd,
+        repo,
+        input_text=prompt,
+        label="claude",
+        stream_display=JsonlStreamDisplay("claude") if args.stream_engine_output else None,
+    )
     if result.returncode != 0:
         raise SystemExit(f"claude engine failed ({result.returncode})\n{result.stderr or result.stdout}")
+    return result.stdout
+
+
+def run_amp(args: argparse.Namespace, repo: Path, prompt: str) -> str:
+    if args.model:
+        raise SystemExit(
+            "amp engine has no direct model flag; its --mode picks the model. "
+            "Use --thinking amp=<low|medium|high|ultra> or Amp settings instead of --model."
+        )
+    cmd = [
+        args.amp_bin,
+        "--execute",
+        "--no-ide",
+        "--no-notifications",
+        "--no-color",
+    ]
+    if args.thinking:
+        cmd.extend(["--mode", args.thinking])
+    # Run in an empty temp dir: amp -x has no read-only sandbox, so keep its
+    # tools away from the repo and review the bundle alone.
+    with tempfile.TemporaryDirectory(prefix="autoreview-amp.") as tempdir:
+        result = run_with_heartbeat(
+            cmd,
+            Path(tempdir),
+            input_text=prompt,
+            label="amp",
+            stream_display=passthrough_stream_display if args.stream_engine_output else None,
+        )
+    if result.returncode != 0:
+        raise SystemExit(f"amp engine failed ({result.returncode})\n{result.stderr or result.stdout}")
+    return result.stdout
+
+
+def run_pi(args: argparse.Namespace, repo: Path, prompt: str) -> str:
+    cmd = [
+        args.pi_bin,
+        "--print",
+        "--no-session",
+        "--no-context-files",
+        "--no-extensions",
+        "--no-skills",
+        "--no-prompt-templates",
+        "--no-themes",
+    ]
+    # pi's built-in tool set includes bash/edit/write; keep review read-only.
+    if args.tools:
+        cmd.extend(["--tools", "read"])
+    else:
+        cmd.append("--no-tools")
+    if args.model:
+        cmd.extend(["--model", args.model])
+    if args.thinking:
+        cmd.extend(["--thinking", args.thinking])
+    result = run_with_heartbeat(
+        cmd,
+        repo,
+        input_text=prompt,
+        label="pi",
+        stream_display=passthrough_stream_display if args.stream_engine_output else None,
+    )
+    if result.returncode != 0:
+        raise SystemExit(f"pi engine failed ({result.returncode})\n{result.stderr or result.stdout}")
+    return result.stdout
+
+
+def run_opencode(args: argparse.Namespace, repo: Path, prompt: str) -> str:
+    # The plan agent is opencode's read-only agent; review must not edit files.
+    cmd = [
+        args.opencode_bin,
+        "run",
+        "--format",
+        "json",
+        "--pure",
+        "--agent",
+        "plan",
+    ]
+    if args.model:
+        cmd.extend(["--model", args.model])
+    if args.thinking:
+        cmd.extend(["--variant", args.thinking])
+    result = run_with_heartbeat(
+        cmd,
+        repo,
+        input_text=prompt,
+        label="opencode",
+        stream_display=passthrough_stream_display if args.stream_engine_output else None,
+    )
+    if result.returncode != 0:
+        raise SystemExit(f"opencode engine failed ({result.returncode})\n{result.stderr or result.stdout}")
     return result.stdout
 
 
@@ -656,53 +965,102 @@ def extract_json(text: str) -> dict[str, Any]:
     try:
         parsed = json.loads(stripped)
     except json.JSONDecodeError as exc:
-        fenced_report = parse_json_candidate(stripped)
-        if isinstance(fenced_report, dict) and "findings" in fenced_report:
-            return fenced_report
         jsonl_report = extract_json_from_jsonl(stripped)
         if jsonl_report:
             return jsonl_report
+        fenced_report = parse_json_candidate(stripped)
+        if isinstance(fenced_report, dict) and "findings" in fenced_report:
+            return fenced_report
         raise SystemExit(f"review engine returned non-JSON output: {exc}\n{stripped[:2000]}")
     if isinstance(parsed, dict) and "findings" in parsed:
         return parsed
     if isinstance(parsed, dict) and isinstance(parsed.get("structured_output"), dict):
         return parsed["structured_output"]
+    if isinstance(parsed, dict) and isinstance(parsed.get("result"), dict) and "findings" in parsed["result"]:
+        return parsed["result"]
     if isinstance(parsed, dict) and isinstance(parsed.get("result"), str):
         result_json = parse_json_candidate(parsed["result"])
         if isinstance(result_json, dict) and "findings" in result_json:
             return result_json
         raise SystemExit(f"review engine result was not structured JSON:\n{parsed['result'][:2000]}")
+    if isinstance(parsed, list):
+        events_report = report_from_events(parsed)
+        if events_report:
+            return events_report
     jsonl_report = extract_json_from_jsonl(stripped)
     if jsonl_report:
         return jsonl_report
     raise SystemExit(f"review engine returned unexpected JSON shape:\n{json.dumps(parsed)[:2000]}")
 
 
-def extract_json_from_jsonl(text: str) -> dict[str, Any] | None:
+def report_from_events(events: list[Any]) -> dict[str, Any] | None:
+    """Pull the structured report out of a list of engine stream events.
+
+    Shared by the JSONL path (one event per line) and the JSON-array path
+    (some `claude --output-format json` versions return
+    [{type:system,init}, ..., {type:result,...}] rather than a bare object).
+    """
+    terminal_candidates: list[str | dict[str, Any]] = []
     candidates: list[str] = []
-    for line in text.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
+    assistant_candidates: list[str] = []
+    text_fragments: list[str] = []
+    for event in events:
         if not isinstance(event, dict):
             continue
         part = event.get("part")
         if isinstance(part, dict) and isinstance(part.get("text"), str):
             candidates.append(part["text"])
+            text_fragments.append(part["text"])
         data = event.get("data")
         if isinstance(data, dict) and isinstance(data.get("content"), str):
             candidates.append(data["content"])
-        if isinstance(event.get("result"), str):
-            candidates.append(event["result"])
+        message = event.get("message")
+        if isinstance(message, dict):
+            for item in message.get("content", []):
+                if isinstance(item, dict) and item.get("type") == "text" and isinstance(item.get("text"), str):
+                    assistant_candidates.append(item["text"])
+        if isinstance(event.get("result"), (str, dict)):
+            terminal_candidates.append(event["result"])
+        if isinstance(event.get("structured_output"), dict):
+            terminal_candidates.append(event["structured_output"])
+        if isinstance(event.get("text"), str):
+            candidates.append(event["text"])
+        if isinstance(event.get("finalText"), str):
+            candidates.append(event["finalText"])
+    if text_fragments:
+        candidates.append("".join(text_fragments))
+    for candidate in reversed(terminal_candidates):
+        if isinstance(candidate, dict):
+            if "findings" in candidate:
+                return candidate
+            continue
+        parsed = parse_json_candidate(candidate)
+        if isinstance(parsed, dict) and "findings" in parsed:
+            return parsed
+    if terminal_candidates:
+        raise SystemExit("review engine result was not structured JSON:\n" + str(terminal_candidates[-1])[:2000])
     for candidate in reversed(candidates):
         parsed = parse_json_candidate(candidate)
         if isinstance(parsed, dict) and "findings" in parsed:
             return parsed
+    for candidate in reversed(assistant_candidates):
+        parsed = parse_json_candidate(candidate)
+        if isinstance(parsed, dict) and "findings" in parsed:
+            return parsed
     return None
+
+
+def extract_json_from_jsonl(text: str) -> dict[str, Any] | None:
+    events: list[Any] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            events.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return report_from_events(events) if events else None
 
 
 def parse_json_candidate(text: str) -> Any | None:
@@ -800,6 +1158,32 @@ def number_in_range(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and 0 <= value <= 1
 
 
+def priority_threshold_prompt(max_priority: str, extra_prompt: str) -> str:
+    included = ", ".join(p for p in PRIORITIES if int(p[1]) <= int(max_priority[1]))
+    threshold = (
+        f"Finding threshold: report only {included}. "
+        "Omit all lower-priority observations, polish, speculative risks, and "
+        "follow-up ideas outside that threshold. Do not mark the patch incorrect "
+        "solely for an omitted lower-priority issue."
+    )
+    return threshold + ("\n\n" + extra_prompt if extra_prompt.strip() else "")
+
+
+def filter_findings_by_priority(report: dict[str, Any], max_priority: str) -> None:
+    order = {priority: index for index, priority in enumerate(PRIORITIES)}
+    limit = order[max_priority]
+    original = report["findings"]
+    kept = [finding for finding in original if order[finding["priority"]] <= limit]
+    removed = len(original) - len(kept)
+    if not removed:
+        return
+    report["findings"] = kept
+    if not kept and report["overall_correctness"] == "patch is incorrect":
+        report["overall_correctness"] = "patch is correct"
+    note = f"Omitted {removed} finding(s) below the requested {max_priority} priority threshold."
+    report["overall_explanation"] = bounded_field(report["overall_explanation"].rstrip() + "\n\n" + note, 3000)
+
+
 def print_report(report: dict[str, Any], *, label: str = "autoreview") -> None:
     findings = report["findings"]
     if findings:
@@ -838,16 +1222,39 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-fetch", dest="fetch_remote", action="store_false", default=True, help="Use existing local refs without refreshing the selected remote.")
     parser.add_argument("--commit", help="Commit/change to review. Defaults to @- in jj repos and HEAD in Git repos.")
     parser.add_argument("--engine", choices=ENGINES, default=os.environ.get("AUTOREVIEW_ENGINE", "codex"))
-    parser.add_argument("--reviewers", help="Comma-separated review panel, e.g. codex,claude or codex:gpt-5:high.")
+    parser.add_argument("--reviewers", help="Comma-separated review panel, e.g. codex,claude,amp,pi or codex:gpt-5.6-sol:high.")
     parser.add_argument("--panel", action="store_true", help="Run a Codex/Claude review panel unless --engine changes the first reviewer.")
-    parser.add_argument("--model", action="append", help="Model for all reviewers or engine=model. Repeatable.")
-    parser.add_argument("--thinking", action="append", help="Thinking/effort for all reviewers or engine=level. Repeatable. Codex: low, medium, high, xhigh. Claude: low, medium, high, xhigh, max.")
+    parser.add_argument("--model", action="append", help="Model for all reviewers or engine=model. Repeatable. Overrides AUTOREVIEW_MODEL and built-in defaults.")
+    parser.add_argument(
+        "--thinking",
+        action="append",
+        help=(
+            "Thinking/effort for all reviewers or engine=level. Repeatable. Overrides AUTOREVIEW_THINKING. "
+            "Codex/Claude: low, medium, high, xhigh, max. Amp (agent mode): low, medium, high, ultra. "
+            "Pi: off, minimal, low, medium, high, xhigh, max. OpenCode: minimal, low, medium, high, max."
+        ),
+    )
+    parser.add_argument(
+        "--max-priority",
+        choices=list(PRIORITIES),
+        default=os.environ.get("AUTOREVIEW_MAX_PRIORITY", "P0"),
+        help="Report findings at or above this priority; lower ones are omitted from output and exit status. Default P0.",
+    )
     parser.add_argument("--allow-partial-panel", action="store_true", help="Continue panel output when one reviewer fails.")
     parser.add_argument("--codex-bin", default=os.environ.get("CODEX_BIN", "codex"))
     parser.add_argument("--claude-bin", default=os.environ.get("CLAUDE_BIN", "claude"))
+    parser.add_argument("--amp-bin", default=os.environ.get("AMP_BIN", "amp"))
     parser.add_argument("--droid-bin", default=os.environ.get("DROID_BIN", "droid"))
     parser.add_argument("--copilot-bin", default=os.environ.get("COPILOT_BIN", "copilot"))
-    parser.add_argument("--no-tools", dest="tools", action="store_false", default=True, help="Disable tools for engines that support it. Codex and copilot reject no-tools review.")
+    parser.add_argument("--pi-bin", default=os.environ.get("PI_BIN", "pi"))
+    parser.add_argument("--opencode-bin", default=os.environ.get("OPENCODE_BIN", "opencode"))
+    parser.add_argument(
+        "--stream-engine-output",
+        action="store_true",
+        default=os.environ.get("AUTOREVIEW_STREAM_ENGINE_OUTPUT") == "1",
+        help="Stream engine output while preserving buffered output for validation. Codex and Claude filter noisy tool/status chatter.",
+    )
+    parser.add_argument("--no-tools", dest="tools", action="store_false", default=True, help="Disable tools for engines that support it. Codex and copilot reject no-tools review. Amp always reviews the bundle alone; pi gets read-only tools.")
     parser.add_argument("--no-web-search", dest="web_search", action="store_false", default=True)
     parser.add_argument(
         "--claude-allowed-tools",
@@ -868,6 +1275,8 @@ def parse_args() -> argparse.Namespace:
     args = parser.parse_args()
     if args.engine not in ENGINES:
         raise SystemExit(f"invalid --engine/AUTOREVIEW_ENGINE: {args.engine}")
+    if args.max_priority not in PRIORITIES:
+        raise SystemExit(f"invalid --max-priority/AUTOREVIEW_MAX_PRIORITY: {args.max_priority}")
     return args
 
 
@@ -876,10 +1285,16 @@ def run_engine(args: argparse.Namespace, repo: Path, prompt: str) -> str:
         return run_codex(args, repo, prompt)
     if args.engine == "claude":
         return run_claude(args, repo, prompt)
+    if args.engine == "amp":
+        return run_amp(args, repo, prompt)
     if args.engine == "droid":
         return run_droid(args, repo, prompt)
     if args.engine == "copilot":
         return run_copilot(args, repo, prompt)
+    if args.engine == "pi":
+        return run_pi(args, repo, prompt)
+    if args.engine == "opencode":
+        return run_opencode(args, repo, prompt)
     raise SystemExit(f"unsupported engine: {args.engine}")
 
 
@@ -920,9 +1335,18 @@ def parse_reviewer_token(token: str) -> tuple[str, str | None, str | None]:
     return engine, model, thinking
 
 
+def env_keyed_options(name: str, option: str) -> tuple[str | None, dict[str, str]]:
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return None, {}
+    return parse_keyed_options([part.strip() for part in raw.split(",") if part.strip()], option)
+
+
 def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
     global_model, model_by_engine = parse_keyed_options(args.model, "model")
     global_thinking, thinking_by_engine = parse_keyed_options(args.thinking, "thinking")
+    env_global_model, env_model_by_engine = env_keyed_options("AUTOREVIEW_MODEL", "model")
+    env_global_thinking, env_thinking_by_engine = env_keyed_options("AUTOREVIEW_THINKING", "thinking")
     reviewers: list[tuple[str, str | None, str | None]] = []
     if args.reviewers:
         tokens = [token.strip() for token in args.reviewers.split(",") if token.strip()]
@@ -944,8 +1368,25 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
         if engine in seen:
             raise SystemExit(f"reviewer specified more than once: {engine}")
         seen.add(engine)
-        model = inline_model or model_by_engine.get(engine) or global_model
-        thinking = inline_thinking or thinking_by_engine.get(engine) or global_thinking
+        model = (
+            inline_model
+            or model_by_engine.get(engine)
+            or global_model
+            or env_model_by_engine.get(engine)
+            or env_global_model
+            or DEFAULT_MODEL_BY_ENGINE.get(engine)
+        )
+        thinking = (
+            inline_thinking
+            or thinking_by_engine.get(engine)
+            or global_thinking
+            or env_thinking_by_engine.get(engine)
+            or env_global_thinking
+        )
+        if engine == "codex" and model == DEFAULT_MODEL_BY_ENGINE["codex"]:
+            fallback_model = DEFAULT_CODEX_ACCESS_FALLBACK_MODEL
+        else:
+            fallback_model = None
         if thinking and thinking not in THINKING_LEVELS_BY_ENGINE[engine]:
             valid = ", ".join(sorted(THINKING_LEVELS_BY_ENGINE[engine])) or "none"
             raise SystemExit(f"invalid thinking level for {engine}: {thinking} (valid: {valid})")
@@ -953,6 +1394,7 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
         clone.engine = engine
         clone.model = model
         clone.thinking = thinking
+        clone.fallback_model = fallback_model
         result.append(clone)
     return result
 
@@ -961,6 +1403,8 @@ def reviewer_label(args: argparse.Namespace) -> str:
     parts = [args.engine]
     if args.model:
         parts.append(f"model={args.model}")
+    if getattr(args, "fallback_model", None):
+        parts.append(f"fallback={args.fallback_model}")
     if args.thinking:
         parts.append(f"thinking={args.thinking}")
     return " ".join(parts)
@@ -970,6 +1414,7 @@ def run_reviewer(args: argparse.Namespace, repo: Path, prompt: str, changed_path
     raw = run_engine(args, repo, prompt)
     report = extract_json(raw)
     validate_report(report, repo, changed_paths, required)
+    filter_findings_by_priority(report, args.max_priority)
     return report
 
 
@@ -1030,6 +1475,36 @@ def run_panel(args: argparse.Namespace, reviewers: list[argparse.Namespace], rep
     return report
 
 
+ENGINE_BIN_ATTR = {
+    "codex": "codex_bin",
+    "claude": "claude_bin",
+    "amp": "amp_bin",
+    "droid": "droid_bin",
+    "copilot": "copilot_bin",
+    "pi": "pi_bin",
+    "opencode": "opencode_bin",
+}
+
+
+def dry_run_preflight(reviewers: list[argparse.Namespace]) -> int:
+    """Validate everything a real run needs except the engine calls: the
+    bundle/prompt built above and each reviewer's CLI binary."""
+    missing: list[str] = []
+    for reviewer in reviewers:
+        bin_name = getattr(reviewer, ENGINE_BIN_ATTR[reviewer.engine])
+        resolved = shutil_which(bin_name) if os.sep not in bin_name else (bin_name if os.access(bin_name, os.X_OK) else None)
+        if resolved:
+            print(f"engine {reviewer.engine}: {resolved}")
+        else:
+            missing.append(f"engine {reviewer.engine}: binary not found: {bin_name}")
+    for line in missing:
+        print(line, file=sys.stderr)
+    if missing:
+        return 1
+    print("dry run: bundle and engines ready; no review engine invoked")
+    return 0
+
+
 def main() -> int:
     args = parse_args()
     reviewers = reviewer_args(args)
@@ -1050,11 +1525,10 @@ def main() -> int:
         print(f"reviewers: {', '.join(reviewer_label(reviewer) for reviewer in reviewers)}")
     print(f"tools: {'on' if args.tools else 'off'}")
     print(f"web_search: {'on' if args.web_search else 'off'}")
+    print(f"max_priority: {args.max_priority}")
     display_ref = commit_ref if target == "commit" else f"{target_ref}...{head_ref}" if target == "branch" else None
     if display_ref:
         print(f"ref: {display_ref}")
-    if args.dry_run:
-        return 0
 
     if target == "local":
         bundle = local_bundle(repo)
@@ -1069,13 +1543,16 @@ def main() -> int:
         )
     else:
         bundle = commit_bundle(repo, commit_ref)
-    prompt = build_prompt(repo, target, display_ref, bundle, load_extra_prompt(args), load_datasets(args))
+    extra_prompt = priority_threshold_prompt(args.max_priority, load_extra_prompt(args))
+    prompt = build_prompt(repo, target, display_ref, bundle, extra_prompt, load_datasets(args))
     changed_paths = review_paths(repo, target, target_ref, head_ref, commit_ref)
     print(f"bundle: {len(prompt)} chars")
     print(f"changed_paths: {len(changed_paths)}")
     if not changed_paths:
         print("empty diff: nothing to review")
         return 0
+    if args.dry_run:
+        return dry_run_preflight(reviewers)
 
     tests_proc: tuple[subprocess.Popen, float] | None = None
     if args.parallel_tests:

@@ -7,28 +7,32 @@ description: "Auto Review closeout for Git and Jujutsu changes. Codex is the def
 
 Run the bundled structured review helper as a closeout check. This is code review, not Guardian `auto_review` approval routing.
 
-Codex review is the default when no engine is set. It usually delivers the best review results and should remain the normal final closeout engine.
+Codex review is the default when no engine is set. It usually delivers the best review results and should remain the normal final closeout engine. Codex defaults to `gpt-5.6-sol` and retries once with `gpt-5.6-terra` only when the account cannot access Sol; thinking follows the Codex CLI config. Claude defaults to `claude-fable-5`. Amp, pi, and opencode use the model their own CLI is configured for.
 
 Use when:
 
-- user asks for Codex review / Claude review / autoreview / second-model review
+- user asks for Codex review / Claude review / Amp review / Pi review / autoreview / second-model review
 - after non-trivial code edits, before final/commit/ship
 - reviewing a local branch or PR branch after fixes
 
+Do not require autoreview for a change whose entire diff is prose-only internal notes or `SKILL.md` documentation. Still inspect the diff directly. This exception does not cover user-facing documentation, executable examples, configuration, scripts, generated files, or behavior changes.
+
 ## Contract
 
+- Default output is P0 only: report issues worth blocking the current change because they materially break the normal flow, outcome, or safety boundary. Use `--max-priority P1`, `P2`, or `P3` only when the caller explicitly asks for a wider review.
 - Treat review output as advisory. Never blindly apply it.
 - Verify every finding by reading the real code path and adjacent files.
 - Read dependency docs/source/types when the finding depends on external behavior.
-- Reject unrealistic edge cases, speculative risks, broad rewrites, and fixes that over-complicate the codebase.
-- Prefer small fixes at the right ownership boundary; no refactor unless it clearly improves the bug class.
-- Keep going until structured review returns no accepted/actionable findings, capped at 5 rounds per closeout. If the cap hits, stop, tell the user the cap was reached, and list what was still open.
+- Reject unrealistic edge cases, speculative risks, unrelated rewrites, and fixes that over-complicate the codebase.
+- Prefer root-cause fixes at the right ownership boundary. A coherent refactor is appropriate when it removes the bug class, duplicate policy, stale paths, or ownership confusion; do not default to a symptom patch.
+- When an accepted finding exposes a bug class or repeated pattern, inspect its owner and relevant sibling implementations before fixing. Fix the same bug class across its owner-boundary neighborhood when practical; stop at unrelated invariants, different owners, and unapproved contract changes.
+- Keep going until structured review returns no accepted/actionable findings, only while the work remains inside the authorized task scope, capped at 5 rounds per closeout. If the cap hits, stop, tell the user the cap was reached, and list what was still open.
 - Nitpick escape hatch: if the remaining findings are style-only, taste-level, or speculative edge-casing with no real bug, reject them and stop early — but say so explicitly: report that you stopped early and summarize what the rejected findings said.
 - If a review-triggered fix changes code, rerun focused tests and rerun the structured review helper.
 - For security-audit suppression changes, verify accepted findings remain auditable: suppressed findings stay in structured output, active output keeps an unsuppressible suppression notice, and aggregate findings cannot hide unrelated active risk.
-- Never switch or override the requested review engine/model. If the review hits model capacity, retry the same command a few times with the same engine/model.
+- Never switch or override the requested review engine/model except for the documented Codex Sol-to-Terra account-access fallback. Capacity, rate-limit, and unrelated failures keep the same engine/model: retry the same command a few times.
 - Be patient with large bundles. Structured review can take up to 30 minutes while the model call is active, especially with Codex tools or web search.
-- Treat heartbeat lines like `review still running: ... elapsed=... pid=...` as healthy progress, not a hang. Let the helper continue while heartbeats are advancing.
+- Treat heartbeat lines like `review still running: ... elapsed=... pid=...` as healthy progress, not a hang. Let the helper continue while heartbeats are advancing. Pass `--stream-engine-output` when live engine text is useful; Codex and Claude filter tool/status chatter, other engines pass raw output through.
 - Do not kill a review just because it has been quiet for 2-5 minutes, or because it is still running under the 30-minute window. Inspect the process only after missing multiple expected heartbeats, after 30 minutes, or after an obviously failed subprocess; prefer letting the same helper command finish.
 - Tools are useful in review mode. The helper allows read-only inspection tools and web search by default so reviewers can check dependency contracts, upstream docs, and current behavior.
 - Security perspective is always included, but it should not cripple legitimate functionality. Report security findings only when the change creates a concrete, actionable risk or removes an important safety check.
@@ -39,6 +43,27 @@ Use when:
 - Multi-reviewer panels are opt-in only. Use them when explicitly requested or when risk justifies the extra spend; the main agent still verifies every accepted finding before fixing.
 - If rejecting a finding as intentional/not worth fixing, add a brief inline code comment only when it explains a real invariant or ownership decision that future reviewers should know.
 - Do not push just to review. Push only when the user requested push/ship/PR update.
+
+## Scope Governor
+
+Autoreview is a closeout gate, not permission to change the task's product contract. Define scope by the authorized invariant and its architectural owner, not by the first patch.
+
+Before patching a finding, classify it:
+
+- **In-scope blocker**: affects the same violated invariant or owner-boundary neighborhood and can be fixed without changing the task's contract.
+- **Follow-up**: real but belongs to an unrelated bug class, different owner, independent cleanup, or broader hardening track.
+- **Stop-and-escalate**: requires a new protocol/config/storage/public API contract, a different owner boundary, or a design choice outside the original request.
+
+Stop patching and report the scope break instead of continuing when:
+
+- a task turns into an unauthorized product, protocol, migration, storage, or security-model change;
+- two review-triggered patch cycles have not converged; pause and reclassify every remaining finding before another edit;
+- the best fix is "define the canonical contract first" rather than another local inference layer;
+- fixing the accepted finding would make the change no longer describe the same behavior, issue, or owner boundary.
+
+After the two-cycle pause, continue only when every remaining accepted finding is still an in-scope blocker. Otherwise preserve the useful analysis and open or request a follow-up for unrelated work. Do not land a symptom patch or keep committing speculative fixes just to satisfy the reviewer.
+
+Critical exceptions must be explicit: active data loss, crash, broken install/upgrade, release blocker, or concrete security exposure. If the exception is not one of those, it is not critical enough to blow up scope.
 
 ## Pick Target
 
@@ -141,18 +166,25 @@ Run multiple reviewers against one frozen bundle:
 Set reviewer models and thinking/effort explicitly:
 
 ```bash
-<autoreview-helper> --reviewers codex,claude --model codex=gpt-5.1 --thinking codex=high --model claude=sonnet --thinking claude=max
+<autoreview-helper> --reviewers codex,claude --model codex=gpt-5.6-sol --thinking codex=high --model claude=sonnet --thinking claude=max
 ```
 
 Inline syntax is also supported:
 
 ```bash
-<autoreview-helper> --reviewers codex:gpt-5.1:high,claude:sonnet:max
+<autoreview-helper> --reviewers codex:gpt-5.6-sol:high,claude:sonnet:max
 ```
 
-Codex maps thinking to `model_reasoning_effort` and accepts `low`, `medium`,
-`high`, or `xhigh`. Claude maps thinking to `--effort` and also accepts `max`.
-Engines without a real thinking knob reject `--thinking`.
+`AUTOREVIEW_MODEL` and `AUTOREVIEW_THINKING` env vars accept the same keyed
+syntax (`codex=gpt-5.5,claude=sonnet` or a bare global value) and sit between
+CLI flags and built-in defaults.
+
+Thinking per engine: Codex maps to `model_reasoning_effort` (`low`-`max`).
+Claude maps to `--effort` (`low`-`max`). Amp has no model/effort flags; its
+thinking maps to `--mode` (`low`, `medium`, `high`, `ultra`) which picks the
+model, and `--model` is rejected. Pi maps to `--thinking`
+(`off`-`max`). OpenCode maps to `--variant` (`minimal`-`max`). Engines
+without a real thinking knob reject `--thinking`.
 
 ## Context Efficiency
 
@@ -183,14 +215,17 @@ The helper:
   fetch errors; use `--no-fetch` only when intentionally reviewing local refs
 - exits successfully without invoking any engine when the computed diff has no
   changed paths
-- supports `--engine codex`, `claude`, `droid`, and `copilot`; default is `AUTOREVIEW_ENGINE` or `codex`; Codex should remain the default when nothing is set
+- supports `--engine codex`, `claude`, `amp`, `droid`, `copilot`, `pi`, and `opencode`; default is `AUTOREVIEW_ENGINE` or `codex`; Codex should remain the default when nothing is set
 - use `--mode commit --commit <ref>` for already-committed work, especially clean `main` after landing
 - should be left in `--mode auto` or forced to `--mode branch` for PR/branch work; do not force `--mode local` after committing
 - writes only to stdout unless `--output` or `--json-output` is set
-- supports `--dry-run`, `--parallel-tests`, `--prompt`, `--prompt-file`, `--dataset`, `--no-tools`, `--no-web-search`, and commit refs
-- supports opt-in review panels with `--panel` / `--reviewers`, plus per-engine `--model` and `--thinking`
-- allows read-only tools and web search by default where the selected CLI supports them; forbids nested review in the prompt; Codex is run through `codex exec` with read-only sandbox and structured output
-- prints `review still running: <engine> elapsed=<seconds>s pid=<pid>` to stderr at long-running intervals while waiting for the selected review engine
+- reports only findings at or above `--max-priority` / `AUTOREVIEW_MAX_PRIORITY` (default `P0`); lower priorities are omitted from output and exit status
+- supports `--dry-run` as a real preflight: builds the bundle, applies the same input validation as a live run, resolves each reviewer binary, and exits nonzero on a broken setup without invoking any engine
+- supports `--parallel-tests`, `--prompt`, `--prompt-file`, `--dataset`, `--no-tools`, `--no-web-search`, and commit refs
+- supports opt-in review panels with `--panel` / `--reviewers`, plus per-engine `--model` and `--thinking` (also via `AUTOREVIEW_MODEL` / `AUTOREVIEW_THINKING`)
+- allows read-only tools and web search by default where the selected CLI supports them; forbids nested review in the prompt; Codex is run through `codex exec` with read-only sandbox and structured output; amp runs in an empty temp dir and reviews the bundle alone; pi gets only its read tool; opencode runs its read-only plan agent
+- keeps droid and copilot adapters even though upstream disabled them; they review with the local trust model, not upstream's isolation contract
+- prints `review still running: <engine> elapsed=<seconds>s pid=<pid>` to stderr at long-running intervals while waiting for the selected review engine; `--stream-engine-output` streams live engine text instead
 - prints `autoreview clean: no accepted/actionable findings reported` when the selected review command exits 0
 - exits nonzero when accepted/actionable findings are present
 
