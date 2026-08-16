@@ -770,6 +770,8 @@ in
   # Enable touchpad support (enabled default in most desktopManager).
   # services.xserver.libinput.enable = true;
 
+  hardware.bluetooth.enable = true;
+
   hardware.graphics = {
     enable = true;
     enable32Bit = true;
