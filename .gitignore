@@ -1,2 +1,4 @@
 /.codex/config.toml
 /.codex/config.toml.bak
+/packages/actual-bank-sync/node_modules/
+/result
