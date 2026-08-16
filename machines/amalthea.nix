@@ -251,6 +251,12 @@ in
   nix = {
     package = pkgs.nixVersions.latest;
 
+    gc = {
+      automatic = true;
+      dates = "Sun 02:00";
+      options = "--delete-older-than 30d";
+    };
+
     settings = {
       # We need to enable flakes
       experimental-features = "nix-command flakes";
