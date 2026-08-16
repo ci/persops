@@ -57,7 +57,11 @@ in
   };
 
   systemd.user.services.amp-runner = lib.mkIf (enabled && pkgs.stdenv.isLinux) {
-    Unit.Description = "Amp remote thread runner";
+    Unit = {
+      Description = "Amp remote thread runner";
+      # A deployment may update this unit; keep its controller alive through activation.
+      X-SwitchMethod = "keep-old";
+    };
     Service = {
       ExecStart = lib.escapeShellArgs arguments;
       Environment = [ "PATH=${path}" ];
