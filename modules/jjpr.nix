@@ -4,7 +4,7 @@
   ...
 }:
 let
-  version = "0.34.1";
+  version = "0.39.1";
   jjpr = pkgs.rustPlatform.buildRustPackage {
     pname = "jjpr";
     inherit version;
@@ -13,10 +13,10 @@ let
       owner = "michaeldhopkins";
       repo = "jjpr";
       rev = "v${version}";
-      hash = "sha256-mtOFs8slYEKOCOVVdL8IDQB0UmV6Sg9CGsTOGJETXew=";
+      hash = "sha256-kATGe+ygH5fGXmbm/odT+GRj33u6gXxs6YECXGfrN9g=";
     };
 
-    cargoHash = "sha256-z2y2kEnlhTCRuh2vuE9bHJfUPTQjXF1kSOXYwk3guWI=";
+    cargoHash = "sha256-yFcqPuZdFe128/X9spSosM3alkBz/uU/oteTu8kDNBY=";
 
     # Upstream has a #[should_panic] test around a debug assertion.
     checkType = "debug";

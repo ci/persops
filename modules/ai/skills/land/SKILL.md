@@ -14,13 +14,15 @@ ends at the PR.
 
 - Merge only PRs this session owns or ones the user named.
 - Run `jj status` first. When it succeeds, use `$jj`; for a stack managed by
-  bookmarks, use `$jjpr` for status, reconciliation, and landing.
+  bookmarks, use `$jjpr` for status and reconciliation. Detect native GitHub
+  Stack membership before choosing the landing command.
 - Conflicts and stale base are yours to fix: get the branch on latest main
   (rebase or merge, whichever is simpler — don't ask which), resolve conflicts,
   rerun the repo gate if code changed, push, continue.
-- `$jjpr` stacks merge base-most first and reconcile the remainder according to
-  config. For plain Git stacks, retarget/rebase each child, wait for CI, then
-  merge it.
+- Ordinary `$jjpr` stacks merge base-most first and reconcile the remainder
+  according to config. Native GitHub Stacks land only through the `$jjpr`
+  skill's `gh stack merge` workflow. For plain Git stacks, retarget/rebase each
+  child, wait for CI, then merge it.
 - Release PRs (release-please and similar) and staging/prod deploy watching are
   explicit-ask only. Do not merge a release PR or babysit deploy workflows
   unless the user asked for that in this session.
@@ -31,19 +33,30 @@ ends at the PR.
 ## Workflow
 
 1. Identify target: the current bookmark/branch's PR, the named PR, or the
-   explicit top bookmark of a stack. In jj, record `jj workspace list` and the
-   session workspace name/root before landing.
+   explicit top bookmark of a stack. Resolve its exact base and Git remote. In
+   jj, record `jj workspace list` and the session workspace name/root before
+   landing.
 2. Watch checks (`gh pr checks --watch`, background). Red CI: fix, push,
    re-watch until green.
-3. JJ stack: run `jjpr status <top>`, `jjpr merge <top> --dry-run`, then
-   `jjpr merge <top>`. Re-run after any CI/review blocker clears; do not
-   reproduce its reconciliation manually with Git commands.
+3. JJ stack: resolve the intended ordered PR set and read every PR's Stack
+   membership through explicitly scoped REST calls. `jjpr status` is advisory
+   because it cannot select a remote. Use the native path only when an
+   authorized landing scope exactly equals one Stack's complete open membership
+   or one explicit bottom prefix. For a mixed chain or multiple Stacks,
+   partition and verify every separately authorized scope; otherwise stop.
+   Follow `$jjpr` **Land a native Stack**, including its pre-merge local-work
+   inventory, bounded remote settlement, and survivor reconciliation; never
+   run `jjpr merge` on native members. For a wholly ordinary stack, run
+   `jjpr merge <top> --base <base> --remote <remote> --dry-run`, then the same
+   command without `--dry-run`. Re-run after any
+   CI/review blocker clears; do not reproduce reconciliation with Git commands.
 4. Single PR or plain Git stack: sync a stale/conflicted branch per contract,
    push, merge, and delete the remote branch if the merge did not.
 5. Plain Git stack: repeat 2 and 4 per child in order.
 6. Only if explicitly asked: merge the release PR, watch staging/prod deploy
    workflows, report deployed versions.
-7. Teardown only the session's isolated checkout. In jj, inspect its `@` and
+7. Teardown only after every intended PR is remotely verified merged. Then
+   remove only the session's isolated checkout. In jj, inspect its `@` and
    diff, resolve its exact root, forget it from a surviving workspace, and
    abandon only a captured disposable empty working-copy change. `forget` does
    not delete files, changes, or bookmarks; remove only the verified directory.
