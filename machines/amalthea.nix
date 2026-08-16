@@ -669,6 +669,7 @@ in
       enable = true;
       openFirewall = false;
       extraComponents = [
+        "airthings"
         "default_config"
         "dhcp"
         "hue"
