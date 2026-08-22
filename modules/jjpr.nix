@@ -18,6 +18,12 @@ let
 
     cargoHash = "sha256-yFcqPuZdFe128/X9spSosM3alkBz/uU/oteTu8kDNBY=";
 
+    patches = [ ./jjpr-native-stack-recovery.patch ];
+    patchFlags = [
+      "-p1"
+      "--fuzz=0"
+    ];
+
     # Upstream has a #[should_panic] test around a debug assertion.
     checkType = "debug";
 

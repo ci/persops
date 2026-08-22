@@ -1,0 +1,118 @@
+--- a/src/submit/execute.rs
++++ b/src/submit/execute.rs
+@@ -433,7 +433,7 @@
+     // One jjpr stack can span more than one native stack: a native stack may be
+     // rooted on any branch, so a user can register (a,b) as one and (c,d) as
+     // another within the same chain. Naming only the first would leave the user
+-    // blocked again on the next run, so unstack every stack involved.
++    // blocked again on the next run, so name every involved stack.
+     let mut stacks: Vec<u64> = plan
+         .native_stack_base_conflicts
+         .iter()
+@@ -441,20 +441,27 @@
+         .collect();
+     stacks.sort_unstable();
+     stacks.dedup();
+-    let unstack = stacks
++    let stack_numbers = stacks
+         .iter()
+-        .map(|n| format!("gh stack unstack {n}"))
++        .map(u64::to_string)
+         .collect::<Vec<_>>()
+-        .join(" && ");
++        .join(", ");
+ 
+     out.push_str(&format!(
+         "\nGitHub does not allow retargeting a {abbr} that belongs to a stack, so \
+          jjpr cannot\napply that. Nothing has been pushed.\n\n\
+-         To continue, dissolve the native stack and let jjpr manage the bases:\n\
+-         \x20 {unstack}\n\
+-         \x20 jjpr submit\n\n\
+-         Or keep the native stack and restructure it with gh instead:\n\
+-         \x20 {unstack} && gh stack init <branches in the new order>",
++         Reshaping native Stack membership is destructive. Stop and use the authorized \
++         native Stack reshape workflow; it requires exclusive remote-writer coordination, \
++         a fresh complete Stack/PR journal, and post-write verification.\n\n\
++         \x20 repository: {}/{}\n\
++         \x20 jjpr remote: {}\n\
++         \x20 default branch: {}\n\
++         \x20 native Stack numbers: {stack_numbers}\n\n\
++         Do not run gh-stack reshape commands or rerun jjpr submit directly.",
++        plan.repo_info.owner,
++        plan.repo_info.repo,
++        plan.remote_name,
++        plan.default_branch,
+     ));
+     out
+ }
+@@ -1048,10 +1055,25 @@
+             "names the move: {msg}"
+         );
+         assert!(
+-            msg.contains("gh stack unstack 240"),
+-            "gives the remedy: {msg}"
++            msg.contains("authorized native Stack reshape workflow"),
++            "requires the guarded workflow: {msg}"
+         );
++        assert!(msg.contains("repository: o/r"), "scopes the repo: {msg}");
++        assert!(msg.contains("jjpr remote: origin"), "scopes the remote: {msg}");
++        assert!(msg.contains("default branch: main"), "scopes the default branch: {msg}");
+         assert!(
++            msg.contains("native Stack numbers: 240"),
++            "names the affected stack: {msg}"
++        );
++        assert!(
++            !msg.contains("gh stack unstack") && !msg.contains("gh stack init"),
++            "must not emit destructive recovery commands: {msg}"
++        );
++        assert!(
++            !msg.contains("\n  jjpr submit\n"),
++            "must not recommend an unscoped submit: {msg}"
++        );
++        assert!(
+             msg.contains("Nothing has been pushed"),
+             "must say the working state is untouched: {msg}"
+         );
+@@ -1077,7 +1099,11 @@
+ 
+         let err =
+             execute_submission_plan(&jj, &github, &plan).expect_err("dry run should report it");
+-        assert!(err.to_string().contains("gh stack unstack 240"));
++        let msg = err.to_string();
++        assert!(msg.contains("native Stack numbers: 240"));
++        assert!(msg.contains("repository: o/r"));
++        assert!(!msg.contains("gh stack unstack"));
++        assert!(!msg.contains("gh stack init"));
+         assert!(jj.pushes().is_empty());
+     }
+ 
+@@ -1111,7 +1137,7 @@
+             .to_string();
+ 
+         assert!(
+-            msg.contains("gh stack unstack 240 && gh stack unstack 251"),
++            msg.contains("native Stack numbers: 240, 251"),
+             "{msg}"
+         );
+         assert!(
+@@ -1120,8 +1146,8 @@
+         );
+     }
+ 
+-    // Duplicate stack numbers (the usual case: several PRs in one stack) must
+-    // not produce a repeated command.
++    // Duplicate stack numbers (the usual case: several PRs in one stack) must be
++    // listed only once.
+     #[test]
+     fn conflicts_in_one_stack_name_it_once() {
+         let jj = RecordingJj::new();
+@@ -1141,7 +1167,8 @@
+             .to_string();
+ 
+         assert!(
+-            !msg.contains("unstack 240 && gh stack unstack 240"),
++            msg.contains("native Stack numbers: 240")
++                && !msg.contains("native Stack numbers: 240, 240"),
+             "deduped: {msg}"
+         );
+     }
