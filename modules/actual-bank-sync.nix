@@ -12,6 +12,9 @@ let
   package = pkgs.callPackage source { };
   backupGateDir = "/var/lib/private/actual-backup-gate";
   backupStamp = "${backupGateDir}/last-success";
+  # Daily backups can be 25 hours apart across DST, plus 15 minutes of jitter.
+  backupMaxAgeHours = 26;
+  backupMaxAgeSeconds = backupMaxAgeHours * 60 * 60;
   # Enabled only after the supervised backup, live-ID resolution, plan, apply,
   # and post-apply invariant verification completed successfully.
   setupComplete = true;
@@ -64,8 +67,8 @@ let
     esac
     current_epoch="$(${pkgs.coreutils}/bin/date +%s)"
     backup_age=$((current_epoch - backup_epoch))
-    if [ "$backup_age" -lt 0 ] || [ "$backup_age" -gt 28800 ]; then
-      echo "actual-bank-sync: no successful Actual restic backup in the last 8 hours" >&2
+    if [ "$backup_age" -lt 0 ] || [ "$backup_age" -gt ${toString backupMaxAgeSeconds} ]; then
+      echo "actual-bank-sync: no successful Actual restic backup in the last ${toString backupMaxAgeHours} hours" >&2
       exit 1
     fi
     export ACTUAL_PASSWORD_FILE="$CREDENTIALS_DIRECTORY/actual-password"

@@ -5,8 +5,10 @@
 before the sync.
 
 The service makes one bank-sync attempt and does not retry automatically. It
-refuses to run unless that backup completed successfully within the last eight
-hours. Immediately before any bank sync or reconciliation it also writes a
+refuses to run unless that backup completed successfully within the last 26
+hours. This covers the daily cadence, randomized delay, and DST while still
+blocking the next sync after a missed backup. Immediately before any bank sync
+or reconciliation it also writes a
 mode-`0600` Actual export plus SHA-256 sidecar under
 `/var/lib/actual-bank-sync/recovery`, retaining the newest seven exports.
 
