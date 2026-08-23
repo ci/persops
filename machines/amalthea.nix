@@ -36,6 +36,10 @@ let
     ${pkgs.coreutils}/bin/sleep 30
     ${pkgs.tailscale}/bin/tailscale serve clear "$service"
   '';
+  python312OutOnly = pkgs.symlinkJoin {
+    name = "python312-out-only";
+    paths = [ (pkgs.lib.getOutput "out" pkgs.python312) ];
+  };
   cudaPkgs = pkgs.cudaPackages_12.overrideScope (
     _: prev: {
       cuda_compat = pkgs.stdenvNoCC.mkDerivation {
@@ -406,7 +410,8 @@ in
       transcribe
       usbutils
       xfsprogs
-      python312
+      # python312.doc still fails on current nixpkgs (Sphinx/docutils TypeError).
+      python312OutOnly
       uv
     ];
   };
