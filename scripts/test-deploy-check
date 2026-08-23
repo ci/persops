@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+temp_dir="$(mktemp -d)"
+trap 'rm -rf "$temp_dir"' EXIT
+mkdir -p "$temp_dir/bin"
+
+cat >"$temp_dir/bin/nix" <<EOF
+#!$(command -v bash)
+printf '%s\\n' "\$*" >>"\${DEPLOY_CHECK_CALLS:?}"
+EOF
+chmod +x "$temp_dir/bin/nix"
+cat >"$temp_dir/bin/hostname" <<EOF
+#!$(command -v bash)
+printf '%s\\n' "\${TEST_HOSTNAME:?}"
+EOF
+chmod +x "$temp_dir/bin/hostname"
+
+run_case() {
+	local controller="$1"
+	local targets="$2"
+	local expected
+	local actual
+
+	expected="$(cat)"
+	: >"$temp_dir/calls"
+	PATH="$temp_dir/bin:$PATH" DEPLOY_CHECK_CALLS="$temp_dir/calls" TEST_HOSTNAME="$controller" \
+		make --no-print-directory --silent -C "$repo_root" \
+		FLAKE=/snapshot \
+		DEPLOY_CONTROLLER="$controller" \
+		TARGETS="$targets" \
+		deploy-check
+	actual="$(cat "$temp_dir/calls")"
+
+	if [ "$actual" != "$expected" ]; then
+		printf 'deploy-check calls for %s/%s did not match\nexpected:\n%s\nactual:\n%s\n' \
+			"$controller" "$targets" "$expected" "$actual" >&2
+		return 1
+	fi
+}
+
+run_case aglaea aglaea <<'EOF'
+flake check --print-build-logs /snapshot
+eval --raw /snapshot#darwinConfigurations.aglaea.config.system.build.toplevel.drvPath
+EOF
+
+run_case amalthea amalthea <<'EOF'
+flake check --print-build-logs /snapshot
+eval --raw /snapshot#nixosConfigurations.amalthea.config.system.build.toplevel.drvPath
+EOF
+
+run_case aglaea "aglaea amalthea" <<'EOF'
+flake check --print-build-logs /snapshot
+eval --raw /snapshot#deploy.nodes.amalthea.profiles.system.path.drvPath
+eval --raw /snapshot#darwinConfigurations.aglaea.config.system.build.toplevel.drvPath
+EOF
+
+: >"$temp_dir/calls"
+if PATH="$temp_dir/bin:$PATH" DEPLOY_CHECK_CALLS="$temp_dir/calls" TEST_HOSTNAME=aglaea \
+	make --no-print-directory --silent -C "$repo_root" \
+	FLAKE=/snapshot DEPLOY_CONTROLLER=aglaea TARGETS=work deploy-check >/dev/null 2>&1; then
+	echo "deploy-check accepted an unknown target" >&2
+	exit 1
+fi
+if [ -s "$temp_dir/calls" ]; then
+	echo "deploy-check ran Nix before rejecting an unknown target" >&2
+	exit 1
+fi
+
+echo "deployment target checks passed"

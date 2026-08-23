@@ -6,8 +6,8 @@ description: "Deploys persops configurations to aglaea and amalthea. Use when as
 # Deploying Persops
 
 Use `make deploy` as the deployment entry point. It snapshots the current flake,
-checks every machine configuration, deploys Amalthea first, then switches Aglaea
-locally when selected.
+checks the selected machine configurations, deploys Amalthea first, then switches
+Aglaea locally when selected.
 
 ## Current Capability Matrix
 
@@ -43,9 +43,11 @@ Controller defaults:
 - Amalthea deploys only itself.
 - Every other host fails and directs the operator to an Amp runner.
 
-The command runs `make check` against one immutable Nix store snapshot before
-activation. Amalthea is verified with `scripts/remote-verify`; Aglaea runs
-`ops-status` after its local switch.
+The command runs repository checks and evaluates only the selected targets against
+one immutable Nix store snapshot before activation. A remote Amalthea deployment
+checks its deploy-rs profile; a local Amalthea deployment checks its NixOS config.
+Amalthea is verified with `scripts/remote-verify`; Aglaea runs `ops-status` after
+its local switch. Use `make check` separately to evaluate every machine config.
 
 ## Delegating From an Orb
 

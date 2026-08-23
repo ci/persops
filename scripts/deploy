@@ -44,9 +44,10 @@ if [ "$#" -eq 0 ]; then
 	esac
 fi
 
+deployment_targets=("$@")
 deploy_aglaea=0
 deploy_amalthea=0
-for target in "$@"; do
+for target in "${deployment_targets[@]}"; do
 	case "$target" in
 	aglaea)
 		if [ "$controller" != "aglaea" ]; then
@@ -108,7 +109,11 @@ flake="$(
 )"
 echo "snapshot: ${flake}"
 
-make -C "$repo_root" FLAKE="$flake" check
+make -C "$repo_root" \
+	FLAKE="$flake" \
+	DEPLOY_CONTROLLER="$controller" \
+	TARGETS="${deployment_targets[*]}" \
+	deploy-check
 
 # Deploy the remote target before switching the controller. A local switch can
 # restart the Amp runner or alter connectivity needed to finish remote work.

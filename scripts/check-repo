@@ -13,6 +13,7 @@ shell_scripts=(
 	.agents/setup
 	scripts/check-repo
 	scripts/deploy
+	scripts/test-deploy-check
 	scripts/remote-preflight
 	scripts/remote-verify
 	modules/ai/scripts/add-skill.sh
@@ -33,6 +34,9 @@ nixfmt --check "${nix_files[@]}"
 
 section "shfmt"
 shfmt -d "${shell_scripts[@]}"
+
+section "deployment target checks"
+bash scripts/test-deploy-check
 
 section "deadnix"
 deadnix --fail .

@@ -31,8 +31,14 @@ CHECK_SYSTEMS ?= $(CURRENT_SYSTEM)
 NH ?= nh
 NIX_FAST_BUILD ?= nix develop --command nix-fast-build
 TARGETS ?=
+DEPLOY_CONTROLLER ?= $(HOSTNAME)
+VALID_DEPLOY_TARGETS := aglaea amalthea
+UNKNOWN_DEPLOY_TARGETS = $(filter-out $(VALID_DEPLOY_TARGETS),$(TARGETS))
+DEPLOY_EVAL_ATTRS = $(strip \
+	$(if $(filter amalthea,$(TARGETS)),$(if $(filter amalthea,$(DEPLOY_CONTROLLER)),nixosConfigurations.amalthea.config.system.build.toplevel.drvPath,deploy.nodes.amalthea.profiles.system.path.drvPath)) \
+	$(if $(filter aglaea,$(TARGETS)),darwinConfigurations.aglaea.config.system.build.toplevel.drvPath))
 
-.PHONY: local switch deploy build check eval-machines fast-check test remote-guard r/rdp
+.PHONY: local switch deploy build check deploy-check eval-machines fast-check test remote-guard r/rdp
 
 remote-guard:
 ifeq ($(HOSTNAME), work)
@@ -67,6 +73,14 @@ endif
 check:
 	nix flake check --print-build-logs "$(FLAKE)"
 	$(MAKE) eval-machines
+
+deploy-check:
+	@if [ -z "$(strip $(TARGETS))" ]; then echo "error: no deployment targets specified" >&2; exit 1; fi
+	@if [ -n "$(UNKNOWN_DEPLOY_TARGETS)" ]; then echo "error: unknown deployment target: $(UNKNOWN_DEPLOY_TARGETS)" >&2; exit 1; fi
+	@case "$(DEPLOY_CONTROLLER)" in aglaea|amalthea) ;; *) echo "error: unknown deployment controller: $(DEPLOY_CONTROLLER)" >&2; exit 1 ;; esac
+	@if [ "$(DEPLOY_CONTROLLER)" = amalthea ] && [ -n "$(filter aglaea,$(TARGETS))" ]; then echo "error: aglaea cannot be checked for deployment from amalthea" >&2; exit 1; fi
+	nix flake check --print-build-logs "$(FLAKE)"
+	@set -e; $(foreach attr,$(DEPLOY_EVAL_ATTRS),nix eval --raw '$(FLAKE)#$(attr)';)
 
 # Force each machine config through the module system without realizing it.
 # `nix flake check` only builds checks.*; it does not eval these attrsets.

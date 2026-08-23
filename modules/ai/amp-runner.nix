@@ -48,7 +48,6 @@ in
       };
       WorkingDirectory = workingDirectory;
       KeepAlive = true;
-      ProcessType = "Background";
       RunAtLoad = true;
       ThrottleInterval = 5;
       StandardOutPath = "${home}/Library/Logs/amp-runner.out.log";

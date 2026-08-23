@@ -243,6 +243,7 @@
                   pkgs.bash
                   pkgs.coreutils
                   pkgs.findutils
+                  pkgs.gnumake
                   pkgs.gnugrep
                   pkgs.gnused
                   pythonForChecks
