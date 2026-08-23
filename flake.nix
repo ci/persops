@@ -104,6 +104,10 @@
                       "aarch64-darwin" = "sha256-Vs2/YYe/kUEI07f+7qWjT/uhXlwWK+3OaeBi7pLd+14=";
                       "x86_64-linux" = "sha256-AUat+qyDY+yfzbWJX3Yk21suhheig4h5OLf7l6HdQ1Y=";
                     };
+                    "0.149.0" = {
+                      "aarch64-darwin" = "sha256-7WpqCJxQ5yfvHwZC7nwGEbphHXbXICkxagUTvpG/skQ=";
+                      "x86_64-linux" = "sha256-NgCkWsKwn+PJlfT0mGATH+o4i0bECcgqAmb8TQNCoEw=";
+                    };
                   };
                   hostTarball = prev.fetchurl {
                     url = "https://github.com/openai/codex/releases/download/rust-v${old.version}/codex-code-mode-host-${hostTarget}.tar.gz";

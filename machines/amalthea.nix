@@ -680,7 +680,6 @@ in
 
     home-assistant = {
       enable = true;
-      openFirewall = false;
       extraComponents = [
         "airthings"
         "airthings_ble"
