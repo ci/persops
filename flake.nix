@@ -73,76 +73,9 @@
             inherit (master) gh gh-stack;
           }
         )
-        (_: prev: {
-          # codex-cli-nix installs only the main codex binary, but codex >= 0.144 spawns
-          # a sibling codex-code-mode-host for ALL shell execution — without it every
-          # `codex exec` dies with "failed to spawn code-mode host". Graft the matching
-          # release asset next to codex-raw. The hash map throws on version bumps so the
-          # host can't silently drift from the CLI (prefetch the new asset hash with:
-          # nix store prefetch-file <github release asset url>).
-          codex =
-            let
-              system = prev.stdenv.hostPlatform.system;
-              hostTargets = {
-                "aarch64-darwin" = "aarch64-apple-darwin";
-                "x86_64-linux" = "x86_64-unknown-linux-musl";
-              };
-              hostTarget = hostTargets.${system} or null;
-            in
-            if hostTarget == null then
-              prev.codex
-            else
-              prev.codex.overrideAttrs (
-                old:
-                let
-                  hostHashes = {
-                    "0.144.0" = {
-                      "aarch64-darwin" = "sha256-bPkoJDC+/lQTacfLKARgSn8N2UFvOjJB42dtsiAiokY=";
-                      "x86_64-linux" = "sha256-JtnGXFqUfCv0iVE+9/geAnsMltwV4ngd5u7V4CoYmT0=";
-                    };
-                    "0.147.0" = {
-                      "aarch64-darwin" = "sha256-Vs2/YYe/kUEI07f+7qWjT/uhXlwWK+3OaeBi7pLd+14=";
-                      "x86_64-linux" = "sha256-AUat+qyDY+yfzbWJX3Yk21suhheig4h5OLf7l6HdQ1Y=";
-                    };
-                    "0.149.0" = {
-                      "aarch64-darwin" = "sha256-7WpqCJxQ5yfvHwZC7nwGEbphHXbXICkxagUTvpG/skQ=";
-                      "x86_64-linux" = "sha256-NgCkWsKwn+PJlfT0mGATH+o4i0bECcgqAmb8TQNCoEw=";
-                    };
-                  };
-                  hostTarball = prev.fetchurl {
-                    url = "https://github.com/openai/codex/releases/download/rust-v${old.version}/codex-code-mode-host-${hostTarget}.tar.gz";
-                    hash =
-                      hostHashes.${old.version}.${system}
-                        or (throw "codex ${old.version} on ${system}: add the codex-code-mode-host asset hash to hostHashes in flake.nix");
-                  };
-                in
-                {
-                  postInstall = (old.postInstall or "") + ''
-                    tar -xzf ${hostTarball} -C $out/bin
-                    if [ -e $out/bin/codex-code-mode-host-${hostTarget} ]; then
-                      mv $out/bin/codex-code-mode-host-${hostTarget} $out/bin/codex-code-mode-host
-                    fi
-                    chmod +x $out/bin/codex-code-mode-host
-                  '';
-                }
-              );
-        })
         inputs."claude-code-nix".overlays.default
         inputs.jj-starship.overlays.default
         inputs.tmux-sessionizer.overlays.default
-        (_: prev: {
-          # pipx 1.8.0 tests still expect old direct-URL specifier spacing.
-          pythonPackagesExtensions = (prev.pythonPackagesExtensions or [ ]) ++ [
-            (_: pyPrev: {
-              pipx = pyPrev.pipx.overridePythonAttrs (old: {
-                disabledTests = (old.disabledTests or [ ]) ++ [
-                  "test_fix_package_name"
-                  "test_parse_specifier_for_metadata"
-                ];
-              });
-            })
-          ];
-        })
         (
           _: prev:
           if prev.stdenv.isDarwin then
