@@ -36,10 +36,6 @@ let
     ${pkgs.coreutils}/bin/sleep 30
     ${pkgs.tailscale}/bin/tailscale serve clear "$service"
   '';
-  python312OutOnly = pkgs.symlinkJoin {
-    name = "python312-out-only";
-    paths = [ (pkgs.lib.getOutput "out" pkgs.python312) ];
-  };
   cudaPkgs = pkgs.cudaPackages_12.overrideScope (
     _: prev: {
       cuda_compat = pkgs.stdenvNoCC.mkDerivation {
@@ -410,8 +406,7 @@ in
       transcribe
       usbutils
       xfsprogs
-      # Full flake update pulls a python doc build that is currently broken upstream.
-      python312OutOnly
+      python312
       uv
     ];
   };
