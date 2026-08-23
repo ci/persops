@@ -32,6 +32,10 @@ let
         name = "FX Adjustment";
       };
       baseCurrency = "RON";
+      clearMatchedTransfersTo = {
+        id = "bd2b0a5f-fb54-4816-8e06-5bb1e8013dfc";
+        name = "RevolutSavings";
+      };
       dataDir = "/var/lib/actual-bank-sync";
       foreignAccounts = [
         {

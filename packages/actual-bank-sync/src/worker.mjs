@@ -66,6 +66,22 @@ function planCount(plan) {
   return plan.creates.length + plan.updates.length + plan.sourceUpdates.length;
 }
 
+function planMatchedTransferClearing(transactions, targetAccountId) {
+  const byId = new Map(
+    transactions.map(transaction => [transaction.id, transaction]),
+  );
+  return transactions
+    .filter(transaction => {
+      const counterpart = byId.get(transaction.transfer_id);
+      return (
+        transaction.account === targetAccountId &&
+        !transaction.cleared &&
+        counterpart?.cleared
+      );
+    })
+    .map(transaction => ({ id: transaction.id, fields: { cleared: true } }));
+}
+
 function plannerInput(config, rates, transactions) {
   return {
     adjustmentPayeeId: config.adjustmentPayee.id,
@@ -88,9 +104,13 @@ async function exportBudget(api) {
   return result.data;
 }
 
-async function applyPlan(api, plan) {
+async function applyPlan(api, plan, transferClearing) {
   await api.batchBudgetUpdates(async () => {
-    for (const update of [...plan.sourceUpdates, ...plan.updates]) {
+    for (const update of [
+      ...plan.sourceUpdates,
+      ...plan.updates,
+      ...transferClearing,
+    ]) {
       await api.updateTransaction(update.id, update.fields);
     }
 
@@ -145,6 +165,11 @@ export async function runWorker({
     const entityErrors = [
       ...validateAccounts(accounts, config.foreignAccounts),
       ...validateNamedEntity(
+        accounts,
+        config.clearMatchedTransfersTo,
+        'matched transfer clear account',
+      ),
+      ...validateNamedEntity(
         await api.getPayees(),
         config.adjustmentPayee,
         'adjustment payee',
@@ -188,6 +213,10 @@ export async function runWorker({
 
     const transactions = await getAllTransactions(api, accounts);
     const plan = planReconciliation(plannerInput(config, rates, transactions));
+    const transferClearing = planMatchedTransferClearing(
+      transactions,
+      config.clearMatchedTransfersTo.id,
+    );
     if (plan.errors.length > 0) {
       throw new Error(
         `reconciliation refused: ${plan.errors.length} transaction error(s): ${countReasons(plan.errors)}`,
@@ -195,14 +224,18 @@ export async function runWorker({
     }
 
     let applied = 0;
-    const planned = planCount(plan);
+    const planned = planCount(plan) + transferClearing.length;
     if (mode !== 'plan' && planned > 0) {
       try {
-        await applyPlan(api, plan);
+        await applyPlan(api, plan, transferClearing);
       } catch {
         const partialTransactions = await getAllTransactions(api, accounts);
         const partial = planReconciliation(
           plannerInput(config, rates, partialTransactions),
+        );
+        const partialTransferClearing = planMatchedTransferClearing(
+          partialTransactions,
+          config.clearMatchedTransfersTo.id,
         );
         if (partial.errors.length > 0) {
           throw new Error(
@@ -210,7 +243,7 @@ export async function runWorker({
           );
         }
         throw new Error(
-          `reconciliation apply failed; recovery=${recovery.fileName}; partial state is resumable; remaining=${planCount(partial)}`,
+          `reconciliation apply failed; recovery=${recovery.fileName}; partial state is resumable; remaining=${planCount(partial) + partialTransferClearing.length}`,
         );
       }
       applied = planned;
@@ -222,7 +255,12 @@ export async function runWorker({
       const verified = planReconciliation(
         plannerInput(config, rates, verifiedTransactions),
       );
-      const remaining = planCount(verified);
+      const remaining =
+        planCount(verified) +
+        planMatchedTransferClearing(
+          verifiedTransactions,
+          config.clearMatchedTransfersTo.id,
+        ).length;
       if (verified.errors.length > 0 || remaining > 0) {
         throw new Error(
           `post-apply verification failed: remaining=${remaining}, errors=${verified.errors.length}`,

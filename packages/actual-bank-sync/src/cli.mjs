@@ -46,6 +46,10 @@ async function main(sensitiveValues) {
       'adjustmentPayee',
     ),
     baseCurrency: requireString(fileConfig.baseCurrency, 'baseCurrency'),
+    clearMatchedTransfersTo: requireNamedEntity(
+      fileConfig.clearMatchedTransfersTo,
+      'clearMatchedTransfersTo',
+    ),
     dataDir: requireString(fileConfig.dataDir, 'dataDir'),
     fxCategory: requireNamedEntity(fileConfig.fxCategory, 'fxCategory'),
     password,

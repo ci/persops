@@ -79,6 +79,7 @@ function fakeApi({ bankSyncError, failAdd = false } = {}) {
       calls.push('accounts');
       return [
         { id: foreignAccount.id, name: foreignAccount.name, closed: false },
+        { id: 'source-account', name: 'RevPersRON', closed: false },
         { id: 'ron-account', name: 'RevolutSavings', closed: false },
       ];
     },
@@ -147,6 +148,7 @@ const config = {
   actualVersion: '26.8.1',
   adjustmentPayee: { id: 'fx-adjustment-payee', name: 'FX Adjustment' },
   baseCurrency: 'RON',
+  clearMatchedTransfersTo: { id: 'ron-account', name: 'RevolutSavings' },
   dataDir: '/tmp/actual-test',
   foreignAccounts: [foreignAccount],
   fxCategory: { id: 'fx-category', name: 'Currency Exchange' },
@@ -182,6 +184,52 @@ test('run mode leaves the bank row immutable and creates one verified companion'
   assert.ok(api.calls.indexOf('export') < api.calls.indexOf('bank-sync'));
   assert.ok(api.calls.indexOf('bank-sync') < api.calls.indexOf('add:eur-account:1'));
   assert.equal(api.calls.at(-1), 'shutdown');
+});
+
+test('run mode clears only the configured side of a matched cleared transfer', async () => {
+  const api = fakeApi();
+  api.transactions.push(
+    {
+      id: 'cleared-transfer-source',
+      account: 'source-account',
+      amount: -500,
+      category: null,
+      date: '2026-08-22',
+      cleared: true,
+      transfer_id: 'pending-transfer-target',
+    },
+    {
+      id: 'pending-transfer-target',
+      account: 'ron-account',
+      amount: 500,
+      category: null,
+      date: '2026-08-22',
+      cleared: false,
+      transfer_id: 'cleared-transfer-source',
+    },
+    {
+      id: 'unmatched-transfer-target',
+      account: 'ron-account',
+      amount: 600,
+      category: null,
+      date: '2026-08-22',
+      cleared: false,
+      transfer_id: 'missing-transfer-source',
+    },
+  );
+
+  const result = await runWorker({
+    api,
+    config,
+    mode: 'run',
+    rates,
+    saveRecovery,
+  });
+
+  assert.equal(result.planned, 2);
+  assert.equal(result.applied, 2);
+  assert.equal(api.transactions[2].cleared, true);
+  assert.equal(api.transactions[3].cleared, false);
 });
 
 test('plan mode reports companion work without backup, bank sync, or mutation', async () => {
