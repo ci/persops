@@ -70,7 +70,7 @@
             master = inputs.nixpkgs-master.legacyPackages.${prev.stdenv.hostPlatform.system};
           in
           {
-            inherit (master) gh gh-stack;
+            inherit (master) gh gh-stack yt-dlp;
           }
         )
         inputs."claude-code-nix".overlays.default
