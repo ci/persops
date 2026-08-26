@@ -94,9 +94,10 @@ in
     };
   };
 
-  systemd.services."restic-backups-archive-daily".after = lib.mkAfter [
-    "pheme-matrix-archive.service"
-  ];
+  systemd.services."restic-backups-archive-daily" = {
+    wants = [ "pheme-matrix-archive.service" ];
+    after = lib.mkAfter [ "pheme-matrix-archive.service" ];
+  };
 
   systemd.timers.pheme-matrix-archive = {
     description = "Pull Matrix backups from pheme before archive restic";
