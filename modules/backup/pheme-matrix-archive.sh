@@ -42,10 +42,11 @@ ssh_cmd() {
 # Distinguish a missing remote path (test exits 1) from SSH/transport failure.
 remote_dir_exists() {
   local path="$1"
-  if ssh_cmd "test -d $(printf '%q' "${path}")"; then
+  local rc=0
+  ssh_cmd "test -d $(printf '%q' "${path}")" || rc=$?
+  if [ "$rc" -eq 0 ]; then
     return 0
   fi
-  local rc=$?
   if [ "$rc" -eq 1 ]; then
     return 1
   fi
