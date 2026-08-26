@@ -74,7 +74,7 @@ if [ ! -d "$(dirname "${dest}")" ]; then
   exit 1
 fi
 
-"${install_bin}" -d -m 0750 "${dest}" "${dest}/dumps" "${dest}/config" "${dest}/media" "${dest}/media/local_content" "${dest}/media/local_thumbnails"
+"${install_bin}" -d -m 0750 "${dest}" "${dest}/dumps"
 
 stamp="$("${date_bin}" -u +%Y%m%dT%H%M%SZ)"
 dump_path="${dest}/dumps/synapse-${stamp}.dump"
@@ -93,11 +93,8 @@ if [ ! -s "${staging}/synapse.dump" ]; then
   exit 1
 fi
 
-"${mv_bin}" "${staging}/synapse.dump" "${dump_path}"
-"${chmod_bin}" 0600 "${dump_path}"
-"${ln_bin}" -sfn "$(basename "${dump_path}")" "${dest}/dumps/synapse-latest.dump"
-
 echo "pheme-matrix-archive: copying config"
+"${install_bin}" -d -m 0750 "${staging}/config" "${staging}/media" "${staging}/media/local_content" "${staging}/media/local_thumbnails"
 "${rsync_bin}" -a --chmod=D0750,F0600 -e "$(rsync_ssh)" \
   "${host}:${remote_dir}/docker-compose.yml" \
   "${host}:${remote_dir}/.env" \
@@ -106,19 +103,33 @@ echo "pheme-matrix-archive: copying config"
   "${host}:${remote_dir}/synapse/homeserver.yaml" \
   "${host}:${remote_dir}/synapse/ca7.ir.signing.key" \
   "${host}:${remote_dir}/synapse/ca7.ir.log.config" \
-  "${dest}/config/"
+  "${staging}/config/"
 
 echo "pheme-matrix-archive: copying local media"
 if remote_dir_exists "${remote_dir}/synapse/media_store/local_content"; then
   "${rsync_bin}" -a --delete --chmod=D0750,F0600 -e "$(rsync_ssh)" \
     "${host}:${remote_dir}/synapse/media_store/local_content/" \
-    "${dest}/media/local_content/"
+    "${staging}/media/local_content/"
 fi
 if remote_dir_exists "${remote_dir}/synapse/media_store/local_thumbnails"; then
   "${rsync_bin}" -a --delete --chmod=D0750,F0600 -e "$(rsync_ssh)" \
     "${host}:${remote_dir}/synapse/media_store/local_thumbnails/" \
-    "${dest}/media/local_thumbnails/"
+    "${staging}/media/local_thumbnails/"
 fi
+
+"${chmod_bin}" 0600 "${staging}/synapse.dump"
+"${mv_bin}" "${staging}/synapse.dump" "${dump_path}"
+"${ln_bin}" -sfn "$(basename "${dump_path}")" "${dest}/dumps/synapse-latest.dump"
+
+if [ -e "${dest}/config" ]; then
+  "${mv_bin}" "${dest}/config" "${staging}/config.prev"
+fi
+"${mv_bin}" "${staging}/config" "${dest}/config"
+
+if [ -e "${dest}/media" ]; then
+  "${mv_bin}" "${dest}/media" "${staging}/media.prev"
+fi
+"${mv_bin}" "${staging}/media" "${dest}/media"
 
 echo "pheme-matrix-archive: pruning dumps older than ${keep_dumps} days"
 "${find_bin}" "${dest}/dumps" -type f -name 'synapse-*.dump' -mtime "+${keep_dumps}" -delete

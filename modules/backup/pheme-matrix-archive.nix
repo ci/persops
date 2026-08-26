@@ -94,6 +94,7 @@ in
     };
   };
 
+  # Wants, not Requires: a down pheme must not skip the rest of /archive restic.
   systemd.services."restic-backups-archive-daily" = {
     wants = [ "pheme-matrix-archive.service" ];
     after = lib.mkAfter [ "pheme-matrix-archive.service" ];
