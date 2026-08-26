@@ -39,6 +39,20 @@ ssh_cmd() {
   "${ssh_base[@]}" "${host}" "$@"
 }
 
+# Distinguish a missing remote path (test exits 1) from SSH/transport failure.
+remote_dir_exists() {
+  local path="$1"
+  if ssh_cmd "test -d $(printf '%q' "${path}")"; then
+    return 0
+  fi
+  local rc=$?
+  if [ "$rc" -eq 1 ]; then
+    return 1
+  fi
+  echo "pheme-matrix-archive: ssh failed probing ${path} (rc=${rc})" >&2
+  exit "${rc}"
+}
+
 rsync_ssh() {
   # rsync -e takes a single shell string; keep identity/host options explicit.
   printf '%s -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o GlobalKnownHostsFile=/dev/null -o UserKnownHostsFile=%q -o ConnectTimeout=10 -i %q -l %q' \
@@ -94,12 +108,12 @@ echo "pheme-matrix-archive: copying config"
   "${dest}/config/"
 
 echo "pheme-matrix-archive: copying local media"
-if ssh_cmd "test -d $(printf '%q' "${remote_dir}/synapse/media_store/local_content")"; then
+if remote_dir_exists "${remote_dir}/synapse/media_store/local_content"; then
   "${rsync_bin}" -a --delete --chmod=D0750,F0600 -e "$(rsync_ssh)" \
     "${host}:${remote_dir}/synapse/media_store/local_content/" \
     "${dest}/media/local_content/"
 fi
-if ssh_cmd "test -d $(printf '%q' "${remote_dir}/synapse/media_store/local_thumbnails")"; then
+if remote_dir_exists "${remote_dir}/synapse/media_store/local_thumbnails"; then
   "${rsync_bin}" -a --delete --chmod=D0750,F0600 -e "$(rsync_ssh)" \
     "${host}:${remote_dir}/synapse/media_store/local_thumbnails/" \
     "${dest}/media/local_thumbnails/"
