@@ -200,6 +200,7 @@ check_optional_system_unit restic-backups-uptime-kuma-daily.timer
 check_optional_system_unit restic-backups-archive-daily.timer
 check_optional_system_unit restic-backups-archive-prune-monthly.timer
 check_optional_system_unit restic-backups-archive-check-weekly.timer
+check_optional_system_unit pheme-matrix-archive.timer
 show_mount /srv/sea16
 show_mount /archive
 REMOTE

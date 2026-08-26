@@ -316,7 +316,8 @@ let
         restic-backups-home-check-weekly.timer \
         restic-backups-archive-daily.timer \
         restic-backups-archive-prune-monthly.timer \
-        restic-backups-archive-check-weekly.timer; do
+        restic-backups-archive-check-weekly.timer \
+        pheme-matrix-archive.timer; do
         if systemctl list-unit-files "$unit" --no-legend 2>/dev/null | grep -q .; then
           if systemctl is-active --quiet "$unit"; then
             ok "$unit" "active"

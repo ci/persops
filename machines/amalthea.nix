@@ -244,6 +244,7 @@ in
     ../modules/specialization/i3.nix
     ../modules/backup/restic-nixos.nix
     ../modules/backup/restic-storage-box-nixos.nix
+    ../modules/backup/pheme-matrix-archive.nix
     ../modules/actual-bank-sync.nix
     ../modules/cliproxyapi-nixos.nix
   ];
