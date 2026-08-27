@@ -28,7 +28,8 @@ in
   };
 
   services.postgresql = {
-    enable = true; # set to false when upgrading
+    # Set to true to restore the always-on PostgreSQL server.
+    enable = false;
     package = pgpkg;
     dataDir = pgdir;
     initdbArgs = [
