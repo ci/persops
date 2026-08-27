@@ -1,4 +1,9 @@
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  currentSystemName ? null,
+  ...
+}:
 
 let
   myRuby = pkgs.ruby_3_4;
@@ -33,77 +38,84 @@ let
 in
 {
   home.packages =
-    with pkgs;
-    [
-      (myRuby.withPackages (
-        ps: with ps; [
-          cocoapods
-          htmlbeautifier
-          irb
-          pry
-          pwntools
-          rails
-          rake
-          rspec
-          rubocop
-          solargraph
-          zsteg
+    lib.optionals
+      (builtins.elem currentSystemName [
+        "aglaea"
+        "work"
+      ])
+      (
+        with pkgs;
+        [
+          (myRuby.withPackages (
+            ps: with ps; [
+              cocoapods
+              htmlbeautifier
+              irb
+              pry
+              pwntools
+              rails
+              rake
+              rspec
+              rubocop
+              solargraph
+              zsteg
+            ]
+          ))
+
+          gcc
+
+          kamal
+
+          beam.packages.erlang_28.elixir_1_20
+          go
+
+          flutter
+
+          (python314.withPackages (
+            ps: with ps; [
+              aiohttp
+              beautifulsoup4
+              build
+              ipython
+              jupyter
+              matplotlib
+              numpy
+              openpyxl
+              pandas
+              pip
+              pipx
+              pwntools
+              pydantic
+              requests
+              ropgadget
+              setuptools
+              twine
+              z3-solver
+            ]
+          ))
+          uv
+
+          deno
+          nodejs
+          yarn
+          php83
+          php83Packages.composer
+
+          lefthook
+
+          # nvim :Mason deps / language toolchains
+          (lib.hiPrio rust-analyzer)
+          rustup
+          unzip
+          cabal-install
+
+          zig_0_14
         ]
-      ))
-
-      gcc
-
-      kamal
-
-      beam.packages.erlang_28.elixir_1_20
-      go
-
-      flutter
-
-      (python314.withPackages (
-        ps: with ps; [
-          aiohttp
-          beautifulsoup4
-          build
-          ipython
-          jupyter
-          matplotlib
-          numpy
-          openpyxl
-          pandas
-          pip
-          pipx
-          pwntools
-          pydantic
-          requests
-          ropgadget
-          setuptools
-          twine
-          z3-solver
+        ++ lib.optionals pkgs.stdenv.isDarwin [
+          # Keep generic compiler names on macOS pointed at Apple's SDK-aware
+          # toolchain. GNU GCC remains available explicitly as `gnu-gcc`/`gnu-g++`.
+          appleToolchainShims
         ]
-      ))
-      uv
-
-      deno
-      nodejs
-      yarn
-      php83
-      php83Packages.composer
-
-      lefthook
-
-      # nvim :Mason deps / language toolchains
-      (lib.hiPrio rust-analyzer)
-      rustup
-      unzip
-      cabal-install
-
-      zig_0_14
-    ]
-    ++ lib.optionals pkgs.stdenv.isDarwin [
-      # Keep generic compiler names on macOS pointed at Apple's SDK-aware
-      # toolchain. GNU GCC remains available explicitly as `gnu-gcc`/`gnu-g++`.
-      appleToolchainShims
-    ];
+      );
 
 }

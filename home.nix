@@ -2,6 +2,7 @@
   lib,
   pkgs,
   config,
+  inputs,
   ...
 }:
 let
@@ -30,6 +31,7 @@ let
 in
 {
   imports = [
+    inputs.nix-index-database.homeModules.default
     ./modules/fish.nix
     ./modules/tmux.nix
     ./modules/jj.nix
@@ -45,6 +47,7 @@ in
     ./modules/mise.nix
     ./modules/direnv.nix
     ./modules/nvim.nix
+    ./modules/packages.nix
     ./modules/programming.nix
     ./modules/yazi.nix
     ./modules/ai/home.nix
@@ -97,6 +100,8 @@ in
       enableFishIntegration = true;
     };
 
+    nix-index-database.comma.enable = true;
+
     # Let Home Manager install and manage itself.
     home-manager.enable = true;
 
@@ -106,109 +111,6 @@ in
 
   home = {
     stateVersion = "23.05"; # don't really update - read release notes, figure out process
-
-    packages =
-      with pkgs;
-      [
-        # nix tooling
-        comma # run programs without installing: , cowsay hello
-        devenv
-        nix-fast-build
-        nix-output-monitor
-
-        # dev
-        # aider-chat
-        ast-grep
-        awscli2
-        biome
-        blogwatcherPackage
-        btop
-        bun
-        cmake
-        cloudflared
-        curl
-        dbeaver-bin
-        difftastic
-        doggo
-        duf
-        dust
-        eza
-        fd
-        file
-        freerdp
-        fzf
-        fx
-        gh
-        gwsPackage
-        goplacesPackage
-        glow
-        htop
-        hyperfine
-        jq
-        jsonnet
-        jsonnet-bundler
-        kaggle
-        jujutsu
-        jjui
-        mosh
-        navi
-        nushell
-        openhue-cli
-        ouch
-        outfieldr
-        overmind
-        pgcli
-        pnpm
-        pscale
-        ripgrep
-        sad
-        actionlint
-        shellcheck
-        skepsisPackage
-        statix
-        tree-sitter
-        wakeonlan
-        wget
-
-        # containers, k8s, helm stuff
-        ansible
-        docker
-        docker-compose
-        kubernetes-helm
-        terraform
-        kubectl
-        kubectx
-        k9s
-        opentofu
-        tanka
-
-        # chat
-        element-desktop
-        # discord
-        signal-desktop
-        slack
-        zoom-us
-
-        # sec stuff
-        audacity
-        avalonia-ilspy
-        ghidra-bin
-
-        # # example 'fine-tuning' package
-        # (nerdfonts.override { fonts = [ "FantasqueSansMono" ]; })
-
-        # example shell-script wrapper
-        # (writeShellScriptBin "my-hello" ''
-        #   echo "Hello, ${config.home.username}!"
-        # '')
-      ]
-      ++ lib.optionals pkgs.stdenv.isDarwin [
-        # osx specifics
-        docker-credential-helpers
-        mos # reverse mouse direction only for mouse not touchpad
-        hexfiend
-        numi
-      ];
 
     # manage dotfiles directly
     file = {
@@ -250,5 +152,14 @@ in
       "$HOME/.npm-global/bin"
       "$HOME/go/bin"
     ];
+  };
+
+  _module.args = {
+    inherit
+      blogwatcherPackage
+      goplacesPackage
+      gwsPackage
+      skepsisPackage
+      ;
   };
 }
