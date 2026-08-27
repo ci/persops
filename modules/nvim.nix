@@ -1,4 +1,5 @@
-_: {
+{ config, pkgs, ... }:
+{
   programs.neovim = {
     enable = true;
     defaultEditor = true;
@@ -9,8 +10,12 @@ _: {
   };
 
   xdg.configFile."nvim" = {
-    source = ./nvim;
-    # source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/p/persops/modules/nvim";
-    recursive = true;
+    # Keep config live for iteration without `make switch`; activation requires the persops checkout at this path.
+    source = config.lib.file.mkOutOfStoreSymlink (
+      if pkgs.stdenv.isDarwin then
+        "${config.home.homeDirectory}/p/persops/modules/nvim"
+      else
+        "/nix-config/modules/nvim"
+    );
   };
 }
