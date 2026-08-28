@@ -144,7 +144,7 @@ in
         ''
       else
         ''
-          alias nixrb "nh os switch /nix-config"
+          alias nixrb "nh os switch ~/p/persops"
         ''
     );
   };
