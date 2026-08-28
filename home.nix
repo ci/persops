@@ -91,7 +91,7 @@ in
 
     nh = {
       enable = true;
-      flake = if pkgs.stdenv.isDarwin then "${config.home.homeDirectory}/p/persops" else "/nix-config";
+      flake = "${config.home.homeDirectory}/p/persops";
     };
 
     # nix-index - locate packages by file

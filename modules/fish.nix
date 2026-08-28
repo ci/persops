@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, lib, ... }:
 let
   inherit (pkgs.stdenv) isLinux isDarwin;
 in
@@ -134,19 +134,9 @@ in
 
       fish_config theme choose "Catppuccin Mocha"
     ''
-    + (
-      if isDarwin then
-        ''
-          set -gx PATH $PATH /opt/homebrew/bin
-
-          # need this non-interactively to allow tmux to use it
-          alias nixrb "nh darwin switch ~/p/persops"
-        ''
-      else
-        ''
-          alias nixrb "nh os switch /nix-config"
-        ''
-    );
+    + lib.optionalString isDarwin ''
+      set -gx PATH $PATH /opt/homebrew/bin
+    '';
   };
   xdg.configFile."fish/themes/Catppuccin Mocha.theme".source =
     pkgs.fetchFromGitHub {
