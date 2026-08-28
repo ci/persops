@@ -41,6 +41,7 @@ in
     lib.optionals
       (builtins.elem currentSystemName [
         "aglaea"
+        "amalthea"
         "work"
       ])
       (

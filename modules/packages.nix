@@ -1,5 +1,5 @@
-# Keep universal CLI packages in commonPackages and place host-specific additions
-# in the matching host list so work and server closures stay intentionally small.
+# Keep universal CLI packages in commonPackages. Host extras: work stays thin;
+# aglaea and amalthea share personal+ops; Darwin-only tools stay Darwin-gated.
 {
   pkgs,
   lib,
@@ -64,41 +64,43 @@ let
     terraform
   ];
 
-  aglaeaPackages =
-    with pkgs;
-    [
-      audacity
-      avalonia-ilspy
-      awscli2
-      blogwatcherPackage
-      cloudflared
-      dbeaver-bin
-      element-desktop
-      freerdp
-      ghidra-bin
-      goplacesPackage
-      gwsPackage
-      jsonnet
-      jsonnet-bundler
-      kaggle
-      openhue-cli
-      outfieldr
-      overmind
-      pgcli
-      pscale
-      signal-desktop
-      skepsisPackage
-      slack
-      wakeonlan
-      zoom-us
-    ]
-    ++ opsPackages
-    ++ lib.optionals pkgs.stdenv.isDarwin [
-      docker-credential-helpers
-      hexfiend
-      mos
-      numi
-    ];
+  personalPackages = with pkgs; [
+    audacity
+    avalonia-ilspy
+    awscli2
+    blogwatcherPackage
+    cloudflared
+    dbeaver-bin
+    element-desktop
+    freerdp
+    ghidra-bin
+    goplacesPackage
+    gwsPackage
+    jsonnet
+    jsonnet-bundler
+    kaggle
+    openhue-cli
+    outfieldr
+    overmind
+    pgcli
+    pscale
+    signal-desktop
+    skepsisPackage
+    slack
+    wakeonlan
+    zoom-us
+  ];
+
+  darwinPackages = lib.optionals pkgs.stdenv.isDarwin [
+    pkgs.docker-credential-helpers
+    pkgs.hexfiend
+    pkgs.mos
+    pkgs.numi
+  ];
+
+  aglaeaPackages = personalPackages ++ opsPackages ++ darwinPackages;
+
+  amaltheaPackages = personalPackages ++ opsPackages;
 
   workPackages =
     with pkgs;
@@ -107,14 +109,6 @@ let
       pgcli
     ]
     ++ opsPackages;
-
-  amaltheaPackages = with pkgs; [
-    docker-compose
-    k9s
-    kubectl
-    kubectx
-    pgcli
-  ];
 
   hostPackages =
     if currentSystemName == "aglaea" then
