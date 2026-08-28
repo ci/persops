@@ -1,4 +1,5 @@
-_: {
+{ config, ... }:
+{
   programs.neovim = {
     enable = true;
     defaultEditor = true;
@@ -9,8 +10,7 @@ _: {
   };
 
   xdg.configFile."nvim" = {
-    source = ./nvim;
-    # source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/p/persops/modules/nvim";
-    recursive = true;
+    # Live checkout so lua edits do not need `make switch`. Requires ~/p/persops.
+    source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/p/persops/modules/nvim";
   };
 }
