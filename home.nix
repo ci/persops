@@ -88,7 +88,6 @@ in
 
     nh = {
       enable = true;
-      # Same checkout on Darwin and Linux; leftover /nix-config is not the flake.
       flake = "${config.home.homeDirectory}/p/persops";
     };
 
