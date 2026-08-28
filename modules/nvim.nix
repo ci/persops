@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, ... }:
 {
   programs.neovim = {
     enable = true;
@@ -10,12 +10,7 @@
   };
 
   xdg.configFile."nvim" = {
-    # Keep config live for iteration without `make switch`; activation requires the persops checkout at this path.
-    source = config.lib.file.mkOutOfStoreSymlink (
-      if pkgs.stdenv.isDarwin then
-        "${config.home.homeDirectory}/p/persops/modules/nvim"
-      else
-        "/nix-config/modules/nvim"
-    );
+    # Live checkout so lua edits do not need `make switch`. Requires ~/p/persops.
+    source = config.lib.file.mkOutOfStoreSymlink "${config.home.homeDirectory}/p/persops/modules/nvim";
   };
 }
