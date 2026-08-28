@@ -7,6 +7,8 @@
     vimAlias = true;
     withPython3 = true;
     withRuby = true;
+    # Do not write HM's generated init.lua into the live checkout symlink.
+    sideloadInitLua = true;
   };
 
   xdg.configFile."nvim" = {
