@@ -74,7 +74,7 @@
             master = inputs.nixpkgs-master.legacyPackages.${prev.stdenv.hostPlatform.system};
           in
           {
-            inherit (master) gh gh-stack yt-dlp;
+            inherit (master) gh gh-stack;
           }
         )
         inputs."claude-code-nix".overlays.default
@@ -84,12 +84,6 @@
           _: prev:
           if prev.stdenv.isDarwin then
             {
-              # direnv 2.37.1 still forces Darwin external linking upstream.
-              direnv = prev.direnv.overrideAttrs (old: {
-                env = (old.env or { }) // {
-                  CGO_ENABLED = 1;
-                };
-              });
               # mise 2026.8.6 Darwin checkPhase fails HTTP range-resume tests
               # against the local mock server (416 Range Not Satisfiable).
               mise = prev.mise.overrideAttrs (old: {
