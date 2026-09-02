@@ -112,6 +112,7 @@ in
 {
   imports = [
     ./amp-runner.nix
+    ./claude-rc.nix
     ./herdr.nix
   ];
 
