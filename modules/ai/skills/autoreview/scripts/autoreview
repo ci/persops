@@ -863,7 +863,22 @@ def run_grok(args: argparse.Namespace, repo: Path, prompt: str) -> str:
     prompt_path.unlink(missing_ok=True)
     if result.returncode != 0:
         raise SystemExit(f"grok engine failed ({result.returncode})\n{result.stderr or result.stdout}")
+    delete_grok_session(args.grok_bin, result.stdout, repo)
     return result.stdout
+
+
+def delete_grok_session(grok_bin: str, envelope: str, repo: Path) -> None:
+    """grok has no ephemeral mode; drop the session so the bundle does not persist under ~/.grok."""
+    try:
+        session_id = json.loads(envelope).get("sessionId")
+    except (json.JSONDecodeError, AttributeError):
+        session_id = None
+    if not isinstance(session_id, str) or not session_id:
+        print("grok: no session id in output; review session may persist in grok history", file=sys.stderr)
+        return
+    deleted = subprocess.run([grok_bin, "sessions", "delete", session_id], cwd=repo, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if deleted.returncode != 0:
+        print(f"grok: failed to delete session {session_id}: {deleted.stderr.strip() or deleted.stdout.strip()}", file=sys.stderr)
 
 
 def amp_review_plugin_source(
