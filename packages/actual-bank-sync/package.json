@@ -7,7 +7,7 @@
     "test": "node --test"
   },
   "dependencies": {
-    "@actual-app/api": "26.8.1"
+    "@actual-app/api": "26.9.0"
   },
   "engines": {
     "node": ">=22 <23"
