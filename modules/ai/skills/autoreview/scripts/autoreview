@@ -54,6 +54,14 @@ AMP_MAX_OUTPUT_CHARS = 2_000_000
 # grok's built-in tool names; review stays read-only.
 GROK_READ_TOOLS = ("read_file", "grep", "list_dir")
 GROK_WEB_TOOLS = ("web_search", "web_fetch")
+# --tools only allowlists built-ins; the MCP meta-tools stay unless denied.
+GROK_DENY_TOOLS = ("search_tool", "use_tool")
+# Engines with no reliable tool-off switch; validated before dry-run so preflight matches live runs.
+NO_TOOLS_UNSUPPORTED = {
+    "codex": "--no-tools is not supported by the Codex engine; use --engine claude --no-tools for a no-tools run",
+    "grok": "--no-tools is not supported by the grok engine; use --engine claude --no-tools for a no-tools run",
+    "copilot": "--no-tools is not supported by the copilot engine; copilot requires a read-only file view tool to load the review bundle without exposing it in argv",
+}
 AMP_MODEL_PATTERN = re.compile(
     r"(?:amp|anthropic|baseten|fireworks|openai|vertexai|xai)/"
     r"[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*"
@@ -720,9 +728,6 @@ def codex_model_access_failure(result: subprocess.CompletedProcess[str], model: 
 
 
 def run_codex(args: argparse.Namespace, repo: Path, prompt: str) -> str:
-    if not args.tools:
-        raise SystemExit("--no-tools is not supported by the Codex engine; use --engine claude --no-tools for a no-tools run")
-
     def attempt(model: str | None) -> tuple[subprocess.CompletedProcess[str], str]:
         schema_path = write_json_temp(SCHEMA)
         output_path = Path(tempfile.NamedTemporaryFile("w", suffix=".json", delete=False).name)
@@ -818,10 +823,8 @@ def run_claude(args: argparse.Namespace, repo: Path, prompt: str) -> str:
 
 
 def run_grok(args: argparse.Namespace, repo: Path, prompt: str) -> str:
-    # grok has no reliable tool-off switch: an empty or unknown --tools allowlist
-    # falls back to the default toolset, and plan mode still allows writes.
-    if not args.tools:
-        raise SystemExit("--no-tools is not supported by the grok engine; use --engine claude --no-tools for a no-tools run")
+    # An empty or unknown --tools allowlist falls back to grok's default toolset and
+    # plan mode still allows writes, so the allowlist below is the only read-only gate.
     # Bundles can exceed ARG_MAX, so the prompt goes through a file.
     prompt_path = Path(tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False).name)
     prompt_path.write_text(prompt)
@@ -837,6 +840,8 @@ def run_grok(args: argparse.Namespace, repo: Path, prompt: str) -> str:
         "--cwd",
         str(repo),
         "--no-subagents",
+        "--disallowed-tools",
+        ",".join(GROK_DENY_TOOLS),
     ]
     tools = list(GROK_READ_TOOLS)
     if args.web_search:
@@ -1096,8 +1101,6 @@ def run_droid(args: argparse.Namespace, repo: Path, prompt: str) -> str:
 def run_copilot(args: argparse.Namespace, repo: Path, prompt: str) -> str:
     if args.thinking:
         raise SystemExit("--thinking is not supported by the copilot engine")
-    if not args.tools:
-        raise SystemExit("--no-tools is not supported by the copilot engine; copilot requires a read-only file view tool to load the review bundle without exposing it in argv")
     with tempfile.TemporaryDirectory(prefix="autoreview-copilot.") as tempdir:
         prompt_path = Path(tempdir) / "prompt.txt"
         prompt_path.write_text(prompt)
@@ -1587,6 +1590,8 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
             fallback_model = DEFAULT_CODEX_ACCESS_FALLBACK_MODEL
         else:
             fallback_model = None
+        if not args.tools and engine in NO_TOOLS_UNSUPPORTED:
+            raise SystemExit(NO_TOOLS_UNSUPPORTED[engine])
         if thinking and thinking not in THINKING_LEVELS_BY_ENGINE[engine]:
             valid = ", ".join(sorted(THINKING_LEVELS_BY_ENGINE[engine])) or "none"
             raise SystemExit(f"invalid thinking level for {engine}: {thinking} (valid: {valid})")
