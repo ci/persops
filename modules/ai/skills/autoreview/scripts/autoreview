@@ -818,6 +818,10 @@ def run_claude(args: argparse.Namespace, repo: Path, prompt: str) -> str:
 
 
 def run_grok(args: argparse.Namespace, repo: Path, prompt: str) -> str:
+    # grok has no reliable tool-off switch: an empty or unknown --tools allowlist
+    # falls back to the default toolset, and plan mode still allows writes.
+    if not args.tools:
+        raise SystemExit("--no-tools is not supported by the grok engine; use --engine claude --no-tools for a no-tools run")
     # Bundles can exceed ARG_MAX, so the prompt goes through a file.
     prompt_path = Path(tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False).name)
     prompt_path.write_text(prompt)
@@ -834,8 +838,8 @@ def run_grok(args: argparse.Namespace, repo: Path, prompt: str) -> str:
         str(repo),
         "--no-subagents",
     ]
-    tools = list(GROK_READ_TOOLS) if args.tools else []
-    if args.tools and args.web_search:
+    tools = list(GROK_READ_TOOLS)
+    if args.web_search:
         tools.extend(GROK_WEB_TOOLS)
     cmd.extend(["--tools", ",".join(tools)])
     if not args.web_search:
@@ -1153,9 +1157,14 @@ def extract_json(text: str) -> dict[str, Any]:
         raise SystemExit(f"review engine returned non-JSON output: {exc}\n{stripped[:2000]}")
     if isinstance(parsed, dict) and "findings" in parsed:
         return parsed
-    for key in ("structured_output", "structuredOutput"):
-        if isinstance(parsed, dict) and isinstance(parsed.get(key), dict):
-            return parsed[key]
+    if isinstance(parsed, dict) and isinstance(parsed.get("structured_output"), dict):
+        return parsed["structured_output"]
+    if isinstance(parsed, dict) and isinstance(parsed.get("structuredOutput"), dict):
+        # grok: a max-turns/cancelled run still carries the last provisional object.
+        stop_reason = parsed.get("stopReason")
+        if stop_reason not in (None, "end_turn"):
+            raise SystemExit(f"review engine stopped early ({stop_reason}); refusing partial structured output")
+        return parsed["structuredOutput"]
     if isinstance(parsed, dict) and isinstance(parsed.get("result"), dict) and "findings" in parsed["result"]:
         return parsed["result"]
     if isinstance(parsed, dict) and isinstance(parsed.get("result"), str):
@@ -1442,7 +1451,7 @@ def parse_args() -> argparse.Namespace:
         default=os.environ.get("AUTOREVIEW_STREAM_ENGINE_OUTPUT") == "1",
         help="Stream engine output while preserving buffered output for validation. Codex and Claude filter noisy tool/status chatter.",
     )
-    parser.add_argument("--no-tools", dest="tools", action="store_false", default=True, help="Disable tools for engines that support it. Codex and copilot reject no-tools review. Amp always reviews the bundle alone; pi gets read-only tools.")
+    parser.add_argument("--no-tools", dest="tools", action="store_false", default=True, help="Disable tools for engines that support it. Codex, grok, and copilot reject no-tools review. Amp always reviews the bundle alone; pi gets read-only tools.")
     parser.add_argument("--no-web-search", dest="web_search", action="store_false", default=True)
     parser.add_argument(
         "--claude-allowed-tools",
