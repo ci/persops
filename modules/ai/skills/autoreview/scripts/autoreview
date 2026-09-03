@@ -35,7 +35,7 @@ THINKING_LEVELS_BY_ENGINE = {
 }
 DEFAULT_MODEL_BY_ENGINE = {
     "codex": "gpt-5.6-sol",
-    "claude": "claude-fable-5",
+    "claude": "fable",  # claude CLI alias for the latest Fable
     "amp": "openai/gpt-5.6-sol",
     "grok": "grok-4.6",
 }
@@ -1585,12 +1585,9 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
     else:
         reviewers = [(args.engine, None, None)]
 
-    seen: set[str] = set()
+    seen: set[tuple[str, str | None]] = set()
     result: list[argparse.Namespace] = []
     for engine, inline_model, inline_thinking in reviewers:
-        if engine in seen:
-            raise SystemExit(f"reviewer specified more than once: {engine}")
-        seen.add(engine)
         model = (
             inline_model
             or model_by_engine.get(engine)
@@ -1607,6 +1604,10 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
             or env_global_thinking
             or DEFAULT_THINKING_BY_ENGINE.get(engine)
         )
+        # The same engine may appear with different models (amp panels: sol + grok).
+        if (engine, model) in seen:
+            raise SystemExit(f"reviewer specified more than once: {engine} model={model}")
+        seen.add((engine, model))
         if engine == "codex" and model == DEFAULT_MODEL_BY_ENGINE["codex"]:
             fallback_model = DEFAULT_CODEX_ACCESS_FALLBACK_MODEL
         else:

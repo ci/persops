@@ -7,7 +7,7 @@ description: "Auto Review closeout for Git and Jujutsu changes. Uses Amp by defa
 
 Run the bundled structured review helper as a closeout check. This is code review, not Guardian `auto_review` approval routing.
 
-Amp is the default inside an Amp orb, detected by the documented `AMP_ORB=1` environment variable. Codex is the default elsewhere and usually delivers the best local review results. An explicit `--engine` always wins; `AUTOREVIEW_ENGINE` overrides the environment-based default. Codex defaults to `gpt-5.6-sol` and retries once with `gpt-5.6-terra` only when the account cannot access Sol; thinking follows the Codex CLI config. Claude defaults to `claude-fable-5`. Amp defaults to `openai/gpt-5.6-sol` at `high` reasoning through a generated adapter plugin that reuses the existing `amp login`. Grok defaults to `grok-4.6`. Pi and opencode use the model their own CLI is configured for.
+Amp is the default inside an Amp orb, detected by the documented `AMP_ORB=1` environment variable. Codex is the default elsewhere and usually delivers the best local review results. An explicit `--engine` always wins; `AUTOREVIEW_ENGINE` overrides the environment-based default. Codex defaults to `gpt-5.6-sol` and retries once with `gpt-5.6-terra` only when the account cannot access Sol; thinking follows the Codex CLI config. Claude defaults to `fable`, the claude CLI alias for the latest Fable. Amp defaults to `openai/gpt-5.6-sol` at `high` reasoning through a generated adapter plugin that reuses the existing `amp login`. Grok defaults to `grok-4.6`. Pi and opencode use the model their own CLI is configured for.
 
 Use when:
 
@@ -173,6 +173,13 @@ Inline syntax is also supported:
 
 ```bash
 <autoreview-helper> --reviewers codex:gpt-5.6-sol:high,claude:sonnet:max
+```
+
+The same engine may appear more than once with different models, which is how
+an Amp orb runs the codex+grok panel through amp's model providers:
+
+```bash
+<autoreview-helper> --reviewers amp:openai/gpt-5.6-sol:xhigh,amp:xai/grok-4.6:xhigh
 ```
 
 `AUTOREVIEW_MODEL` and `AUTOREVIEW_THINKING` env vars accept the same keyed
