@@ -25,14 +25,24 @@
   },
   "land": {
     "profile": "coding",
-    "excludeMachines": ["work"]
+    "excludeMachines": [
+      "work"
+    ]
   },
   "share-page": {
     "profile": "all",
-    "excludeMachines": ["work"]
+    "excludeMachines": [
+      "work"
+    ]
   },
   "transcribe": {
     "profile": "all",
-    "excludeMachines": ["aglaea", "work"]
+    "excludeMachines": [
+      "aglaea",
+      "work"
+    ]
+  },
+  "pipeline": {
+    "profile": "coding"
   }
 }

@@ -1,0 +1,876 @@
+#!/usr/bin/env python3
+"""Deterministic plan -> implement -> review driver over headless agent CLIs.
+
+Each stage is one fresh engine process with a JSON schema; control flow keys
+off the structured result. The calling (main) agent advances stages and reads
+the artifacts under the run directory. Exit codes: 0 stage done, 1 error,
+3 needs the main agent (question/blocked/scope change/round cap).
+"""
+from __future__ import annotations
+
+import argparse
+import copy
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+NEEDS_MAIN_AGENT = 3
+STAGES = ("plan", "implement", "review")
+ENGINES = ("codex", "claude", "grok")
+EFFORT_BY_ENGINE = {
+    "codex": {"low", "medium", "high", "xhigh", "max"},
+    "claude": {"low", "medium", "high", "xhigh", "max"},
+    "grok": {"low", "medium", "high", "xhigh"},
+}
+# `fable` is the claude CLI alias for the latest Fable (5.1 at the time of writing).
+DEFAULT_PLAN_ENGINE = "claude:fable:high"
+DEFAULT_IMPLEMENT_ENGINE = "codex:gpt-5.6-sol:high"
+# Inside an Amp orb the same panel runs through amp's model providers.
+DEFAULT_REVIEWERS = (
+    "amp:openai/gpt-5.6-sol:xhigh,amp:xai/grok-4.6:xhigh"
+    if os.environ.get("AMP_ORB") == "1"
+    else "codex:gpt-5.6-sol:xhigh,grok:grok-4.6:xhigh"
+)
+DEFAULT_MAX_ROUNDS = 5
+# A finding that survives this many consecutive fix rounds is not converging.
+SURVIVAL_LIMIT = 2
+HEARTBEAT_SECONDS = 60
+GROK_READ_TOOLS = "read_file,grep,list_dir,web_search,web_fetch"
+# --tools only allowlists grok built-ins; MCP meta-tools stay unless denied.
+GROK_DENY_TOOLS = "search_tool,use_tool"
+# Inspection-only VCS subcommands; `git *`/`jj *` would admit push/reset/clean.
+# No Bash allow-globs: `Bash(git log *)` would still admit `git log --output=<path>`.
+# Plan mode keeps claude's own read-only classifier and blocks edits.
+CLAUDE_READ_TOOLS = "Read,Grep,Glob,WebFetch,WebSearch,Bash"
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROMPT_DIR = SCRIPT_DIR.parent / "prompts"
+# Installed skills are separate store symlinks, so the sibling helper is found via the
+# unresolved path (~/.agents/skills/pipeline/... -> ~/.agents/skills/autoreview/...).
+DEFAULT_AUTOREVIEW = Path(__file__).absolute().parent.parent.parent / "autoreview" / "scripts" / "autoreview"
+
+PLAN_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["summary", "plan_markdown", "units", "proof", "scope_boundaries", "open_questions", "risks"],
+    "properties": {
+        "summary": {"type": "string"},
+        "plan_markdown": {"type": "string", "description": "Complete plan document in markdown; the implementer sees only this."},
+        "units": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["id", "title", "files", "steps", "tests"],
+                "properties": {
+                    "id": {"type": "string"},
+                    "title": {"type": "string"},
+                    "files": {"type": "array", "items": {"type": "string"}},
+                    "steps": {"type": "array", "items": {"type": "string"}},
+                    "tests": {"type": "array", "items": {"type": "string"}},
+                },
+            },
+        },
+        "proof": {"type": "array", "items": {"type": "string"}, "description": "Exact commands or observations that prove the work."},
+        "scope_boundaries": {"type": "array", "items": {"type": "string"}},
+        "open_questions": {"type": "array", "items": {"type": "string"}, "description": "Questions only the owner can answer; non-empty halts the pipeline."},
+        "risks": {"type": "array", "items": {"type": "string"}},
+    },
+}
+
+IMPL_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["status", "summary", "commits", "files_changed", "tests_run", "deviations", "questions", "notes"],
+    "properties": {
+        "status": {"type": "string", "enum": ["done", "blocked", "question", "scope_change"]},
+        "summary": {"type": "string"},
+        "commits": {"type": "array", "items": {"type": "string"}},
+        "files_changed": {"type": "array", "items": {"type": "string"}},
+        "tests_run": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["command", "passed"],
+                "properties": {"command": {"type": "string"}, "passed": {"type": "boolean"}},
+            },
+        },
+        "deviations": {"type": "array", "items": {"type": "string"}, "description": "Where and why the implementation departs from the plan."},
+        "questions": {"type": "array", "items": {"type": "string"}},
+        "notes": {"type": "string"},
+    },
+}
+
+FIX_SCHEMA: dict[str, Any] = copy.deepcopy(IMPL_SCHEMA)
+FIX_SCHEMA["required"].append("findings")
+FIX_SCHEMA["properties"]["findings"] = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["title", "file_path", "action", "reason"],
+        "properties": {
+            "title": {"type": "string"},
+            "file_path": {"type": "string"},
+            "action": {"type": "string", "enum": ["fixed", "rejected"]},
+            "reason": {"type": "string"},
+        },
+    },
+}
+
+
+# --- small helpers -----------------------------------------------------------
+
+
+def now() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def die(message: str, code: int = 1) -> None:
+    print(message, file=sys.stderr)
+    raise SystemExit(code)
+
+
+def run(cmd: list[str], cwd: Path, *, check: bool = True) -> subprocess.CompletedProcess[str]:
+    result = subprocess.run(cmd, cwd=cwd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if check and result.returncode != 0:
+        die(f"command failed ({result.returncode}): {' '.join(cmd)}\n{result.stderr or result.stdout}")
+    return result
+
+
+def read_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text())
+
+
+def write_json(path: Path, data: Any) -> None:
+    path.write_text(json.dumps(data, indent=2) + "\n")
+
+
+def render(template: str, values: dict[str, str]) -> str:
+    # Single pass so inserted task/plan/finding text is never rescanned for placeholders.
+    missing = sorted({key for key in re.findall(r"{{([A-Z_]+)}}", template) if key not in values})
+    if missing:
+        die(f"unfilled prompt placeholders: {', '.join(missing)}")
+    return re.sub(r"{{([A-Z_]+)}}", lambda m: values[m.group(1)], template)
+
+
+def parse_engine(spec: str, stage: str) -> dict[str, str | None]:
+    parts = [part.strip() for part in spec.split(":")]
+    if len(parts) > 3 or not parts[0]:
+        die(f"invalid {stage} engine spec: {spec} (expected engine[:model[:effort]])")
+    engine = parts[0]
+    if engine not in ENGINES:
+        die(f"unknown {stage} engine: {engine} (valid: {', '.join(ENGINES)})")
+    model = parts[1] if len(parts) >= 2 and parts[1] else None
+    effort = parts[2] if len(parts) == 3 and parts[2] else None
+    if effort and effort not in EFFORT_BY_ENGINE[engine]:
+        die(f"invalid effort for {engine}: {effort} (valid: {', '.join(sorted(EFFORT_BY_ENGINE[engine]))})")
+    return {"engine": engine, "model": model, "effort": effort}
+
+
+def engine_label(spec: dict[str, str | None]) -> str:
+    parts = [spec["engine"] or ""]
+    if spec.get("model"):
+        parts.append(f"model={spec['model']}")
+    if spec.get("effort"):
+        parts.append(f"effort={spec['effort']}")
+    return " ".join(parts)
+
+
+# --- vcs ---------------------------------------------------------------------
+
+
+class Vcs:
+    def __init__(self, root: Path) -> None:
+        self.root = root
+        self.kind = "jj" if (root / ".jj").exists() else "git"
+
+    @staticmethod
+    def find_root(start: Path) -> Path:
+        if shutil.which("jj"):
+            result = subprocess.run(["jj", "workspace", "root"], cwd=start, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            if result.returncode == 0:
+                return Path(result.stdout.strip())
+        result = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=start, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result.returncode == 0:
+            return Path(result.stdout.strip())
+        die(f"not a jj or git repository: {start}")
+        raise AssertionError
+
+    def store(self, checkout: Path) -> Path | None:
+        """Shared repository store behind a checkout: the jj repo dir or git common dir."""
+        if self.kind == "jj":
+            pointer = checkout / ".jj" / "repo"
+            if pointer.is_file():
+                # Secondary workspaces store the main store path relative to their .jj dir.
+                return (pointer.parent / pointer.read_text().strip()).resolve()
+            return pointer.resolve() if pointer.is_dir() else None
+        common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=checkout, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return Path(common.stdout.strip()).resolve() if common.returncode == 0 else None
+
+    def owns(self, workspace: Path) -> bool:
+        """True when workspace is a checkout of this repository (jj workspace or git worktree)."""
+        mine = self.store(self.root)
+        return mine is not None and self.store(workspace) == mine
+
+    def main_root(self) -> Path:
+        """Primary checkout, even when started from a secondary workspace or worktree."""
+        store = self.store(self.root)
+        if store is None:
+            die(f"cannot locate the repository store for {self.root}")
+        return store.parent.parent if self.kind == "jj" else store.parent  # <main>/.jj/repo or <main>/.git
+
+    def default_base(self) -> str:
+        if self.kind == "jj":
+            return "trunk()"
+        head = subprocess.run(
+            ["git", "symbolic-ref", "refs/remotes/origin/HEAD"], cwd=self.root, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        if head.returncode == 0 and head.stdout.strip():
+            return head.stdout.strip().replace("refs/remotes/", "", 1)
+        for candidate in ("origin/main", "origin/master", "main", "master"):
+            if subprocess.run(["git", "rev-parse", "--verify", "-q", candidate], cwd=self.root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0:
+                return candidate
+        die("could not detect a git base branch; pass --base")
+        raise AssertionError
+
+    def create_workspace(self, path: Path, name: str, base: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if self.kind == "jj":
+            run(["jj", "workspace", "add", str(path), "--name", name, "-r", base], self.root)
+        else:
+            run(["git", "worktree", "add", "-b", name, str(path), base], self.root)
+
+    def is_dirty(self, workspace: Path) -> bool:
+        if self.kind == "jj":
+            return run(["jj", "--no-pager", "log", "-r", "@", "--no-graph", "-T", "empty"], workspace).stdout.strip() != "true"
+        return bool(run(["git", "status", "--porcelain"], workspace).stdout.strip())
+
+    def status(self, workspace: Path) -> list[str]:
+        if self.kind == "jj":
+            out = run(["jj", "--no-pager", "diff", "--summary", "-r", "@"], workspace).stdout
+        else:
+            out = run(["git", "status", "--porcelain"], workspace).stdout
+        return [line for line in out.splitlines() if line.strip()]
+
+    def review_head(self) -> str:
+        return "@-" if self.kind == "jj" else "HEAD"
+
+    def commits_since(self, workspace: Path, base: str) -> list[str]:
+        if self.kind == "jj":
+            out = run(
+                ["jj", "--no-pager", "log", "-r", f"({base})..@", "--no-graph", "-T", 'if(!empty, change_id.short() ++ " " ++ description.first_line() ++ "\\n")'],
+                workspace,
+            ).stdout
+        else:
+            out = run(["git", "log", "--format=%h %s", f"{base}..HEAD"], workspace).stdout
+        return [line for line in out.splitlines() if line.strip()]
+
+    def diff_stat(self, workspace: Path, base: str) -> str:
+        if self.kind == "jj":
+            return run(["jj", "--no-pager", "diff", "--stat", "--from", base, "--to", "@"], workspace).stdout
+        return run(["git", "diff", "--stat", f"{base}...HEAD"], workspace).stdout
+
+
+# --- engines -----------------------------------------------------------------
+
+
+def run_with_heartbeat(cmd: list[str], cwd: Path, *, stdin_path: Path | None, log_path: Path, label: str, stdout_path: Path | None = None) -> int:
+    """Run cmd with stderr (and stdout unless stdout_path) in log_path; heartbeat on stderr."""
+    started = time.monotonic()
+    with log_path.open("w") as log, (stdin_path.open("r") if stdin_path else open(os.devnull)) as stdin, (
+        stdout_path.open("w") if stdout_path else open(os.devnull)
+    ) as out:
+        log.write("$ " + " ".join(cmd) + "\n\n")
+        log.flush()
+        proc = subprocess.Popen(cmd, cwd=cwd, stdin=stdin, stdout=out if stdout_path else log, stderr=log, text=True)
+        next_beat = HEARTBEAT_SECONDS
+        while proc.poll() is None:
+            time.sleep(2)
+            elapsed = int(time.monotonic() - started)
+            if elapsed >= next_beat:
+                print(f"{label} still running: elapsed={elapsed}s pid={proc.pid}", file=sys.stderr)
+                next_beat += HEARTBEAT_SECONDS
+    return proc.returncode
+
+
+def parse_engine_result(engine: str, raw: str) -> dict[str, Any]:
+    text = raw.strip()
+    if not text:
+        die(f"{engine} returned no output")
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as exc:
+        die(f"{engine} returned non-JSON output: {exc}\n{text[:2000]}")
+    if isinstance(parsed, list):
+        parsed = parsed[-1] if parsed else {}
+    if not isinstance(parsed, dict):
+        die(f"{engine} returned unexpected JSON shape")
+    if isinstance(parsed.get("structured_output"), dict):
+        return parsed["structured_output"]
+    if isinstance(parsed.get("structuredOutput"), dict):
+        # grok: a max-turns/cancelled run still carries the last provisional object.
+        stop_reason = parsed.get("stopReason")
+        if stop_reason not in (None, "end_turn"):
+            die(f"{engine} stopped early ({stop_reason}); refusing partial structured output")
+        return parsed["structuredOutput"]
+    if parsed.get("is_error"):
+        die(f"{engine} reported an error:\n{json.dumps(parsed)[:2000]}")
+    # claude may wrap the object in `result` (dict or JSON text) instead of structured_output.
+    inner = parsed.get("result")
+    if isinstance(inner, str):
+        try:
+            inner = json.loads(inner.strip().strip("`").removeprefix("json").strip())
+        except json.JSONDecodeError:
+            inner = None
+    return inner if isinstance(inner, dict) else parsed
+
+
+def run_engine(
+    spec: dict[str, str | None],
+    workspace: Path,
+    vcs: Vcs,
+    prompt_path: Path,
+    schema: dict[str, Any],
+    *,
+    write: bool,
+    log_path: Path,
+    label: str,
+) -> dict[str, Any]:
+    engine = spec["engine"]
+    model = spec.get("model")
+    effort = spec.get("effort")
+    schema_path = Path(tempfile.NamedTemporaryFile("w", suffix=".json", delete=False).name)
+    schema_path.write_text(json.dumps(schema))
+    output_path = Path(tempfile.NamedTemporaryFile("w", suffix=".json", delete=False).name)
+    stdin_path: Path | None = prompt_path
+    # grok has no ephemeral mode; a preassigned id lets cleanup delete the session even on failure.
+    grok_session = str(uuid.uuid4()) if engine == "grok" else None
+    code: int | None = None
+    try:
+        if engine == "codex":
+            cmd = ["codex"]
+            if model:
+                cmd.extend(["--model", model])
+            if effort:
+                cmd.extend(["-c", f'model_reasoning_effort="{effort}"'])
+            cmd.extend(["exec", "--ephemeral"])
+            if write:
+                # House default for delegated implementation (see codex-first).
+                cmd.append("--dangerously-bypass-approvals-and-sandbox")
+            else:
+                cmd.extend(["-s", "read-only", "-c", 'approval_policy="never"'])
+            if vcs.kind == "jj" and not (workspace / ".git").exists():
+                cmd.append("--skip-git-repo-check")
+            cmd.extend(["-C", str(workspace), "--output-schema", str(schema_path), "--output-last-message", str(output_path), "-"])
+        elif engine == "claude":
+            # --strict-mcp-config with no --mcp-config: no user MCP servers reach a stage agent.
+            cmd = ["claude", "--print", "--no-session-persistence", "--strict-mcp-config", "--output-format", "json", "--json-schema", json.dumps(schema)]
+            if write:
+                cmd.append("--dangerously-skip-permissions")
+            else:
+                cmd.extend(["--permission-mode", "plan", "--tools", CLAUDE_READ_TOOLS])
+            if model:
+                cmd.extend(["--model", model])
+            if effort:
+                cmd.extend(["--effort", effort])
+        elif engine == "grok":
+            stdin_path = None
+            cmd = ["grok", "--session-id", str(grok_session), "--prompt-file", str(prompt_path), "--output-format", "json", "--json-schema", json.dumps(schema), "--cwd", str(workspace), "--no-subagents"]
+            if write:
+                cmd.extend(["--permission-mode", "bypassPermissions"])
+            else:
+                # grok's plan mode still allows writes headless; the allowlist plus MCP deny is the real gate.
+                cmd.extend(["--tools", GROK_READ_TOOLS, "--disallowed-tools", GROK_DENY_TOOLS])
+            if model:
+                cmd.extend(["--model", model])
+            if effort:
+                cmd.extend(["--effort", effort])
+        else:
+            die(f"unsupported engine: {engine}")
+            raise AssertionError
+        print(f"{label}: {engine_label(spec)} ({'write' if write else 'read-only'})")
+        # codex writes the structured result to -o; claude/grok print it on stdout.
+        code = run_with_heartbeat(cmd, workspace, stdin_path=stdin_path, log_path=log_path, label=label, stdout_path=None if engine == "codex" else output_path)
+        if code != 0:
+            die(f"{engine} failed ({code}); see {log_path}")
+        result = parse_engine_result(engine, output_path.read_text())
+        missing = [key for key in schema["required"] if key not in result]
+        if missing:
+            die(f"{engine} result is missing required fields: {', '.join(missing)}; see {log_path}")
+        return result
+    finally:
+        schema_path.unlink(missing_ok=True)
+        output_path.unlink(missing_ok=True)
+        if grok_session:
+            delete_grok_session(grok_session, workspace, strict=code == 0)
+
+
+def delete_grok_session(session_id: str, cwd: Path, *, strict: bool) -> None:
+    """Drop the headless session so prompts and transcripts do not persist under ~/.grok."""
+    deleted = subprocess.run(["grok", "sessions", "delete", session_id], cwd=cwd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if deleted.returncode == 0:
+        return
+    message = f"grok: failed to delete session {session_id}: {deleted.stderr.strip() or deleted.stdout.strip()}"
+    if strict:
+        die(message)
+    print(message, file=sys.stderr)
+
+
+# --- run state ---------------------------------------------------------------
+
+
+class Run:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.state_path = path / "state.json"
+        if not self.state_path.exists():
+            die(f"not a pipeline run: {path}")
+        self.state = read_json(self.state_path)
+        self.workspace = Path(self.state["workspace"])
+        self.vcs = Vcs(Path(self.state["repo"]))
+
+    def save(self) -> None:
+        self.state["updated_at"] = now()
+        write_json(self.state_path, self.state)
+
+    def record(self, event: str, **fields: Any) -> None:
+        self.state.setdefault("history", []).append({"at": now(), "event": event, **fields})
+        self.save()
+
+    def prompt_file(self, name: str, body: str) -> Path:
+        path = self.path / f"{name}.prompt.md"
+        path.write_text(body)
+        return path
+
+    def task(self) -> str:
+        return (self.path / "task.md").read_text()
+
+    def plan_markdown(self) -> str:
+        path = self.path / "plan.md"
+        if not path.exists():
+            die("no plan yet; run `pipeline plan` first", NEEDS_MAIN_AGENT)
+        return path.read_text()
+
+    def halt(self, reason: str, **fields: Any) -> None:
+        self.state["status"] = "needs_main_agent"
+        self.state["halt_reason"] = reason
+        self.record("halt", reason=reason, **fields)
+        print(f"HALT: {reason}")
+        for key, value in fields.items():
+            if isinstance(value, list):
+                for item in value:
+                    print(f"  - {item}")
+            else:
+                print(f"  {key}: {value}")
+        raise SystemExit(NEEDS_MAIN_AGENT)
+
+    def complete(self, stage: str, status: str) -> None:
+        self.state["stage"] = stage
+        self.state["completed"] = stage
+        self.state["status"] = status
+        self.state.pop("halt_reason", None)
+        self.save()
+
+    def ensure_clean(self, stage: str) -> None:
+        # Stage agents must commit; leftovers may be junk (caches) or real work, so you decide.
+        if self.vcs.is_dirty(self.workspace):
+            self.halt(f"workspace dirty after {stage}; commit or clean it, then rerun", status=self.vcs.status(self.workspace))
+
+
+# --- stages ------------------------------------------------------------------
+
+
+def stage_plan(r: Run) -> int:
+    prompt = render(
+        (PROMPT_DIR / "plan.md").read_text(),
+        {"TASK": r.task(), "WORKSPACE": str(r.workspace), "VCS": r.vcs.kind, "BASE": r.state["base"]},
+    )
+    result = run_engine(
+        r.state["engines"]["plan"], r.workspace, r.vcs, r.prompt_file("plan", prompt), PLAN_SCHEMA,
+        write=False, log_path=r.path / "logs" / "plan.log", label="plan",
+    )
+    write_json(r.path / "plan.json", result)
+    (r.path / "plan.md").write_text(result["plan_markdown"].rstrip() + "\n")
+    r.ensure_clean("plan")
+    # The plan artifacts exist even when questions remain, so a later `run` continues
+    # from the (possibly owner-edited) plan.md; rerun `pipeline plan` to re-plan.
+    r.complete("plan", "planned")
+    r.record("plan", units=len(result["units"]), open_questions=len(result["open_questions"]))
+    print(f"plan: {result['summary']}")
+    print(f"plan.md: {r.path / 'plan.md'}")
+    if result["open_questions"]:
+        r.halt("plan has open questions for the owner; answer them in task.md or plan.md, then `run` (or `plan` to re-plan)", questions=result["open_questions"])
+    return 0
+
+
+def implement_common(r: Run, template: str, values: dict[str, str], schema: dict[str, Any], name: str) -> dict[str, Any]:
+    # Leftovers from a crashed attempt must be inspected by you, not handed to a fresh bypass agent.
+    r.ensure_clean(f"{name} (before start)")
+    # Baseline is taken once per stage name so a retry after a halt still credits that attempt's commits.
+    baselines = r.state.setdefault("baselines", {})
+    if name not in baselines:
+        baselines[name] = r.vcs.commits_since(r.workspace, r.state["base"])
+        r.save()
+    before = set(baselines[name])
+    prompt = render((PROMPT_DIR / template).read_text(), values)
+    result = run_engine(
+        r.state["engines"]["implement"], r.workspace, r.vcs, r.prompt_file(name, prompt), schema,
+        write=True, log_path=r.path / "logs" / f"{name}.log", label=name,
+    )
+    write_json(r.path / f"{name}.json", result)
+    r.ensure_clean(name)
+    after = r.vcs.commits_since(r.workspace, r.state["base"])
+    result["commits_in_workspace"] = after
+    result["new_commits"] = [c for c in after if c not in before]
+    write_json(r.path / f"{name}.json", result)
+    print(f"{name}: {result['status']}: {result['summary']}")
+    for line in result["new_commits"]:
+        print(f"  {line}")
+    return result
+
+
+def check_impl_result(r: Run, result: dict[str, Any], name: str, *, expect_commit: bool) -> None:
+    status = result["status"]
+    if status != "done":
+        r.halt(f"{name} reported {status}: {result['summary']}", questions=result["questions"], deviations=result["deviations"])
+    failed = [t["command"] for t in result["tests_run"] if not t["passed"]]
+    if failed:
+        r.halt(f"{name} reports failing tests", failed=failed)
+    if expect_commit and not result["new_commits"]:
+        r.halt(f"{name} reported done but produced no new commit")
+
+
+def stage_implement(r: Run) -> int:
+    plan = r.plan_markdown()
+    result = implement_common(
+        r, "implement.md",
+        {"TASK": r.task(), "PLAN": plan, "WORKSPACE": str(r.workspace), "VCS": r.vcs.kind, "BASE": r.state["base"]},
+        IMPL_SCHEMA, "implement",
+    )
+    r.record("implement", status=result["status"], commits=result["new_commits"])
+    check_impl_result(r, result, "implement", expect_commit=True)
+    r.complete("implement", "implemented")
+    return 0
+
+
+def finding_key(finding: dict[str, Any]) -> tuple[str, str]:
+    location = finding.get("code_location") or {}
+    return (str(location.get("file_path") or finding.get("file_path") or ""), " ".join(str(finding.get("title", "")).lower().split()))
+
+
+def run_autoreview(r: Run, round_no: int) -> tuple[int, dict[str, Any] | None]:
+    json_out = r.path / f"review-{round_no}.json"
+    log_path = r.path / "logs" / f"review-{round_no}.log"
+    cmd = [
+        r.state["autoreview"], "--mode", "branch", "--base", r.state["base"], "--head", r.vcs.review_head(), "--no-fetch",
+        "--reviewers", r.state["engines"]["review"], "--json-output", str(json_out),
+    ]
+    rejections = r.state.get("rejections", [])
+    context = [f"Task under review:\n{r.task().strip()}"]
+    if rejections:
+        context.append(
+            "Findings previously rejected by the implementer with reasons; do not re-raise them unless the reason is wrong:\n"
+            + "\n".join(f"- {x['file_path']}: {x['title']} -> {x['reason']}" for x in rejections)
+        )
+    prompt_path = r.prompt_file(f"review-{round_no}", "\n\n".join(context))
+    cmd.extend(["--prompt-file", str(prompt_path)])
+    print(f"review round {round_no}: {r.state['engines']['review']}")
+    code = run_with_heartbeat(cmd, r.workspace, stdin_path=None, log_path=log_path, label=f"review-{round_no}")
+    report = read_json(json_out) if json_out.exists() else None
+    return code, report
+
+
+def stage_review(r: Run) -> int:
+    if r.state.get("completed") not in ("implement", "review"):
+        die("implementation has not completed; run `pipeline implement` first", NEEDS_MAIN_AGENT)
+    max_rounds = int(r.state["max_rounds"])
+    survival: dict[tuple[str, str], int] = {tuple(k.split("\x00", 1)): v for k, v in r.state.get("survival", {}).items()}  # type: ignore[misc]
+    while True:
+        # Uncommitted edits (a manual fix after a halt, say) would be excluded from the bundle.
+        r.ensure_clean("review")
+        round_no = int(r.state.get("review_round", 0)) + 1
+        code, report = run_autoreview(r, round_no)
+        if report is None:
+            die(f"review round {round_no} produced no report (exit {code}); see logs/review-{round_no}.log")
+        # Count the round only once a report exists, so a crashed reviewer does not burn a round.
+        r.state["review_round"] = round_no
+        findings = list(report["findings"])
+        r.record("review", round=round_no, findings=len(findings), exit=code)
+        if code == 0 and not findings:
+            r.complete("review", "reviewed")
+            print(f"review: clean after {round_no} round(s)")
+            return 0
+        if not findings:
+            # "patch is incorrect" with nothing actionable: nothing for a fixer to do.
+            r.halt("review judged the patch incorrect without findings", explanation=(report or {}).get("overall_explanation", ""))
+        keys = {finding_key(f) for f in findings}
+        # Computed now, persisted only after the fix round completes (a crashed fixer burns nothing).
+        survival = {k: v + 1 for k, v in survival.items() if k in keys}
+        for key in keys:
+            survival.setdefault(key, 0)
+        stuck = [f"{k[0]}: {k[1]}" for k, v in survival.items() if v >= SURVIVAL_LIMIT]
+        if stuck:
+            r.halt(
+                f"findings survived {SURVIVAL_LIMIT} fix rounds; fix them yourself or record `pipeline reject`, then rerun review",
+                stuck=stuck,
+            )
+        # The cap bounds fix rounds, not reviews, so a rerun after your own fixes can still confirm clean.
+        fix_rounds = int(r.state.get("fix_rounds", 0))
+        if fix_rounds >= max_rounds:
+            r.halt(f"fix round cap ({max_rounds}) reached with open findings", open=[f"{k[0]}: {k[1]}" for k in keys])
+        print(f"review round {round_no}: {len(findings)} finding(s); running fix round {fix_rounds + 1}")
+        result = implement_common(
+            r, "fix.md",
+            {
+                "TASK": r.task(), "PLAN": r.plan_markdown(), "WORKSPACE": str(r.workspace), "VCS": r.vcs.kind, "BASE": r.state["base"],
+                "FINDINGS": json.dumps(findings, indent=2),
+            },
+            FIX_SCHEMA, f"fix-{round_no}",
+        )
+        fixed = sum(1 for f in result["findings"] if f["action"] == "fixed")
+        r.record("fix", round=round_no, fixed=fixed, rejected=len(result["findings"]) - fixed)
+        check_impl_result(r, result, f"fix-{round_no}", expect_commit=fixed > 0)
+        r.state["fix_rounds"] = fix_rounds + 1
+        # Only a completed fix stage may suppress findings for later reviewers.
+        for item in result["findings"]:
+            if item["action"] == "rejected":
+                r.state.setdefault("rejections", []).append({"title": item["title"], "file_path": item["file_path"], "reason": item["reason"]})
+        # Rejected findings are excluded from survival tracking; the reviewer sees the reasons next round.
+        rejected_keys = {(f["file_path"], " ".join(f["title"].lower().split())) for f in result["findings"] if f["action"] == "rejected"}
+        survival = {k: v for k, v in survival.items() if k not in rejected_keys}
+        r.state["survival"] = {"\x00".join(k): v for k, v in survival.items()}
+        r.save()
+
+
+STAGE_FUNCS = {"plan": stage_plan, "implement": stage_implement, "review": stage_review}
+STAGE_DONE_STATUS = {"plan": "planned", "implement": "implemented", "review": "reviewed"}
+
+
+def cmd_reject(r: Run, file_path: str, title: str, reason: str) -> int:
+    """Record the main agent's rejection of a review finding; reviewers see the reason next round."""
+    r.state.setdefault("rejections", []).append({"title": title, "file_path": file_path, "reason": reason})
+    key = "\x00".join((file_path, " ".join(title.lower().split())))
+    r.state.get("survival", {}).pop(key, None)
+    r.record("reject", file_path=file_path, title=title)
+    print(f"rejected: {file_path}: {title}")
+    return 0
+
+
+def cmd_run(r: Run, until: str) -> int:
+    # Resume from the last completed stage; a halt keeps that pointer and retries the halted stage.
+    done = STAGES.index(r.state["completed"]) + 1 if r.state.get("completed") in STAGES else 0
+    last = STAGES.index(until) + 1
+    if last <= done:
+        print(f"nothing to do: {until} already completed")
+        return 0
+    for index, stage in enumerate(STAGES[:last], start=1):
+        if index <= done:
+            continue
+        code = STAGE_FUNCS[stage](r)
+        if code != 0:
+            return code
+    return 0
+
+
+# --- summary -----------------------------------------------------------------
+
+
+def cmd_summary(r: Run) -> int:
+    s = r.state
+    lines = [f"# Pipeline summary: {s['slug']}", "", f"- repo: {s['repo']}", f"- workspace: {s['workspace']}", f"- base: {s['base']}", f"- status: {s.get('status')}"]
+    if s.get("halt_reason"):
+        lines.append(f"- halt: {s['halt_reason']}")
+    lines += ["", "## Task", "", r.task().strip(), ""]
+    plan_json = r.path / "plan.json"
+    if plan_json.exists():
+        plan = read_json(plan_json)
+        lines += ["## Plan", "", plan["summary"], ""]
+        if plan["scope_boundaries"]:
+            lines += ["Scope boundaries:", *[f"- {x}" for x in plan["scope_boundaries"]], ""]
+        if plan["risks"]:
+            lines += ["Risks:", *[f"- {x}" for x in plan["risks"]], ""]
+    impl_json = r.path / "implement.json"
+    if impl_json.exists():
+        impl = read_json(impl_json)
+        lines += ["## Implementation", "", impl["summary"], ""]
+        if impl["deviations"]:
+            lines += ["Deviations from plan:", *[f"- {x}" for x in impl["deviations"]], ""]
+        if impl["tests_run"]:
+            lines += ["Tests:", *[f"- {'PASS' if t['passed'] else 'FAIL'} `{t['command']}`" for t in impl["tests_run"]], ""]
+    rounds = int(s.get("review_round", 0))
+    if rounds:
+        lines += ["## Review", "", f"{rounds} round(s) with {s['engines']['review']}", ""]
+        for n in range(1, rounds + 1):
+            rep = r.path / f"review-{n}.json"
+            if rep.exists():
+                report = read_json(rep)
+                lines.append(f"- round {n}: {len(report['findings'])} finding(s), {report['overall_correctness']}")
+                for f in report["findings"]:
+                    loc = f.get("code_location", {})
+                    lines.append(f"  - [{f.get('priority', '?')}] {loc.get('file_path')}:{loc.get('line')} {f['title']}")
+            fix = r.path / f"fix-{n}.json"
+            if fix.exists():
+                fx = read_json(fix)
+                for f in fx["findings"]:
+                    lines.append(f"  - {f['action']}: {f['title']} ({f['reason']})")
+        lines.append("")
+    commits = r.vcs.commits_since(r.workspace, s["base"])
+    lines += ["## Commits", "", *[f"- {c}" for c in commits], "", "## Diff", "", "```", r.vcs.diff_stat(r.workspace, s["base"]).rstrip(), "```", ""]
+    if s.get("rejections"):
+        lines += ["## Rejected review findings", "", *[f"- {x['file_path']}: {x['title']} -> {x['reason']}" for x in s["rejections"]], ""]
+    text = "\n".join(lines)
+    (r.path / "summary.md").write_text(text)
+    print(text)
+    return 0
+
+
+def cmd_status(r: Run) -> int:
+    s = r.state
+    print(f"run: {r.path}")
+    print(f"status: {s.get('status')}  completed: {s.get('completed', '-')}  reviews: {s.get('review_round', 0)}  fix_rounds: {s.get('fix_rounds', 0)}/{s['max_rounds']}")
+    print(f"workspace: {s['workspace']} ({r.vcs.kind}, base {s['base']})")
+    print("engines: " + ", ".join(f"{k}={engine_label(v) if isinstance(v, dict) else v}" for k, v in s["engines"].items()))
+    if s.get("halt_reason"):
+        print(f"halt: {s['halt_reason']}")
+    for event in s.get("history", [])[-8:]:
+        print(f"  {event['at']} {event['event']} " + " ".join(f"{k}={v}" for k, v in event.items() if k not in {"at", "event"}))
+    return 0
+
+
+# --- new ---------------------------------------------------------------------
+
+
+def slugify(text: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+    return slug[:40] or "task"
+
+
+def cmd_new(args: argparse.Namespace) -> int:
+    task_text = Path(args.task_file).read_text().strip()
+    if not task_text:
+        die("task file is empty")
+    repo = Vcs.find_root(Path(args.repo).resolve() if args.repo else Path.cwd())
+    vcs = Vcs(repo)
+    base = args.base or vcs.default_base()
+    slug = args.slug or slugify(task_text.splitlines()[0])
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    run_dir = Path(args.runs_dir).expanduser() / f"{repo.name}-{slug}-{stamp}"
+    # Validate everything before mutating: a bad flag must not leave a stray workspace behind.
+    engines = {
+        "plan": parse_engine(args.plan, "plan"),
+        "implement": parse_engine(args.implement, "implement"),
+        "review": args.review,
+    }
+    autoreview = Path(args.autoreview_bin).expanduser()
+    if not autoreview.exists():
+        die(f"autoreview helper not found: {autoreview} (pass --autoreview-bin or AUTOREVIEW_BIN)")
+    # autoreview parses the reviewer spec before touching the diff, so a dry run validates it.
+    spec_check = subprocess.run([str(autoreview), "--mode", "local", "--no-fetch", "--dry-run", "--reviewers", args.review], cwd=repo, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if spec_check.returncode != 0 and "empty diff" not in spec_check.stdout:
+        die(f"invalid --review spec {args.review!r}:\n{spec_check.stderr.strip() or spec_check.stdout.strip()}")
+    if args.workspace:
+        workspace = Path(args.workspace).resolve()
+        if not workspace.exists():
+            die(f"workspace does not exist: {workspace}")
+        if not vcs.owns(workspace):
+            die(f"workspace is not a checkout of {repo}: {workspace}")
+    else:
+        # Sibling of the primary checkout (not nested under an existing worktree), unique per run.
+        main = vcs.main_root()
+        workspace = (main.parent / "worktrees" / f"{main.name}-{slug}-{stamp}").resolve()
+        if workspace.exists():
+            die(f"workspace path already exists: {workspace}")
+    if run_dir.exists():
+        die(f"run directory already exists: {run_dir}")
+    if not args.workspace:
+        vcs.create_workspace(workspace, workspace.name, base)
+    run_dir.mkdir(parents=True)
+    (run_dir / "logs").mkdir()
+    (run_dir / "task.md").write_text(task_text + "\n")
+    state = {
+        "slug": slug,
+        "repo": str(repo),
+        "workspace": str(workspace),
+        "base": base,
+        "vcs": vcs.kind,
+        "engines": engines,
+        "max_rounds": args.max_rounds,
+        "autoreview": str(autoreview),
+        "status": "new",
+        "completed": None,
+        "created_at": now(),
+        "history": [],
+    }
+    write_json(run_dir / "state.json", state)
+    print(f"run: {run_dir}")
+    print(f"workspace: {workspace} ({vcs.kind}, base {base})")
+    print("engines: " + ", ".join(f"{k}={engine_label(v) if isinstance(v, dict) else v}" for k, v in state["engines"].items()))
+    return 0
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+    new = sub.add_parser("new", help="Create a run: task file, isolated workspace, engine choices.")
+    new.add_argument("--task-file", required=True)
+    new.add_argument("--repo", help="Repository (default: cwd).")
+    new.add_argument("--workspace", help="Use an existing isolated checkout instead of creating one.")
+    new.add_argument("--base", help="Base revision (default: trunk() for jj, origin default branch for git).")
+    new.add_argument("--slug")
+    new.add_argument("--plan", default=os.environ.get("PIPELINE_PLAN", DEFAULT_PLAN_ENGINE), help="engine[:model[:effort]]")
+    new.add_argument("--implement", default=os.environ.get("PIPELINE_IMPLEMENT", DEFAULT_IMPLEMENT_ENGINE), help="engine[:model[:effort]]")
+    new.add_argument("--review", default=os.environ.get("PIPELINE_REVIEW", DEFAULT_REVIEWERS), help="autoreview --reviewers spec")
+    new.add_argument("--max-rounds", type=int, default=DEFAULT_MAX_ROUNDS, help="Cap on review-triggered fix rounds.")
+    new.add_argument("--runs-dir", default=os.environ.get("PIPELINE_RUNS_DIR", "~/.local/state/pipeline"))
+    new.add_argument("--autoreview-bin", default=os.environ.get("AUTOREVIEW_BIN", str(DEFAULT_AUTOREVIEW)))
+    for name, help_text in (
+        ("plan", "Investigate and write plan.md (read-only engine)."),
+        ("implement", "Implement plan.md in the workspace and commit."),
+        ("review", "Loop autoreview -> fix until clean, cap, or halt."),
+        ("status", "Show run state."),
+        ("summary", "Write summary.md from the artifacts (no LLM)."),
+    ):
+        p = sub.add_parser(name, help=help_text)
+        p.add_argument("run")
+    p = sub.add_parser("run", help="Advance through remaining stages; stops on halt.")
+    p.add_argument("run")
+    p.add_argument("--until", choices=STAGES, default="review")
+    p = sub.add_parser("reject", help="Record your rejection of a review finding (clears its stuck counter).")
+    p.add_argument("run")
+    p.add_argument("file_path")
+    p.add_argument("title")
+    p.add_argument("reason")
+    return parser.parse_args()
+
+
+def main() -> int:
+    # Stage lines and engine heartbeats (stderr) must interleave in order when logged to a file.
+    sys.stdout.reconfigure(line_buffering=True)
+    args = parse_args()
+    if args.command == "new":
+        return cmd_new(args)
+    r = Run(Path(args.run).expanduser().resolve())
+    if args.command == "run":
+        return cmd_run(r, args.until)
+    if args.command == "status":
+        return cmd_status(r)
+    if args.command == "summary":
+        return cmd_summary(r)
+    if args.command == "reject":
+        return cmd_reject(r, args.file_path, args.title, args.reason)
+    return STAGE_FUNCS[args.command](r)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
