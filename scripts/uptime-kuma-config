@@ -23,7 +23,11 @@ mkdir -p "$state_dir" "$data_dir"
 export TF_DATA_DIR="$data_dir"
 
 tofu -chdir="$config_dir" init -input=false
+tofu_args=()
+if [[ "$action" == plan ]]; then
+  tofu_args+=("-input=false")
+fi
 exec op run \
   --account my.1password.com \
   --env-file="$config_dir/1password.env" \
-  -- tofu -chdir="$config_dir" "$action" -input=false -state="$state_file" "$@"
+  -- tofu -chdir="$config_dir" "$action" "${tofu_args[@]}" -state="$state_file" "$@"
