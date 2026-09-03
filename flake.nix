@@ -80,21 +80,6 @@
         inputs."claude-code-nix".overlays.default
         inputs.jj-starship.overlays.default
         inputs.tmux-sessionizer.overlays.default
-        (
-          _: prev:
-          if prev.stdenv.isDarwin then
-            {
-              # mise 2026.8.6 Darwin checkPhase fails HTTP range-resume tests
-              # against the local mock server (416 Range Not Satisfiable).
-              mise = prev.mise.overrideAttrs (old: {
-                checkFlags = (old.checkFlags or [ ]) ++ [
-                  "--skip=http::tests::test_download_recovers_from_unsatisfied_range"
-                ];
-              });
-            }
-          else
-            { }
-        )
       ];
 
       mkSystem = import ./lib/mksystem.nix {
