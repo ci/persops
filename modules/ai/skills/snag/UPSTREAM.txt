@@ -1,0 +1,6 @@
+source = persops (repo-local, original)
+source_type = local
+profile = all
+installed_at = 2026-09-03
+requested_source = authored in persops modules/ai/skills/snag
+via = original skill; bash+jq CLI, per-machine JSONL store under XDG state dir

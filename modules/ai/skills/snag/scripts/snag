@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+# snag: log minor off-topic issues noticed mid-task; review later.
+# Storage: one JSONL file, rewritten atomically on status/seen updates.
+set -euo pipefail
+
+SNAG_HOME="${SNAG_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}/snag}"
+SNAG_FILE="$SNAG_HOME/snags.jsonl"
+DEDUP_DAYS=30
+KINDS="bug tooling skill docs process env"
+
+usage() {
+	cat <<'USAGE'
+Usage:
+  snag add [-k KIND] [-s SKILL] [-e EVIDENCE] [-f FIX] [-d DETAIL|-] TITLE
+  snag ls [--all|--status STATUS] [--json]
+  snag show ID
+  snag done|wontfix|reopen ID
+  snag path
+
+KIND: bug tooling skill docs process env (default: bug)
+-d -  reads DETAIL from stdin.
+Env: SNAG_HARNESS (override detection), SNAG_CONTEXT (free-form, e.g. run=abc,stage=review).
+USAGE
+}
+
+die() {
+	printf 'snag: %s\n' "$*" >&2
+	exit 1
+}
+
+need_file() {
+	mkdir -p "$SNAG_HOME"
+	touch "$SNAG_FILE"
+}
+
+detect_harness() {
+	if [[ -n "${SNAG_HARNESS:-}" ]]; then
+		printf '%s' "$SNAG_HARNESS"
+	elif [[ -n "${CLAUDECODE:-}" ]]; then
+		printf 'claude'
+	elif compgen -v | grep -q '^CODEX_'; then
+		printf 'codex'
+	elif compgen -v | grep -q '^AMP_'; then
+		printf 'amp'
+	elif compgen -v | grep -q '^PI_'; then
+		printf 'pi'
+	else
+		printf 'unknown'
+	fi
+}
+
+detect_repo() {
+	local url
+	url=$(git remote get-url origin 2>/dev/null || jj --ignore-working-copy git remote list 2>/dev/null | awk '$1=="origin"{print $2}' || true)
+	if [[ -n "$url" ]]; then
+		# git@host:group/name.git or https://host/group/name.git -> group/name
+		url=${url%.git}
+		url=${url#*://}
+		url=${url#*@}
+		url=${url#*[:/]}
+		printf '%s' "$url"
+		return
+	fi
+	local top
+	top=$(git rev-parse --show-toplevel 2>/dev/null || jj --ignore-working-copy root 2>/dev/null || pwd)
+	basename "$top"
+}
+
+# Short IDs; caller holds the lock, so retry until the ID is unused.
+new_id() {
+	local id
+	while :; do
+		id=$(printf '%s-%04x' "$(date -u +%Y%m%d)" $(((RANDOM << 4 ^ RANDOM) & 0xffff)))
+		jq -e --arg id "$id" 'select(.id==$id)' "$SNAG_FILE" >/dev/null 2>&1 || break
+	done
+	printf '%s' "$id"
+}
+
+# Sessions on one machine share the store; serialize every mutating command.
+# mkdir lock (no flock on macOS); a lock older than LOCK_STALE_SECS is stolen.
+LOCK_STALE_SECS=60
+lock() {
+	local dir="$SNAG_HOME/.lock" i=0 mtime
+	until mkdir "$dir" 2>/dev/null; do
+		# Lock may vanish between mkdir failing and stat; treat that as "retry now".
+		mtime=$(stat -f %m "$dir" 2>/dev/null || stat -c %Y "$dir" 2>/dev/null || echo 0)
+		if [[ $mtime -gt 0 && $(($(date +%s) - mtime)) -gt $LOCK_STALE_SECS ]]; then
+			rm -rf "$dir"
+			continue
+		fi
+		((i++ < 100)) || die "lock timeout: $dir"
+		sleep 0.1
+	done
+	printf '%s' "$$" >"$dir/pid"
+	# Only the owner releases; a stolen lock must not be removed by its old holder.
+	trap '[[ "$(cat "$SNAG_HOME/.lock/pid" 2>/dev/null)" == "$$" ]] && rm -rf "$SNAG_HOME/.lock"' EXIT
+}
+
+# Rewrite file through jq filter atomically. $1 = filter, rest = jq args.
+rewrite() {
+	local filter="$1"
+	shift
+	local tmp
+	tmp=$(mktemp "$SNAG_HOME/.snags.XXXXXX")
+	jq -c "$@" "$filter" "$SNAG_FILE" >"$tmp"
+	mv "$tmp" "$SNAG_FILE"
+}
+
+cmd_add() {
+	local kind=bug skill="" evidence="" fix="" detail="" title=""
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		-k)
+			kind="$2"
+			shift 2
+			;;
+		-s)
+			skill="$2"
+			shift 2
+			;;
+		-e)
+			evidence="$2"
+			shift 2
+			;;
+		-f)
+			fix="$2"
+			shift 2
+			;;
+		-d)
+			detail="$2"
+			shift 2
+			;;
+		-h | --help)
+			usage
+			exit 0
+			;;
+		-*) die "unknown option $1" ;;
+		*)
+			title="${title:+$title }$1"
+			shift
+			;;
+		esac
+	done
+	[[ -n "$title" ]] || die "TITLE required"
+	[[ " $KINDS " == *" $kind "* ]] || die "KIND must be one of: $KINDS"
+	[[ "$detail" == "-" ]] && detail=$(cat)
+	need_file
+	lock
+
+	local ts norm existing
+	ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+	norm=$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]' | tr -s '[:space:]' ' ' | sed 's/^ //;s/ $//')
+	# Same open title within DEDUP_DAYS bumps seen instead of adding a row.
+	existing=$(jq -r --arg n "$norm" --arg ts "$ts" --argjson days "$DEDUP_DAYS" \
+		'select(.status=="open" and .norm==$n and ((($ts|fromdate) - (.ts_last|fromdate)) < $days*86400)) | .id' \
+		"$SNAG_FILE" | head -1)
+	if [[ -n "$existing" ]]; then
+		rewrite 'if .id==$id then .seen+=1 | .ts_last=$ts else . end' --arg id "$existing" --arg ts "$ts"
+		printf 'snag %s seen=%s (dup)\n' "$existing" "$(jq -r --arg id "$existing" 'select(.id==$id).seen' "$SNAG_FILE")"
+		return
+	fi
+
+	local id tmp
+	id=$(new_id)
+	tmp=$(mktemp "$SNAG_HOME/.add.XXXXXX")
+	jq -nc \
+		--arg id "$id" --arg ts "$ts" --arg harness "$(detect_harness)" \
+		--arg repo "$(detect_repo)" --arg cwd "$PWD" --arg context "${SNAG_CONTEXT:-}" \
+		--arg kind "$kind" --arg skill "$skill" --arg title "$title" --arg norm "$norm" \
+		--arg detail "$detail" --arg evidence "$evidence" --arg fix "$fix" \
+		'{id:$id, ts:$ts, ts_last:$ts, harness:$harness, repo:$repo, cwd:$cwd, context:$context,
+		  kind:$kind, skill:$skill, title:$title, norm:$norm, detail:$detail, evidence:$evidence,
+		  fix:$fix, status:"open", seen:1}' >"$tmp"
+	# Append via rename so readers never see a partial record.
+	cat "$SNAG_FILE" "$tmp" >"$tmp.all" && mv "$tmp.all" "$SNAG_FILE" && rm -f "$tmp"
+	printf 'snag %s\n' "$id"
+}
+
+cmd_ls() {
+	local status=open json=0
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--all)
+			status=""
+			shift
+			;;
+		--status)
+			status="$2"
+			shift 2
+			;;
+		--json)
+			json=1
+			shift
+			;;
+		*) die "unknown option $1" ;;
+		esac
+	done
+	need_file
+	local filter='select($s=="" or .status==$s)'
+	if [[ $json -eq 1 ]]; then
+		jq -c --arg s "$status" "$filter" "$SNAG_FILE"
+		return
+	fi
+	{
+		printf 'ID\tSEEN\tSTATUS\tKIND\tHARNESS\tREPO\tTITLE\n'
+		jq -r --arg s "$status" "$filter"' | [.id, .seen, .status, .kind, .harness, .repo, .title] | @tsv' "$SNAG_FILE"
+	} | column -t -s $'\t'
+}
+
+cmd_show() {
+	[[ $# -eq 1 ]] || die "ID required"
+	need_file
+	jq -e --arg id "$1" 'select(.id==$id)' "$SNAG_FILE" >/dev/null || die "no snag $1"
+	jq --arg id "$1" 'select(.id==$id) | del(.norm)' "$SNAG_FILE"
+}
+
+cmd_status() {
+	local new="$1" id="${2:-}"
+	[[ -n "$id" ]] || die "ID required"
+	need_file
+	lock
+	jq -e --arg id "$id" 'select(.id==$id)' "$SNAG_FILE" >/dev/null || die "no snag $id"
+	rewrite 'if .id==$id then .status=$st | .ts_last=$ts else . end' \
+		--arg id "$id" --arg st "$new" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+	printf 'snag %s -> %s\n' "$id" "$new"
+}
+
+[[ $# -gt 0 ]] || {
+	usage >&2
+	exit 1
+}
+cmd="$1"
+shift
+case "$cmd" in
+add) cmd_add "$@" ;;
+ls) cmd_ls "$@" ;;
+show) cmd_show "$@" ;;
+"done") cmd_status "done" "$@" ;;
+wontfix) cmd_status wontfix "$@" ;;
+reopen) cmd_status open "$@" ;;
+path) printf '%s\n' "$SNAG_FILE" ;;
+-h | --help) usage ;;
+*) die "unknown command $cmd" ;;
+esac
