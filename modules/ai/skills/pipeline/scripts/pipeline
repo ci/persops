@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import hashlib
 import json
 import os
 import re
@@ -24,7 +25,7 @@ from pathlib import Path
 from typing import Any
 
 NEEDS_MAIN_AGENT = 3
-STAGES = ("plan", "implement", "review")
+STAGES = ("plan", "implement", "review", "verify")
 ENGINES = ("codex", "claude", "grok")
 EFFORT_BY_ENGINE = {
     "codex": {"low", "medium", "high", "xhigh", "max"},
@@ -34,6 +35,7 @@ EFFORT_BY_ENGINE = {
 # `fable` is the claude CLI alias for the latest Fable (5.1 at the time of writing).
 DEFAULT_PLAN_ENGINE = "claude:fable:high"
 DEFAULT_IMPLEMENT_ENGINE = "codex:gpt-5.6-sol:high"
+DEFAULT_VERIFY_ENGINE = "codex:gpt-5.6-sol:high"
 # Inside an Amp orb the same panel runs through amp's model providers.
 DEFAULT_REVIEWERS = (
     "amp:openai/gpt-5.6-sol:xhigh,amp:xai/grok-4.6:xhigh"
@@ -107,6 +109,46 @@ IMPL_SCHEMA: dict[str, Any] = {
         },
         "deviations": {"type": "array", "items": {"type": "string"}, "description": "Where and why the implementation departs from the plan."},
         "questions": {"type": "array", "items": {"type": "string"}},
+        "notes": {"type": "string"},
+    },
+}
+
+VERIFY_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["status", "summary", "proof", "checks", "evidence", "notes"],
+    "properties": {
+        "status": {"type": "string", "enum": ["pass", "fail", "blocked"]},
+        "summary": {"type": "string"},
+        "proof": {
+            "type": "array",
+            "description": "One entry per numbered proof item from the plan.",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["index", "passed", "observation"],
+                "properties": {
+                    "index": {"type": "integer"},
+                    "passed": {"type": "boolean"},
+                    "observation": {"type": "string"},
+                },
+            },
+        },
+        "checks": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["name", "command", "passed", "observation"],
+                "properties": {
+                    "name": {"type": "string"},
+                    "command": {"type": "string"},
+                    "passed": {"type": "boolean"},
+                    "observation": {"type": "string"},
+                },
+            },
+        },
+        "evidence": {"type": "array", "items": {"type": "string"}, "description": "Files written under the evidence directory."},
         "notes": {"type": "string"},
     },
 }
@@ -217,6 +259,12 @@ class Vcs:
             return pointer.resolve() if pointer.is_dir() else None
         common = subprocess.run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], cwd=checkout, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return Path(common.stdout.strip()).resolve() if common.returncode == 0 else None
+
+    def tree_id(self, workspace: Path) -> str:
+        """Identity of the committed head (git tree; jj commit id of @-), independent of the working copy."""
+        if self.kind == "jj":
+            return run(["jj", "log", "-r", "@-", "--no-graph", "-T", "commit_id"], workspace).stdout.strip()
+        return run(["git", "rev-parse", "HEAD^{tree}"], workspace).stdout.strip()
 
     def owns(self, workspace: Path) -> bool:
         """True when workspace is a checkout of this repository (jj workspace or git worktree)."""
@@ -482,6 +530,19 @@ class Run:
         self.state.pop("halt_reason", None)
         self.save()
 
+    def tree_is_reviewed(self) -> bool:
+        """True when the committed tree is the one the last clean review saw (dirt is a halt, not a rewind)."""
+        return bool(self.state.get("reviewed_tree")) and self.vcs.tree_id(self.workspace) == self.state["reviewed_tree"]
+
+    def inputs_digest(self) -> str:
+        """Digest of what verify certifies besides the tree: task, plan prose, and the proof list."""
+        h = hashlib.sha256()
+        for name in ("task.md", "plan.md", "plan.json"):
+            f = self.path / name
+            h.update(f.read_bytes() if f.exists() else b"")
+            h.update(b"\0")
+        return h.hexdigest()
+
     def ensure_clean(self, stage: str) -> None:
         # Stage agents must commit; leftovers may be junk (caches) or real work, so you decide.
         if self.vcs.is_dirty(self.workspace):
@@ -489,6 +550,10 @@ class Run:
 
 
 # --- stages ------------------------------------------------------------------
+
+
+def proof_digest(items: list[Any]) -> str:
+    return hashlib.sha256(json.dumps([str(x) for x in items]).encode()).hexdigest()
 
 
 def stage_plan(r: Run) -> int:
@@ -502,6 +567,8 @@ def stage_plan(r: Run) -> int:
     )
     write_json(r.path / "plan.json", result)
     (r.path / "plan.md").write_text(result["plan_markdown"].rstrip() + "\n")
+    r.state["plan_md_sha256"] = hashlib.sha256((r.path / "plan.md").read_bytes()).hexdigest()
+    r.state["proof_sha256"] = proof_digest(result["proof"])
     r.ensure_clean("plan")
     # The plan artifacts exist even when questions remain, so a later `run` continues
     # from the (possibly owner-edited) plan.md; rerun `pipeline plan` to re-plan.
@@ -553,6 +620,10 @@ def check_impl_result(r: Run, result: dict[str, Any], name: str, *, expect_commi
 
 def stage_implement(r: Run) -> int:
     plan = r.plan_markdown()
+    if r.state.get("completed") in ("review", "verify"):
+        # A fresh round after review/verify must produce its own commit; only a halted attempt keeps its baseline.
+        r.state.get("baselines", {}).pop("implement", None)
+        r.save()
     result = implement_common(
         r, "implement.md",
         {"TASK": r.task(), "PLAN": plan, "WORKSPACE": str(r.workspace), "VCS": r.vcs.kind, "BASE": r.state["base"]},
@@ -592,8 +663,13 @@ def run_autoreview(r: Run, round_no: int) -> tuple[int, dict[str, Any] | None]:
 
 
 def stage_review(r: Run) -> int:
-    if r.state.get("completed") not in ("implement", "review"):
+    if r.state.get("completed") not in ("implement", "review", "verify"):
         die("implementation has not completed; run `pipeline implement` first", NEEDS_MAIN_AGENT)
+    r.ensure_clean("review (before start)")
+    if r.state.get("completed") != "implement":
+        # A re-review that halts must leave `run` something to retry (only once the workspace is known clean).
+        r.state["completed"] = "implement"
+        r.save()
     max_rounds = int(r.state["max_rounds"])
     survival: dict[tuple[str, str], int] = {tuple(k.split("\x00", 1)): v for k, v in r.state.get("survival", {}).items()}  # type: ignore[misc]
     while True:
@@ -608,6 +684,8 @@ def stage_review(r: Run) -> int:
         findings = list(report["findings"])
         r.record("review", round=round_no, findings=len(findings), exit=code)
         if code == 0 and not findings:
+            # Verify later refuses any tree other than this reviewed one.
+            r.state["reviewed_tree"] = r.vcs.tree_id(r.workspace)
             r.complete("review", "reviewed")
             print(f"review: clean after {round_no} round(s)")
             return 0
@@ -653,8 +731,104 @@ def stage_review(r: Run) -> int:
         r.save()
 
 
-STAGE_FUNCS = {"plan": stage_plan, "implement": stage_implement, "review": stage_review}
-STAGE_DONE_STATUS = {"plan": "planned", "implement": "implemented", "review": "reviewed"}
+def stage_verify(r: Run, *, accept_proof: bool = False) -> int:
+    if r.state.get("completed") not in ("review", "verify"):
+        die("review has not completed; run `pipeline review` first", NEEDS_MAIN_AGENT)
+    r.ensure_clean("verify (before start)")
+    if r.state.get("completed") == "verify":
+        # A rerun that halts must leave `run` something to retry.
+        r.state["completed"] = "review"
+        r.save()
+    tree_before = r.vcs.tree_id(r.workspace)
+    if tree_before != r.state.get("reviewed_tree"):
+        r.halt("workspace differs from the reviewed revision; run `pipeline review` again before `verify`")
+    evidence_dir = r.path / "evidence"
+    evidence_dir.mkdir(exist_ok=True)
+    plan = read_json(r.path / "plan.json") if (r.path / "plan.json").exists() else {}
+    # plan.json `proof` is the canonical requirement list; plan.md is prose for the agents.
+    proof_items = [str(x) for x in plan.get("proof", [])]
+    plan_md = r.path / "plan.md"
+    plan_md_sha = hashlib.sha256(plan_md.read_bytes()).hexdigest() if plan_md.exists() else ""
+    # Drift is measured against the last acknowledged plan/proof pair (planning, --accept-proof, or a verified run).
+    if accept_proof:
+        r.state["plan_md_sha256"] = plan_md_sha
+        r.state["proof_sha256"] = proof_digest(proof_items)
+        r.save()
+    plan_edited = bool(r.state.get("plan_md_sha256")) and plan_md_sha != r.state["plan_md_sha256"]
+    proof_edited = bool(r.state.get("proof_sha256")) and proof_digest(proof_items) != r.state["proof_sha256"]
+    if plan_edited and not proof_edited:
+        # The edited plan may promise different proof than the list the driver enforces.
+        r.halt("plan.md was edited after planning but plan.json `proof` was not; update that list, or rerun `verify --accept-proof` to confirm it still matches")
+    impl = read_json(r.path / "implement.json") if (r.path / "implement.json").exists() else {}
+    implementation = "\n".join(
+        [impl.get("summary", ""), *[f"- {'PASS' if t['passed'] else 'FAIL'} `{t['command']}`" for t in impl.get("tests_run", [])]]
+    ).strip() or "(no implementation report)"
+    prompt = render(
+        (PROMPT_DIR / "verify.md").read_text(),
+        {
+            "TASK": r.task(), "PLAN": r.plan_markdown(), "IMPLEMENTATION": implementation,
+            "PROOF": "\n".join(f"{i}. {item}" for i, item in enumerate(proof_items)) or "(the plan lists no proof items; run the repository gate)",
+            "WORKSPACE": str(r.workspace), "VCS": r.vcs.kind, "BASE": r.state["base"], "EVIDENCE_DIR": str(evidence_dir),
+        },
+    )
+    # Runs with write permissions because proof needs servers, simulators, and tools; edits still halt below.
+    # Runs created before the verify stage existed carry no verify engine.
+    engine = r.state["engines"].get("verify") or parse_engine(DEFAULT_VERIFY_ENGINE, "verify")
+    result = run_engine(
+        engine, r.workspace, r.vcs, r.prompt_file("verify", prompt), VERIFY_SCHEMA,
+        write=True, log_path=r.path / "logs" / "verify.log", label="verify",
+    )
+    result["tree"] = tree_before
+    result["proof_items"] = proof_items
+    write_json(r.path / "verify.json", result)
+    r.ensure_clean("verify")
+    # A verifier that "fixed" something and committed leaves a clean but unreviewed tree.
+    if r.vcs.tree_id(r.workspace) != tree_before:
+        r.halt("verify changed the committed tree; inspect the workspace, then run `pipeline review` again")
+    failed = [c for c in result["checks"] if not c["passed"]]
+    r.record("verify", status=result["status"], checks=len(result["checks"]), failed=len(failed), evidence=len(result["evidence"]))
+    print(f"verify: {result['status']}: {result['summary']}")
+    for item in result["proof"]:
+        label = proof_items[item["index"]] if 0 <= item["index"] < len(proof_items) else f"(unknown proof item {item['index']})"
+        print(f"  {'PASS' if item['passed'] else 'FAIL'} proof {item['index']}: {label}")
+    for check in result["checks"]:
+        print(f"  {'PASS' if check['passed'] else 'FAIL'} {check['name']}: {check['command']}")
+    for item in result["evidence"]:
+        print(f"  evidence: {evidence_dir / item}")
+    # Objective bar: every plan proof item reported exactly once and passed, plus at least one executed check.
+    indices = [item["index"] for item in result["proof"]]
+    bad = sorted({i for i in indices if indices.count(i) > 1 or not 0 <= i < len(proof_items)})
+    if bad:
+        r.halt("verify reported duplicate or unknown proof indices", indices=bad)
+    reported = {item["index"]: item for item in result["proof"]}
+    missing = [f"{i}. {item}" for i, item in enumerate(proof_items) if i not in reported]
+    failed_proof = [f"{i}. {proof_items[i]}: {item['observation']}" for i, item in sorted(reported.items()) if 0 <= i < len(proof_items) and not item["passed"]]
+    problems = [f"{c['name']}: {c['observation']}" for c in failed] + failed_proof
+    if result["status"] != "pass" or problems or missing or not result["checks"]:
+        reason = f"verify reported {result['status']}: {result['summary']}"
+        if result["status"] == "pass":
+            reason = "verify reported pass without complete proof" if (missing or not result["checks"]) else "verify reported pass with failed checks"
+        r.halt(reason, failed=problems or [result["notes"]], missing_proof=missing)
+    bad_evidence = []
+    for item in result["evidence"]:
+        target = (evidence_dir / item)
+        try:
+            inside = target.resolve().is_relative_to(evidence_dir.resolve())
+        except (OSError, RuntimeError):
+            inside = False
+        if Path(item).is_absolute() or not inside or not target.is_file():
+            bad_evidence.append(item)
+    if bad_evidence:
+        r.halt("verify listed evidence that is missing or outside the evidence directory", evidence=bad_evidence)
+    r.state["verified_inputs"] = r.inputs_digest()
+    r.state["plan_md_sha256"] = plan_md_sha
+    r.state["proof_sha256"] = proof_digest(proof_items)
+    r.complete("verify", "verified")
+    return 0
+
+
+STAGE_FUNCS = {"plan": stage_plan, "implement": stage_implement, "review": stage_review, "verify": stage_verify}
+STAGE_DONE_STATUS = {"plan": "planned", "implement": "implemented", "review": "reviewed", "verify": "verified"}
 
 
 def cmd_reject(r: Run, file_path: str, title: str, reason: str) -> int:
@@ -669,7 +843,18 @@ def cmd_reject(r: Run, file_path: str, title: str, reason: str) -> int:
 
 def cmd_run(r: Run, until: str) -> int:
     # Resume from the last completed stage; a halt keeps that pointer and retries the halted stage.
-    done = STAGES.index(r.state["completed"]) + 1 if r.state.get("completed") in STAGES else 0
+    completed = r.state.get("completed")
+    if completed in ("review", "verify") and r.vcs.is_dirty(r.workspace):
+        # Uncommitted edits are neither reviewed nor verifiable; never report them as done.
+        r.halt("workspace dirty after the last clean review; commit or clean it, then rerun", status=r.vcs.status(r.workspace))
+    if completed in ("review", "verify") and not r.tree_is_reviewed():
+        # Commits after the last clean review invalidate review and verification (dirt halts inside the stage).
+        print("committed tree changed since the last clean review; continuing from implement (review again)")
+        completed = "implement"
+    elif completed == "verify" and r.state.get("verified_inputs") != r.inputs_digest():
+        print("task or plan changed since verification; verifying again")
+        completed = "review"
+    done = STAGES.index(completed) + 1 if completed in STAGES else 0
     last = STAGES.index(until) + 1
     if last <= done:
         print(f"nothing to do: {until} already completed")
@@ -725,6 +910,26 @@ def cmd_summary(r: Run) -> int:
                 for f in fx["findings"]:
                     lines.append(f"  - {f['action']}: {f['title']} ({f['reason']})")
         lines.append("")
+    verify_json = r.path / "verify.json"
+    if verify_json.exists():
+        ver = read_json(verify_json)
+        proof_now = [str(x) for x in (read_json(plan_json).get("proof", []) if plan_json.exists() else [])]
+        proof_items = [str(x) for x in ver.get("proof_items", [])]
+        stale = []
+        if ver.get("tree") != r.vcs.tree_id(r.workspace) or r.vcs.is_dirty(r.workspace):
+            stale.append("workspace changed since")
+        if proof_items != proof_now:
+            stale.append("plan proof changed since")
+        elif s.get("verified_inputs") and s["verified_inputs"] != r.inputs_digest():
+            stale.append("task or plan changed since")
+        prefix = f"STALE ({'; '.join(stale)}; rerun verify): " if stale else ""
+        lines += ["## Verification", "", prefix + f"{ver['status']}: {ver['summary']}", ""]
+        if ver.get("proof"):
+            lines += ["Plan proof (as verified):", *[f"- {'PASS' if x['passed'] else 'FAIL'} {proof_items[x['index']] if 0 <= x['index'] < len(proof_items) else x['index']} - {x['observation']}" for x in ver["proof"]], ""]
+        if ver["checks"]:
+            lines += [*[f"- {'PASS' if c['passed'] else 'FAIL'} {c['name']}: `{c['command']}` - {c['observation']}" for c in ver["checks"]], ""]
+        if ver["evidence"]:
+            lines += ["Evidence:", *[f"- {r.path / 'evidence' / e}" for e in ver["evidence"]], ""]
     commits = r.vcs.commits_since(r.workspace, s["base"])
     lines += ["## Commits", "", *[f"- {c}" for c in commits], "", "## Diff", "", "```", r.vcs.diff_stat(r.workspace, s["base"]).rstrip(), "```", ""]
     if s.get("rejections"):
@@ -771,6 +976,7 @@ def cmd_new(args: argparse.Namespace) -> int:
         "plan": parse_engine(args.plan, "plan"),
         "implement": parse_engine(args.implement, "implement"),
         "review": args.review,
+        "verify": parse_engine(args.verify, "verify"),
     }
     autoreview = Path(args.autoreview_bin).expanduser()
     if not autoreview.exists():
@@ -831,6 +1037,7 @@ def parse_args() -> argparse.Namespace:
     new.add_argument("--plan", default=os.environ.get("PIPELINE_PLAN", DEFAULT_PLAN_ENGINE), help="engine[:model[:effort]]")
     new.add_argument("--implement", default=os.environ.get("PIPELINE_IMPLEMENT", DEFAULT_IMPLEMENT_ENGINE), help="engine[:model[:effort]]")
     new.add_argument("--review", default=os.environ.get("PIPELINE_REVIEW", DEFAULT_REVIEWERS), help="autoreview --reviewers spec")
+    new.add_argument("--verify", default=os.environ.get("PIPELINE_VERIFY", DEFAULT_VERIFY_ENGINE), help="engine[:model[:effort]]")
     new.add_argument("--max-rounds", type=int, default=DEFAULT_MAX_ROUNDS, help="Cap on review-triggered fix rounds.")
     new.add_argument("--runs-dir", default=os.environ.get("PIPELINE_RUNS_DIR", "~/.local/state/pipeline"))
     new.add_argument("--autoreview-bin", default=os.environ.get("AUTOREVIEW_BIN", str(DEFAULT_AUTOREVIEW)))
@@ -838,14 +1045,17 @@ def parse_args() -> argparse.Namespace:
         ("plan", "Investigate and write plan.md (read-only engine)."),
         ("implement", "Implement plan.md in the workspace and commit."),
         ("review", "Loop autoreview -> fix until clean, cap, or halt."),
+        ("verify", "Run the plan's proof and capture evidence (no edits)."),
         ("status", "Show run state."),
         ("summary", "Write summary.md from the artifacts (no LLM)."),
     ):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("run")
+        if name == "verify":
+            p.add_argument("--accept-proof", action="store_true", help="Confirm plan.json `proof` still matches an edited plan.md.")
     p = sub.add_parser("run", help="Advance through remaining stages; stops on halt.")
     p.add_argument("run")
-    p.add_argument("--until", choices=STAGES, default="review")
+    p.add_argument("--until", choices=STAGES, default="verify")
     p = sub.add_parser("reject", help="Record your rejection of a review finding (clears its stuck counter).")
     p.add_argument("run")
     p.add_argument("file_path")
@@ -869,6 +1079,8 @@ def main() -> int:
         return cmd_summary(r)
     if args.command == "reject":
         return cmd_reject(r, args.file_path, args.title, args.reason)
+    if args.command == "verify":
+        return stage_verify(r, accept_proof=args.accept_proof)
     return STAGE_FUNCS[args.command](r)
 
 

@@ -1,13 +1,14 @@
 ---
 name: pipeline
-description: "Run a task through plan, implement, and review stages on headless agent CLIs; the main agent drives and reads artifacts."
+description: "Run a task through plan, implement, review, and verify stages on headless agent CLIs; the main agent drives and reads artifacts."
 ---
 
 # Pipeline
 
-Deterministic driver for plan -> implement -> review. Each stage is one fresh
-headless engine process (codex, claude, or grok) with a JSON schema; the review
-stage wraps `$autoreview` panels and fix rounds. Control flow lives in the
+Deterministic driver for plan -> implement -> review -> verify. Each stage is
+one fresh headless engine process (codex, claude, or grok) with a JSON schema;
+the review stage wraps `$autoreview` panels and fix rounds; the verify stage
+runs the plan's proof and captures evidence. Control flow lives in the
 script. Judgment lives in the stage agents and in you, the main agent.
 
 Use when the user asks to run the pipeline, "pipeline this", or wants a task
@@ -55,33 +56,42 @@ of the primary checkout under `../worktrees/<repo>-<slug>-<stamp>`) unless
 "$P" plan <run>          # read-only engine writes plan.md + plan.json
 "$P" implement <run>     # write engine implements plan.md and commits
 "$P" review <run>        # autoreview panel -> fix -> re-review; --max-rounds caps fix rounds
-"$P" run <run> [--until plan|implement|review]   # remaining stages; stops on halt
+"$P" verify <run> [--accept-proof]   # runs the plan's proof + full gate, captures evidence; no edits
+"$P" run <run> [--until plan|implement|review|verify]   # remaining stages; stops on halt
 "$P" status <run>
 "$P" summary <run>       # summary.md from artifacts, no LLM
 "$P" reject <run> <file> <title> <reason>   # record your rejection of a finding
 ```
 
-Stages are ordered: `implement` needs a completed plan and `review` needs a
-completed implementation.
+Stages are ordered: `implement` needs a completed plan, `review` a completed
+implementation, and `verify` a completed review of the current tree (it runs after the last fix).
 
 `run` resumes from the last completed stage, so after resolving a halt just
 run it again; it retries the halted stage. A halted plan still counts as
 completed (its `plan.md` exists), so edit `plan.md`/`task.md` and `run`, or
-call `pipeline plan` to re-plan from scratch.
+call `pipeline plan` to re-plan from scratch. The verify stage takes its
+required proof from `plan.json` (`proof`, a list of strings), not from the
+prose in `plan.md`. After a `plan.md` edit, verify halts until you either
+change that list or confirm it with `verify --accept-proof`. Commits after the
+last clean review send `run` back to `review`; task or plan edits after a
+verified run send it back to `verify`; a summary rendered after such changes
+marks the old verification STALE. Evidence entries must be files inside the
+run's `evidence/` directory.
 
 Engine specs are `engine[:model[:effort]]`. Defaults: `--plan claude:fable:high`
 (`fable` is the claude CLI alias for the latest Fable), `--implement
 codex:gpt-5.6-sol:high`, `--review codex:gpt-5.6-sol:xhigh,grok:grok-4.6:xhigh`
-(any `autoreview --reviewers` spec). Inside an Amp orb (`AMP_ORB=1`) the review
+(any `autoreview --reviewers` spec), `--verify codex:gpt-5.6-sol:high`. Inside an Amp orb (`AMP_ORB=1`) the review
 default becomes `amp:openai/gpt-5.6-sol:xhigh,amp:xai/grok-4.6:xhigh`, the same
 panel through amp's model providers.
-Env defaults: `PIPELINE_PLAN`, `PIPELINE_IMPLEMENT`, `PIPELINE_REVIEW`,
+Env defaults: `PIPELINE_PLAN`, `PIPELINE_IMPLEMENT`, `PIPELINE_REVIEW`, `PIPELINE_VERIFY`,
 `PIPELINE_RUNS_DIR` (default `~/.local/state/pipeline`), `AUTOREVIEW_BIN`.
 
 ## Artifacts
 
 Under the run directory: `task.md`, `plan.md`, `plan.json`, `implement.json`,
-`review-N.json`, `fix-N.json`, `summary.md`, `state.json`, and
+`review-N.json`, `fix-N.json`, `verify.json`, `evidence/` (transcripts,
+screenshots, logs the verify stage captured), `summary.md`, `state.json`, and
 `logs/<stage>.log` with the full engine transcript. `*.prompt.md` holds the
 exact prompt each stage received.
 
@@ -97,7 +107,15 @@ The driver stops with exit `3` when:
   reviewers do not run tests);
 - a review finding survives two fix rounds (not converging): fix it yourself,
   or `pipeline reject` it with a reason, then rerun `review`;
-- the fix-round cap is hit with findings still open. Reviews themselves are
+- the fix-round cap is hit with findings still open;
+- verify reports `fail` or `blocked`, any check or plan proof item failed or
+  went unreported, the committed tree changed during or since review, or
+  `plan.md` was edited without a matching `plan.json` proof update. Read
+  `verify.json` and the evidence, then either fix it yourself in the workspace
+  and rerun `review` then `verify`, or add the failure to `task.md` and rerun
+  `implement` (a fresh implement round builds on the existing commits),
+  `review`, `verify`. Verify only ever certifies the exact tree the last clean
+  review saw. Reviews themselves are
   not capped: after fixing things yourself, rerun `review` to confirm clean.
 
 Rejected findings carry the implementer's reason into the next review round so
@@ -114,4 +132,6 @@ workspace. Implement and fix run with permission bypass inside the
 isolated workspace, the same house default as `$codex-first`. That isolation
 is at the VCS level only, not a sandbox: the stage agent has the same host
 access you do, so keep task text and repository instructions trustworthy. Review runs
-through the autoreview helper's read-only engine paths.
+through the autoreview helper's read-only engine paths. Verify runs with the
+same permissions as implement (it starts servers, simulators, and browsers)
+but must not edit tracked files: a dirty workspace after verify halts.
