@@ -464,6 +464,38 @@ let
       done
     }
 
+    show_launchd_agents() {
+      local uid
+      local host
+      local label
+      local print_out
+      local short_name
+
+      if ! have launchctl; then
+        return
+      fi
+
+      host="$(hostname -s 2>/dev/null || hostname 2>/dev/null || printf unknown)"
+      if [ "$host" != "aglaea" ]; then
+        return
+      fi
+
+      section "agent services"
+      uid="$(id -u)"
+      for label in org.nix-community.home.amp-runner org.nix-community.home.claude-remote-control; do
+        short_name="''${label#org.nix-community.home.}"
+        print_out="$(launchctl print "gui/$uid/$label" 2>/dev/null)" || {
+          warn "$short_name" "not available"
+          continue
+        }
+        if printf '%s\n' "$print_out" | grep -q 'state = running'; then
+          ok "$short_name" "running"
+        else
+          warn "$short_name" "$(printf '%s\n' "$print_out" | sed -n 's/^[[:space:]]*state = //p' | first_line | short)"
+        fi
+      done
+    }
+
     show_user_services() {
       local unit_state
 
@@ -522,6 +554,7 @@ let
       show_restic_darwin
       show_time_machine
       show_desktop
+      show_launchd_agents
     else
       show_restic_linux
       show_systemd
