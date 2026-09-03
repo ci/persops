@@ -14,17 +14,19 @@ import tempfile
 import textwrap
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
 
-ENGINES = ("codex", "claude", "amp", "droid", "copilot", "pi", "opencode")
+ENGINES = ("codex", "claude", "amp", "grok", "droid", "copilot", "pi", "opencode")
 THINKING_LEVELS_BY_ENGINE = {
     "codex": {"low", "medium", "high", "xhigh", "max"},
     "claude": {"low", "medium", "high", "xhigh", "max"},
     # amp maps thinking to amp.ai.generate reasoningEffort in the adapter plugin
     "amp": {"none", "low", "medium", "high", "xhigh", "max"},
+    "grok": {"low", "medium", "high", "xhigh"},
     "droid": set(),
     "copilot": set(),
     "pi": {"off", "minimal", "low", "medium", "high", "xhigh", "max"},
@@ -33,8 +35,9 @@ THINKING_LEVELS_BY_ENGINE = {
 }
 DEFAULT_MODEL_BY_ENGINE = {
     "codex": "gpt-5.6-sol",
-    "claude": "claude-fable-5",
+    "claude": "fable",  # claude CLI alias for the latest Fable
     "amp": "openai/gpt-5.6-sol",
+    "grok": "grok-4.6",
 }
 DEFAULT_THINKING_BY_ENGINE = {
     "amp": "high",
@@ -49,6 +52,17 @@ AMP_ADAPTER_MODE = "autoreview"
 AMP_ADAPTER_AGENT = "autoreview-adapter"
 AMP_OUTER_MODEL = "openai/gpt-5.6-luna"
 AMP_MAX_OUTPUT_CHARS = 2_000_000
+# grok's built-in tool names; review stays read-only.
+GROK_READ_TOOLS = ("read_file", "grep", "list_dir")
+GROK_WEB_TOOLS = ("web_search", "web_fetch")
+# --tools only allowlists built-ins; the MCP meta-tools stay unless denied.
+GROK_DENY_TOOLS = ("search_tool", "use_tool")
+# Engines with no reliable tool-off switch; validated before dry-run so preflight matches live runs.
+NO_TOOLS_UNSUPPORTED = {
+    "codex": "--no-tools is not supported by the Codex engine; use --engine claude --no-tools for a no-tools run",
+    "grok": "--no-tools is not supported by the grok engine; use --engine claude --no-tools for a no-tools run",
+    "copilot": "--no-tools is not supported by the copilot engine; copilot requires a read-only file view tool to load the review bundle without exposing it in argv",
+}
 AMP_MODEL_PATTERN = re.compile(
     r"(?:amp|anthropic|baseten|fireworks|openai|vertexai|xai)/"
     r"[A-Za-z0-9][A-Za-z0-9._-]*(?:/[A-Za-z0-9][A-Za-z0-9._-]*)*"
@@ -715,9 +729,6 @@ def codex_model_access_failure(result: subprocess.CompletedProcess[str], model: 
 
 
 def run_codex(args: argparse.Namespace, repo: Path, prompt: str) -> str:
-    if not args.tools:
-        raise SystemExit("--no-tools is not supported by the Codex engine; use --engine claude --no-tools for a no-tools run")
-
     def attempt(model: str | None) -> tuple[subprocess.CompletedProcess[str], str]:
         schema_path = write_json_temp(SCHEMA)
         output_path = Path(tempfile.NamedTemporaryFile("w", suffix=".json", delete=False).name)
@@ -810,6 +821,70 @@ def run_claude(args: argparse.Namespace, repo: Path, prompt: str) -> str:
     if result.returncode != 0:
         raise SystemExit(f"claude engine failed ({result.returncode})\n{result.stderr or result.stdout}")
     return result.stdout
+
+
+def run_grok(args: argparse.Namespace, repo: Path, prompt: str) -> str:
+    # An empty or unknown --tools allowlist falls back to grok's default toolset and
+    # plan mode still allows writes, so the allowlist below is the only read-only gate.
+    # Bundles can exceed ARG_MAX, so the prompt goes through a file.
+    prompt_path = Path(tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False).name)
+    prompt_path.write_text(prompt)
+    os.chmod(prompt_path, 0o600)
+    # grok has no ephemeral mode; a preassigned id lets cleanup delete the session even on failure.
+    session_id = str(uuid.uuid4())
+    cmd = [
+        args.grok_bin,
+        "--session-id",
+        session_id,
+        "--prompt-file",
+        str(prompt_path),
+        "--output-format",
+        "json",
+        "--json-schema",
+        json.dumps(SCHEMA),
+        "--cwd",
+        str(repo),
+        "--no-subagents",
+        "--disallowed-tools",
+        ",".join(GROK_DENY_TOOLS),
+    ]
+    tools = list(GROK_READ_TOOLS)
+    if args.web_search:
+        tools.extend(GROK_WEB_TOOLS)
+    cmd.extend(["--tools", ",".join(tools)])
+    if not args.web_search:
+        cmd.append("--disable-web-search")
+    if args.model:
+        cmd.extend(["--model", args.model])
+    if args.thinking:
+        cmd.extend(["--effort", args.thinking])
+    # grok's json output arrives only at exit, so streaming is passthrough of stderr chatter.
+    result = None
+    try:
+        result = run_with_heartbeat(
+            cmd,
+            repo,
+            label="grok",
+            stream_display=passthrough_stream_display if args.stream_engine_output else None,
+        )
+    finally:
+        prompt_path.unlink(missing_ok=True)
+        # On a failed run the session may not exist; report but keep the engine error primary.
+        delete_grok_session(args.grok_bin, session_id, repo, strict=result is not None and result.returncode == 0)
+    if result.returncode != 0:
+        raise SystemExit(f"grok engine failed ({result.returncode})\n{result.stderr or result.stdout}")
+    return result.stdout
+
+
+def delete_grok_session(grok_bin: str, session_id: str, repo: Path, *, strict: bool) -> None:
+    """Drop the headless session so the review bundle does not persist under ~/.grok."""
+    deleted = subprocess.run([grok_bin, "sessions", "delete", session_id], cwd=repo, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if deleted.returncode == 0:
+        return
+    message = f"grok: failed to delete session {session_id}: {deleted.stderr.strip() or deleted.stdout.strip()}"
+    if strict:
+        raise SystemExit(message)
+    print(message, file=sys.stderr)
 
 
 def amp_review_plugin_source(
@@ -1047,8 +1122,6 @@ def run_droid(args: argparse.Namespace, repo: Path, prompt: str) -> str:
 def run_copilot(args: argparse.Namespace, repo: Path, prompt: str) -> str:
     if args.thinking:
         raise SystemExit("--thinking is not supported by the copilot engine")
-    if not args.tools:
-        raise SystemExit("--no-tools is not supported by the copilot engine; copilot requires a read-only file view tool to load the review bundle without exposing it in argv")
     with tempfile.TemporaryDirectory(prefix="autoreview-copilot.") as tempdir:
         prompt_path = Path(tempdir) / "prompt.txt"
         prompt_path.write_text(prompt)
@@ -1110,6 +1183,12 @@ def extract_json(text: str) -> dict[str, Any]:
         return parsed
     if isinstance(parsed, dict) and isinstance(parsed.get("structured_output"), dict):
         return parsed["structured_output"]
+    if isinstance(parsed, dict) and isinstance(parsed.get("structuredOutput"), dict):
+        # grok: a max-turns/cancelled run still carries the last provisional object.
+        stop_reason = parsed.get("stopReason")
+        if stop_reason not in (None, "end_turn"):
+            raise SystemExit(f"review engine stopped early ({stop_reason}); refusing partial structured output")
+        return parsed["structuredOutput"]
     if isinstance(parsed, dict) and isinstance(parsed.get("result"), dict) and "findings" in parsed["result"]:
         return parsed["result"]
     if isinstance(parsed, dict) and isinstance(parsed.get("result"), str):
@@ -1371,7 +1450,7 @@ def parse_args() -> argparse.Namespace:
         action="append",
         help=(
             "Thinking/effort for all reviewers or engine=level. Repeatable. Overrides AUTOREVIEW_THINKING. "
-            "Codex/Claude: low, medium, high, xhigh, max. Amp (agent mode): low, medium, high, ultra. "
+            "Codex/Claude: low, medium, high, xhigh, max. Amp (agent mode): low, medium, high, ultra. Grok: low, medium, high, xhigh. "
             "Pi: off, minimal, low, medium, high, xhigh, max. OpenCode: minimal, low, medium, high, max."
         ),
     )
@@ -1385,6 +1464,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--codex-bin", default=os.environ.get("CODEX_BIN", "codex"))
     parser.add_argument("--claude-bin", default=os.environ.get("CLAUDE_BIN", "claude"))
     parser.add_argument("--amp-bin", default=os.environ.get("AMP_BIN", "amp"))
+    parser.add_argument("--grok-bin", default=os.environ.get("GROK_BIN", "grok"))
     parser.add_argument("--droid-bin", default=os.environ.get("DROID_BIN", "droid"))
     parser.add_argument("--copilot-bin", default=os.environ.get("COPILOT_BIN", "copilot"))
     parser.add_argument("--pi-bin", default=os.environ.get("PI_BIN", "pi"))
@@ -1395,7 +1475,7 @@ def parse_args() -> argparse.Namespace:
         default=os.environ.get("AUTOREVIEW_STREAM_ENGINE_OUTPUT") == "1",
         help="Stream engine output while preserving buffered output for validation. Codex and Claude filter noisy tool/status chatter.",
     )
-    parser.add_argument("--no-tools", dest="tools", action="store_false", default=True, help="Disable tools for engines that support it. Codex and copilot reject no-tools review. Amp always reviews the bundle alone; pi gets read-only tools.")
+    parser.add_argument("--no-tools", dest="tools", action="store_false", default=True, help="Disable tools for engines that support it. Codex, grok, and copilot reject no-tools review. Amp always reviews the bundle alone; pi gets read-only tools.")
     parser.add_argument("--no-web-search", dest="web_search", action="store_false", default=True)
     parser.add_argument(
         "--claude-allowed-tools",
@@ -1428,6 +1508,8 @@ def run_engine(args: argparse.Namespace, repo: Path, prompt: str) -> str:
         return run_claude(args, repo, prompt)
     if args.engine == "amp":
         return run_amp(args, repo, prompt)
+    if args.engine == "grok":
+        return run_grok(args, repo, prompt)
     if args.engine == "droid":
         return run_droid(args, repo, prompt)
     if args.engine == "copilot":
@@ -1503,12 +1585,9 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
     else:
         reviewers = [(args.engine, None, None)]
 
-    seen: set[str] = set()
+    seen: set[tuple[str, str | None]] = set()
     result: list[argparse.Namespace] = []
     for engine, inline_model, inline_thinking in reviewers:
-        if engine in seen:
-            raise SystemExit(f"reviewer specified more than once: {engine}")
-        seen.add(engine)
         model = (
             inline_model
             or model_by_engine.get(engine)
@@ -1525,6 +1604,10 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
             or env_global_thinking
             or DEFAULT_THINKING_BY_ENGINE.get(engine)
         )
+        # The same engine may appear with different models (amp panels: sol + grok).
+        if (engine, model) in seen:
+            raise SystemExit(f"reviewer specified more than once: {engine} model={model}")
+        seen.add((engine, model))
         if engine == "codex" and model == DEFAULT_MODEL_BY_ENGINE["codex"]:
             fallback_model = DEFAULT_CODEX_ACCESS_FALLBACK_MODEL
         else:
@@ -1621,11 +1704,19 @@ ENGINE_BIN_ATTR = {
     "codex": "codex_bin",
     "claude": "claude_bin",
     "amp": "amp_bin",
+    "grok": "grok_bin",
     "droid": "droid_bin",
     "copilot": "copilot_bin",
     "pi": "pi_bin",
     "opencode": "opencode_bin",
 }
+
+
+def validate_engine_options(args: argparse.Namespace, reviewers: list[argparse.Namespace]) -> None:
+    """Engine-runtime checks shared by dry-run and live runs; after the empty-diff guard."""
+    for reviewer in reviewers:
+        if not args.tools and reviewer.engine in NO_TOOLS_UNSUPPORTED:
+            raise SystemExit(NO_TOOLS_UNSUPPORTED[reviewer.engine])
 
 
 def dry_run_preflight(reviewers: list[argparse.Namespace]) -> int:
@@ -1693,6 +1784,7 @@ def main() -> int:
     if not changed_paths:
         print("empty diff: nothing to review")
         return 0
+    validate_engine_options(args, reviewers)
     if args.dry_run:
         return dry_run_preflight(reviewers)
 
