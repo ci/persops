@@ -31,7 +31,10 @@
 
     settings = {
       # We need to enable flakes
-      experimental-features = "nix-command flakes";
+      experimental-features = [
+        "nix-command"
+        "flakes"
+      ];
       # devenv's mprocs process manager symlinks the system pbcopy via an impure
       # derivation; allow that host path so the build is permitted. Nix 2.34 has
       # no working `extra-` form here, so restate the darwin defaults + pbcopy.
