@@ -247,6 +247,7 @@ in
     ../modules/backup/restic-storage-box-nixos.nix
     ../modules/backup/pheme-matrix-archive.nix
     ../modules/actual-bank-sync.nix
+    ../modules/kuma-job-health.nix
     ../modules/cliproxyapi-nixos.nix
   ];
 
