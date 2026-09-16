@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+config_dir="$repo_root/infra/uptime-kuma"
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/persops/uptime-kuma"
+data_dir="${XDG_CACHE_HOME:-$HOME/.cache}/persops/uptime-kuma/tofu"
+state_file="$state_dir/terraform.tfstate"
+action="${1:-plan}"
+
+case "$action" in
+  apply|plan)
+    ;;
+  *)
+    echo "usage: $0 [apply|plan] [tofu arguments...]" >&2
+    exit 2
+    ;;
+esac
+
+shift || true
+umask 077
+mkdir -p "$state_dir" "$data_dir"
+export TF_DATA_DIR="$data_dir"
+
+tofu -chdir="$config_dir" init -input=false
+tofu_args=()
+if [[ "$action" == plan ]]; then
+  tofu_args+=("-input=false")
+fi
+exec op run \
+  --account my.1password.com \
+  --env-file="$config_dir/1password.env" \
+  -- tofu -chdir="$config_dir" "$action" "${tofu_args[@]}" -state="$state_file" "$@"

@@ -12,6 +12,7 @@ let
     actual = "http://127.0.0.1:5006";
     home = "http://127.0.0.1:8082";
     home-assistant = "http://127.0.0.1:8123";
+    notify = "http://127.0.0.1:2586";
     uptime = "http://127.0.0.1:3001";
   };
   tailscaleServiceNames = builtins.attrNames tailscaleServiceTargets;
@@ -246,6 +247,7 @@ in
     ../modules/backup/restic-storage-box-nixos.nix
     ../modules/backup/pheme-matrix-archive.nix
     ../modules/actual-bank-sync.nix
+    ../modules/kuma-job-health.nix
     ../modules/cliproxyapi-nixos.nix
   ];
 
@@ -454,6 +456,8 @@ in
 
   systemd = {
     tmpfiles.rules = [
+      "d /etc/secrets/ntfy-sh 0700 root root -"
+      "z /etc/secrets/ntfy-sh/environment 0400 root root -"
       "d /archive 0755 root root -"
       "d /srv/sea16 0755 root root -"
     ];
@@ -522,6 +526,7 @@ in
           "actual.service"
           "homepage-dashboard.service"
           "home-assistant.service"
+          "ntfy-sh.service"
           "uptime-kuma.service"
         ];
         after = [
@@ -529,6 +534,7 @@ in
           "actual.service"
           "homepage-dashboard.service"
           "home-assistant.service"
+          "ntfy-sh.service"
           "uptime-kuma.service"
         ];
         serviceConfig = {
@@ -663,6 +669,13 @@ in
         {
           Monitoring = [
             {
+              ntfy = {
+                icon = "ntfy.png";
+                href = "https://notify.reverse-justitia.ts.net/";
+                description = "Private notifications";
+              };
+            }
+            {
               "Uptime Kuma" = {
                 icon = "uptime-kuma.png";
                 href = "https://uptime.reverse-justitia.ts.net/";
@@ -672,6 +685,22 @@ in
           ];
         }
       ];
+    };
+
+    ntfy-sh = {
+      enable = true;
+      environmentFile = "/etc/secrets/ntfy-sh/environment";
+      settings = {
+        base-url = "https://notify.reverse-justitia.ts.net";
+        behind-proxy = true;
+        auth-default-access = "deny-all";
+        enable-login = true;
+        require-login = true;
+        cache-duration = "7d";
+        upstream-base-url = "https://ntfy.sh";
+        web-push-file = "/var/lib/ntfy-sh/webpush.db";
+        web-push-email-address = "catalin.irimie@gmail.com";
+      };
     };
 
     uptime-kuma = {

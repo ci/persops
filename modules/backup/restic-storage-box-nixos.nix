@@ -197,7 +197,48 @@ in
       runCheck = false;
     };
 
-    archive-daily = storageBoxBackupFor currentSystemUser // {
+    ntfy-daily = storageBoxBackupFor "root" // {
+      # DynamicUser StateDirectory path; /var/lib/ntfy-sh is only a symlink.
+      paths = [ "/var/lib/private/ntfy-sh" ];
+      backupPrepareCommand = ''
+        #!${pkgs.runtimeShell}
+        ntfyState="$(${pkgs.systemd}/bin/systemctl is-active ntfy-sh.service || true)"
+        case "$ntfyState" in
+          active|activating)
+            ${pkgs.coreutils}/bin/touch /run/restic-backups-ntfy-daily/ntfy-was-active
+            ${pkgs.systemd}/bin/systemctl stop ntfy-sh.service
+            ;;
+          deactivating)
+            ${pkgs.systemd}/bin/systemctl stop ntfy-sh.service
+            ;;
+        esac
+      '';
+      backupCleanupCommand = ''
+        #!${pkgs.runtimeShell}
+        if [ -e /run/restic-backups-ntfy-daily/ntfy-was-active ]; then
+          ${pkgs.systemd}/bin/systemctl --no-block start ntfy-sh.service
+        fi
+      '';
+      extraBackupArgs = [
+        "--host"
+        currentSystemName
+        "--tag"
+        "ntfy"
+        "--one-file-system"
+        "--compression"
+        "auto"
+      ];
+      timerConfig = {
+        OnCalendar = "*-*-* 02:30:00";
+        Persistent = true;
+        RandomizedDelaySec = "15m";
+      };
+      pruneOpts = [ ];
+      runCheck = false;
+    };
+
+    # Recovery artifacts under /archive retain root-only permissions.
+    archive-daily = storageBoxBackupFor "root" // {
       paths = [ "/archive" ];
       extraBackupArgs = [
         "--host"
@@ -257,6 +298,7 @@ in
     "restic-backups-actual-daily".after = [ "actual.service" ];
     "restic-backups-golink-daily".after = [ "golink.service" ];
     "restic-backups-home-assistant-daily".after = [ "home-assistant.service" ];
+    "restic-backups-ntfy-daily".after = [ "ntfy-sh.service" ];
     "restic-backups-uptime-kuma-daily".after = [ "uptime-kuma.service" ];
 
     "restic-backups-archive-daily" = {
