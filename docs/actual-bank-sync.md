@@ -12,6 +12,10 @@ or reconciliation it also writes a
 mode-`0600` Actual export plus SHA-256 sidecar under
 `/var/lib/actual-bank-sync/recovery`, retaining the newest seven exports.
 
+Historical recovery exports and restore proofs under `/archive` retain their
+private permissions. The separate archive backup runs as root so it can include
+these protected artifacts without granting access to other users.
+
 The worker uses the official `@actual-app/api` package at exactly the same
 version as `actual-server`. Nix evaluation fails if those versions drift.
 

@@ -197,7 +197,8 @@ in
       runCheck = false;
     };
 
-    archive-daily = storageBoxBackupFor currentSystemUser // {
+    # Recovery artifacts under /archive retain root-only permissions.
+    archive-daily = storageBoxBackupFor "root" // {
       paths = [ "/archive" ];
       extraBackupArgs = [
         "--host"
