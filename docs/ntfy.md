@@ -29,6 +29,21 @@ contents remain on Amalthea, and the phone still needs Tailnet access to fetch
 them. Subscribe the mobile app to the `alerts` topic on the private server and
 use the personal token from 1Password.
 
+Desktop Web Push uses a persistent VAPID key pair in the same 1Password item
+(`web_push_public_key` and `web_push_private_key`), installed by the secrets
+script. Never regenerate these during deploys: changing the key invalidates
+browser subscriptions. The subscription database lives at
+`/var/lib/ntfy-sh/webpush.db`, inside the existing nightly backup.
+
+On the laptop, open the private server, log in, subscribe to `alerts`, allow
+notifications, and enable background notifications in Settings. Refresh the
+page after Web Push is first enabled on the server. Safari's Add to Dock can
+install it as an app; Chromium browsers generally need to remain running,
+but the ntfy tab can be closed. Keep Tailscale connected. Web Push sends an
+encrypted notification payload through the browser's push provider; unlike
+the iOS relay, this is not just a poll request. Open the app at least weekly
+to keep the subscription active.
+
 ## Uptime Kuma
 
 OpenTofu owns the `ntfy` notification channel in Kuma. Its state is sensitive

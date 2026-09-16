@@ -697,6 +697,8 @@ in
         require-login = true;
         cache-duration = "7d";
         upstream-base-url = "https://ntfy.sh";
+        web-push-file = "/var/lib/ntfy-sh/webpush.db";
+        web-push-email-address = "catalin.irimie@gmail.com";
       };
     };
 
