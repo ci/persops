@@ -63,7 +63,8 @@ is upgraded.
 
 The channel is the default for new monitors. Existing monitors are attached on
 channel creation; `apply_existing` is a one-shot action, so subsequent refreshes
-ignore that flag. Monitor definitions are not managed by this configuration.
+ignore that flag. Monitor definitions and the read-only scheduled-job checker
+are described in [Uptime Kuma monitoring](uptime-kuma.md).
 
 The ntfy state directory has a nightly restic backup tagged `ntfy`. This does
 not fix the shared failure domain: if Amalthea or its Tailnet path is completely

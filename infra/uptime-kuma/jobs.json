@@ -1,0 +1,9 @@
+{
+  "actual-backup": {"name": "Actual backup", "unit": "restic-backups-actual-daily", "max_age": 93600},
+  "golink-backup": {"name": "GoLinks backup", "unit": "restic-backups-golink-daily", "max_age": 93600},
+  "home-assistant-backup": {"name": "Home Assistant backup", "unit": "restic-backups-home-assistant-daily", "max_age": 93600},
+  "kuma-backup": {"name": "Kuma backup", "unit": "restic-backups-uptime-kuma-daily", "max_age": 93600},
+  "ntfy-backup": {"name": "ntfy backup", "unit": "restic-backups-ntfy-daily", "max_age": 93600},
+  "archive-backup": {"name": "Archive backup", "unit": "restic-backups-archive-daily", "max_age": 93600},
+  "bank-sync": {"name": "Actual bank sync", "unit": "actual-bank-sync", "max_age": 93600}
+}
