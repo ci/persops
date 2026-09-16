@@ -1,0 +1,30 @@
+[Unit]
+Description=Off-host Tailscale and private notification health
+Wants=network-online.target tailscaled.service
+After=network-online.target tailscaled.service
+
+[Service]
+Type=oneshot
+User=pheme-watch
+Group=pheme-watch
+ExecStart=/usr/bin/python3 /opt/persops-pheme-watch/watch.py
+LoadCredential=credentials.json:/etc/secrets/pheme-watch/credentials.json
+StateDirectory=pheme-watch
+StateDirectoryMode=0700
+UMask=0077
+TimeoutStartSec=120
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
