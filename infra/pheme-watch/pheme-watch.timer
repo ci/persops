@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the off-host watcher every minute
+
+[Timer]
+OnBootSec=1min
+OnUnitInactiveSec=60s
+AccuracySec=5s
+Unit=pheme-watch.service
+
+[Install]
+WantedBy=timers.target

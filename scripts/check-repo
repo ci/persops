@@ -15,6 +15,7 @@ shell_scripts=(
 	scripts/deploy
 	scripts/test-deploy-check
 	scripts/kuma-job-secrets-install
+	scripts/pheme-watch-install
 	scripts/remote-preflight
 	scripts/remote-verify
 	modules/ai/scripts/add-skill.sh
@@ -41,6 +42,9 @@ bash scripts/test-deploy-check
 
 section "Kuma scheduled-job health checks"
 python3 scripts/test-kuma-job-health.py
+
+section "Pheme off-host watcher checks"
+python3 scripts/test-pheme-watch.py
 
 section "deadnix"
 deadnix --fail .

@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Run inside the dedicated 1Password tmux session. Only Pheme is a valid target.
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+[[ "$(ssh pheme hostname)" == pheme ]] || exit 1
+umask 077
+local_secret="$(mktemp)"
+remote_stage=""
+cleanup() {
+	rm -f "$local_secret"
+	if [[ "$remote_stage" == /tmp/persops-pheme-watch.* ]]; then
+		# shellcheck disable=SC2029 # The validated staging path is intentionally local.
+		ssh pheme "rm -f '$remote_stage/credentials.json' '$remote_stage/watch.py' '$remote_stage/pheme-watch.service' '$remote_stage/pheme-watch.timer'; rmdir '$remote_stage'" || true
+	fi
+}
+trap cleanup EXIT
+op inject --account my.1password.com --in-file "$repo_root/infra/pheme-watch/credentials.json.tpl" --out-file "$local_secret" --force >/dev/null
+remote_stage="$(ssh pheme 'mktemp -d /tmp/persops-pheme-watch.XXXXXX')"
+[[ "$remote_stage" =~ ^/tmp/persops-pheme-watch\.[A-Za-z0-9]+$ ]] || exit 1
+scp -q "$local_secret" "pheme:$remote_stage/credentials.json"
+scp -q "$repo_root/infra/pheme-watch/"{watch.py,pheme-watch.service,pheme-watch.timer} "pheme:$remote_stage/"
+ssh pheme bash -s -- "$remote_stage" <<'REMOTE'
+set -euo pipefail
+stage="$1"
+test "$(hostname)" = pheme
+test -x /usr/bin/python3
+test -x /usr/bin/tailscale
+systemd-analyze verify "$stage/pheme-watch.service" "$stage/pheme-watch.timer"
+getent passwd pheme-watch >/dev/null || useradd --system --user-group --home-dir /nonexistent --shell /usr/sbin/nologin pheme-watch
+install -d -o root -g root -m 0755 /opt/persops-pheme-watch
+install -d -o root -g root -m 0700 /etc/secrets/pheme-watch
+install -o root -g root -m 0400 "$stage/credentials.json" /etc/secrets/pheme-watch/credentials.json
+install -o root -g root -m 0644 "$stage/watch.py" /opt/persops-pheme-watch/watch.py
+install -o root -g root -m 0644 "$stage/pheme-watch.service" "$stage/pheme-watch.timer" /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now pheme-watch.timer
+systemctl start pheme-watch.service
+systemctl is-active pheme-watch.timer
+REMOTE
