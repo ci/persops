@@ -4,6 +4,11 @@ Amalthea runs ntfy on loopback and exposes it only as the named Tailscale
 service `svc:notify` at <https://notify.reverse-justitia.ts.net/>. The short
 links `go/notify` and `go/n` point there.
 
+The Tailscale control-plane definition is separate from Nix: define `notify`
+with port `tcp:443` and tag `tag:private-service`, then approve Amalthea as its
+host after deployment advertises it. Keep the GoLinks pointed at the full HTTPS
+URL; the bare hostname does not serve HTTP.
+
 Authentication is deny-by-default and provisioned from the 1Password item
 `ntfy-amalthea`:
 
