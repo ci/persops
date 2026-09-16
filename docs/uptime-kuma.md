@@ -1,5 +1,9 @@
 # Uptime Kuma monitoring
 
+Five reciprocal checks cover Pheme's Tailscale reachability and Matrix's public
+client, federation, and two discovery endpoints. They check availability, not
+authenticated message delivery; definitions live in `infra/uptime-kuma/pheme.tf`.
+
 OpenTofu in `infra/uptime-kuma` owns the monitors and their explicit ntfy
 notification bindings. Nix owns the service. Use `scripts/uptime-kuma-config
 plan` and `scripts/uptime-kuma-config apply`; credentials come from 1Password
