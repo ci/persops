@@ -3,6 +3,13 @@ let
   jobs = ../infra/uptime-kuma/jobs.json;
 in
 {
+  # The system D-Bus rejects transient DynamicUser identities on this host.
+  users.groups.kuma-job-health = { };
+  users.users.kuma-job-health = {
+    isSystemUser = true;
+    group = "kuma-job-health";
+  };
+
   systemd.tmpfiles.rules = [
     "d /etc/secrets/kuma-job-health 0700 root root -"
     "z /etc/secrets/kuma-job-health/tokens.json 0400 root root -"
@@ -21,7 +28,8 @@ in
       LoadCredential = [ "tokens.json:/etc/secrets/kuma-job-health/tokens.json" ];
       StateDirectory = "kuma-job-health";
       StateDirectoryMode = "0700";
-      DynamicUser = true;
+      User = "kuma-job-health";
+      Group = "kuma-job-health";
       UMask = "0077";
       TimeoutStartSec = "2m";
       NoNewPrivileges = true;

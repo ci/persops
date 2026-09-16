@@ -49,3 +49,8 @@ Amalthea. Tokens are exported from the private OpenTofu state into a root-owned
 Repeat token installation if a push monitor is recreated. Lost checker state
 is reconstructed from current systemd results; after reboot, absent evidence
 stays down until the next successful scheduled run.
+
+The observer uses a dedicated unprivileged system account: Amalthea's system
+D-Bus rejects transient `DynamicUser` identities. The fixed account can read
+unit properties without permission to start or change units. Filesystem and
+credential isolation remain enabled.
