@@ -7,11 +7,11 @@ description: "Auto Review closeout for Git and Jujutsu changes. Uses Amp by defa
 
 Run the bundled structured review helper as a closeout check. This is code review, not Guardian `auto_review` approval routing.
 
-Amp is the default inside an Amp orb, detected by the documented `AMP_ORB=1` environment variable. Codex is the default elsewhere and usually delivers the best local review results. An explicit `--engine` always wins; `AUTOREVIEW_ENGINE` overrides the environment-based default. Codex defaults to `gpt-5.6-sol` and retries once with `gpt-5.6-terra` only when the account cannot access Sol; thinking follows the Codex CLI config. Claude defaults to `claude-fable-5`. Amp defaults to `openai/gpt-5.6-sol` at `high` reasoning through a generated adapter plugin that reuses the existing `amp login`. Pi and opencode use the model their own CLI is configured for.
+Amp is the default inside an Amp orb, detected by the documented `AMP_ORB=1` environment variable. Codex is the default elsewhere and usually delivers the best local review results. An explicit `--engine` always wins; `AUTOREVIEW_ENGINE` overrides the environment-based default. Codex defaults to `gpt-5.6-sol` and retries once with `gpt-5.6-terra` only when the account cannot access Sol; thinking follows the Codex CLI config. Claude defaults to `fable`, the claude CLI alias for the latest Fable. Amp defaults to `openai/gpt-5.6-sol` at `high` reasoning through a generated adapter plugin that reuses the existing `amp login`. Grok defaults to `grok-4.6`. Pi and opencode use the model their own CLI is configured for.
 
 Use when:
 
-- user asks for Codex review / Claude review / Amp review / Pi review / autoreview / second-model review
+- user asks for Codex review / Claude review / Amp review / Grok review / Pi review / autoreview / second-model review
 - after non-trivial code edits, before final/commit/ship
 - reviewing a local branch or PR branch after fixes
 
@@ -175,6 +175,13 @@ Inline syntax is also supported:
 <autoreview-helper> --reviewers codex:gpt-5.6-sol:high,claude:sonnet:max
 ```
 
+The same engine may appear more than once with different models, which is how
+an Amp orb runs the codex+grok panel through amp's model providers:
+
+```bash
+<autoreview-helper> --reviewers amp:openai/gpt-5.6-sol:xhigh,amp:xai/grok-4.6:xhigh
+```
+
 `AUTOREVIEW_MODEL` and `AUTOREVIEW_THINKING` env vars accept the same keyed
 syntax (`codex=gpt-5.5,claude=sonnet` or a bare global value) and sit between
 CLI flags and built-in defaults.
@@ -182,7 +189,8 @@ CLI flags and built-in defaults.
 Thinking per engine: Codex maps to `model_reasoning_effort` (`low`-`max`).
 Claude maps to `--effort` (`low`-`max`). Amp maps to the adapter plugin's
 `reasoningEffort` (`none`-`max`, default `high`) and its model must be a
-`provider/model` id (default `openai/gpt-5.6-sol`). Pi maps to `--thinking`
+`provider/model` id (default `openai/gpt-5.6-sol`). Grok maps to `--effort`
+(`low`-`xhigh`). Pi maps to `--thinking`
 (`off`-`max`). OpenCode maps to `--variant` (`minimal`-`max`). Engines
 without a real thinking knob reject `--thinking`.
 
@@ -215,7 +223,7 @@ The helper:
   fetch errors; use `--no-fetch` only when intentionally reviewing local refs
 - exits successfully without invoking any engine when the computed diff has no
   changed paths
-- supports `--engine codex`, `claude`, `amp`, `droid`, `copilot`, `pi`, and `opencode`; default precedence is explicit `--engine`, `AUTOREVIEW_ENGINE`, Amp when `AMP_ORB=1`, then Codex
+- supports `--engine codex`, `claude`, `amp`, `grok`, `droid`, `copilot`, `pi`, and `opencode`; default precedence is explicit `--engine`, `AUTOREVIEW_ENGINE`, Amp when `AMP_ORB=1`, then Codex
 - use `--mode commit --commit <ref>` for already-committed work, especially clean `main` after landing
 - should be left in `--mode auto` or forced to `--mode branch` for PR/branch work; do not force `--mode local` after committing
 - writes only to stdout unless `--output` or `--json-output` is set
@@ -223,7 +231,7 @@ The helper:
 - supports `--dry-run` as a real preflight: builds the bundle, applies the same input validation as a live run, resolves each reviewer binary, and exits nonzero on a broken setup without invoking any engine
 - supports `--parallel-tests`, `--prompt`, `--prompt-file`, `--dataset`, `--no-tools`, `--no-web-search`, and commit refs
 - supports opt-in review panels with `--panel` / `--reviewers`, plus per-engine `--model` and `--thinking` (also via `AUTOREVIEW_MODEL` / `AUTOREVIEW_THINKING`)
-- allows read-only tools and web search by default where the selected CLI supports them; forbids nested review in the prompt; Codex is run through `codex exec` with read-only sandbox and structured output; amp reviews the bundle alone through a generated `amp.ai.generate` adapter plugin (temp config dir, so no personal plugins load; existing `amp login` credentials are reused); pi gets only its read tool; opencode runs its read-only plan agent
+- allows read-only tools and web search by default where the selected CLI supports them; forbids nested review in the prompt; Codex is run through `codex exec` with read-only sandbox and structured output; amp reviews the bundle alone through a generated `amp.ai.generate` adapter plugin (temp config dir, so no personal plugins load; existing `amp login` credentials are reused); grok runs headless with only `read_file`/`grep`/`list_dir` (plus web tools), subagents and MCP meta-tools disabled, prompt via file, session deleted afterwards (grok has no ephemeral mode), and rejects `--no-tools` (grok has no reliable tool-off switch); like claude and codex it runs inside the reviewed checkout under the local trust model, so project hooks/config there apply; pi gets only its read tool; opencode runs its read-only plan agent
 - keeps droid and copilot adapters even though upstream disabled them; they review with the local trust model, not upstream's isolation contract
 - prints `review still running: <engine> elapsed=<seconds>s pid=<pid>` to stderr at long-running intervals while waiting for the selected review engine; `--stream-engine-output` streams live engine text instead
 - prints `autoreview clean: no accepted/actionable findings reported` when the selected review command exits 0
