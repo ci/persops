@@ -41,6 +41,10 @@ fields but does not send them during create/update. Recheck this workaround and
 the provider's internal Socket.IO compatibility whenever Kuma or the provider
 is upgraded.
 
+The channel is the default for new monitors. Existing monitors are attached on
+channel creation; `apply_existing` is a one-shot action, so subsequent refreshes
+ignore that flag. Monitor definitions are not managed by this configuration.
+
 The ntfy state directory has a nightly restic backup tagged `ntfy`. This does
 not fix the shared failure domain: if Amalthea or its Tailnet path is completely
 down, neither Kuma nor ntfy can deliver an alert. Add an off-host dead-man check

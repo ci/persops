@@ -30,4 +30,9 @@ resource "uptimekuma_notification" "ntfy" {
   is_active      = true
   is_default     = true
   apply_existing = true
+
+  lifecycle {
+    # Kuma consumes this creation-time action and always reads it back as false.
+    ignore_changes = [apply_existing]
+  }
 }
