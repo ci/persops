@@ -312,7 +312,6 @@ int main(int argc, char **argv) {
       ".rustup/toolchains",
       ".tldrc",
       ".vscode-insiders",
-      ".windsurf",
       "p/foss",
       "**/node_modules",
       // macOS TCC-protected Apple data that causes recurring FDA prompts.

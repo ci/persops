@@ -95,7 +95,6 @@
       "orbstack" # container goodies on OSX
       "osaurus" # local LLM server
       "raycast" # spotlight go away
-      "responsively" # browser for dev
       "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
       "secretive"
       "spotify" # muuuusic
