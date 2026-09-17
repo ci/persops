@@ -12,7 +12,7 @@ briefer help).
 
 The following list describes which Git features Jujutsu is compatible with. For
 a comparison with Git, including how workflows are different, see the
-[Git-comparison doc](git-comparison.md).
+[Git-comparison doc](https://docs.jj-vcs.dev/latest/git-comparison/).
 
 * **Configuration: Partial.** The only configuration from Git (e.g. in
   `~/.gitconfig`) that's respected is the following. Feel free to file a bug if
@@ -48,7 +48,7 @@ a comparison with Git, including how workflows are different, see the
 * **Staging area: Kind of.** The staging area will be ignored. For example,
   `jj diff` will show a diff from the Git HEAD to the working copy. There are
   [ways of fulfilling your use cases without a staging
-  area](git-comparison.md#the-index).
+  area](https://docs.jj-vcs.dev/latest/git-comparison/#the-index).
 * **Garbage collection: Yes.** It should be safe to run `git gc` in the Git
   repo, but it's not tested, so it's probably a good idea to make a backup of
   the whole workspace first. There's [no garbage collection and repacking of
@@ -67,7 +67,7 @@ a comparison with Git, including how workflows are different, see the
 * **Sparse checkouts: No.** However, there's native support for sparse
   checkouts. See the `jj sparse` command.
 * **Signed commits: Yes.**
-  You can sign commits automatically [by configuration](config.md#commit-signing),
+  You can sign commits automatically [by configuration](config-reference.md#commit-signing),
   or use the `jj sign` command.
 * **Git LFS: No.** ([#80](https://github.com/jj-vcs/jj/issues/80))
 
@@ -132,7 +132,7 @@ Colocation can be disabled because it does have some disadvantages:
 
 * Interleaving `jj` and `git` commands increases the chance of confusing branch
   conflicts or [conflicted (AKA divergent) change
-  ids](glossary.md#divergent-change). These never lose data, but can be
+  ids](https://docs.jj-vcs.dev/latest/glossary/#divergent-change). These never lose data, but can be
   annoying.
 
     Such interleaving can happen unknowingly. For example, some IDEs can cause
@@ -160,7 +160,7 @@ Colocation can be disabled because it does have some disadvantages:
   common states a Git repository can be in.
 
 * Colocated workspaces are less resilient to
-  [concurrency](technical/concurrency.md#syncing-with-rsync-nfs-dropbox-etc)
+  [concurrency](https://docs.jj-vcs.dev/latest/technical/concurrency/#syncing-with-rsync-nfs-dropbox-etc)
   issues if you share the repo using an NFS filesystem or Dropbox. In general,
   such use of Jujutsu is not currently thoroughly tested.
 

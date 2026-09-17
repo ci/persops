@@ -20,22 +20,22 @@ When the session path is not known and the `agent-transcript` skill is available
 
 Pick the highest-confidence `file` result, then render it with `session-viewer`.
 
-From a repo that has this skill:
+With the globally installed skill, these commands work from any directory:
 
 ```bash
-node skills/session-viewer/scripts/session-viewer.ts <session.jsonl> --out /tmp/session.html --open
+node "$HOME/.agents/skills/session-viewer/scripts/session-viewer.ts" <session.jsonl> --out /tmp/session.html --open
 ```
 
 Useful modes:
 
 ```bash
-node skills/session-viewer/scripts/session-viewer.ts <session.jsonl> --out session.html
-node skills/session-viewer/scripts/session-viewer.ts <session.jsonl> --raw --out session.html
-node skills/session-viewer/scripts/session-viewer.ts --blank --out viewer.html --open
+node "$HOME/.agents/skills/session-viewer/scripts/session-viewer.ts" <session.jsonl> --out session.html
+node "$HOME/.agents/skills/session-viewer/scripts/session-viewer.ts" <session.jsonl> --raw --out session.html
+node "$HOME/.agents/skills/session-viewer/scripts/session-viewer.ts" --blank --out viewer.html --open
 ```
 
-In a downstream repo that syncs shared skills under `.agents/skills`, replace
-`skills/session-viewer` with `.agents/skills/session-viewer`.
+For another installation location, resolve `scripts/session-viewer.ts` relative
+to this `SKILL.md`. The Persops source is `modules/ai/skills/session-viewer`.
 
 Defaults:
 
@@ -88,10 +88,9 @@ Importer ownership:
 - `scripts/importers/claude.ts`: Claude Code JSONL
 - `scripts/importers/pi-openclaw.ts`: Pi/OpenClaw session JSONL
 
-Validate:
+Validate from the Persops repository root:
 
 ```bash
-pnpm exec tsgo -p skills/session-viewer/tsconfig.json
-node --test skills/session-viewer/scripts/session-viewer.test.ts
-scripts/validate-skills
+node --test modules/ai/skills/session-viewer/scripts/session-viewer.test.ts
+make check
 ```

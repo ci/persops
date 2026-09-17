@@ -14,7 +14,7 @@ The words "revisions" and "commits" are used interchangeably in this document.
 
 ## Hidden revisions
 
-Most revsets search only the [visible commits](glossary.md#visible-commits).
+Most revsets search only the [visible commits](https://docs.jj-vcs.dev/latest/glossary/#visible-commits).
 Other commits are only included if you explicitly mention them (e.g. by commit
 ID, `<name>@<remote>` symbol, or `at_operation()` function).
 
@@ -43,8 +43,8 @@ interpreted as an expression. For example, `"x-"` is the symbol `x-`, not the
 parents of symbol `x`. Taking shell quoting into account, you may need to use
 something like `jj log -r '"x-"'`.
 
-[divergent-change]: glossary.md#divergent-change
-[change-offset]: glossary.md#change-offset
+[divergent-change]: https://docs.jj-vcs.dev/latest/glossary/#divergent-change
+[change-offset]: https://docs.jj-vcs.dev/latest/glossary/#change-offset
 [string-literals]: templates.md#stringliteral-type
 
 ### Priority
@@ -407,7 +407,7 @@ revsets (expressions) as arguments.
 
 * `conflicts()`: Commits that have files in a conflicted state.
 
-* `divergent()`: Commits that are [divergent](glossary.md#divergent-change).
+* `divergent()`: Commits that are [divergent](https://docs.jj-vcs.dev/latest/glossary/#divergent-change).
 
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown bookmark name.)
@@ -427,7 +427,7 @@ revsets (expressions) as arguments.
   `at_operation(op, x) | ::(at_operation(op, x | visible_heads()) |
   visible_heads())`.
 
-[operation]: glossary.md#operation
+[operation]: https://docs.jj-vcs.dev/latest/glossary/#operation
 
 ??? examples
 
@@ -567,7 +567,7 @@ for a comprehensive list.
   exists, the newest one is chosen. If none of the bookmarks exist, the revset
   evaluates to `root()`.
 
-  You can [override](./config.md) this as appropriate. If you do, make sure it
+  You can [override](config-reference.md) this as appropriate. If you do, make sure it
   always resolves to exactly one commit. For example:
 
   ```toml
@@ -583,7 +583,7 @@ for a comprehensive list.
 * `immutable_heads()`: Resolves to `trunk() | tags() |
   untracked_remote_bookmarks()` by default. It is actually defined as
   `builtin_immutable_heads()`, and can be overridden as required. See
-  [here](config.md#set-of-immutable-commits) for details.
+  [here](config-reference.md#set-of-immutable-commits) for details.
 
 * `immutable()`: The set of commits that `jj` treats as immutable. This is
   equivalent to `::(immutable_heads() | root())`. It is not recommended to redefine

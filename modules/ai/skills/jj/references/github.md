@@ -241,9 +241,9 @@ the [tutorial][tut].
     If you're wondering why we prefer clean commits in this project, see
     e.g. [this blog post][stacked]
 
-[auto-bookmark]: config.md#automatic-tracking-of-bookmarks
+[auto-bookmark]: config-reference.md#automatic-tracking-of-bookmarks
 [detached]: https://git-scm.com/docs/git-checkout#_detached_head
-[tut]: tutorial.md#conflicts
+[tut]: https://docs.jj-vcs.dev/latest/tutorial/#conflicts
 [stacked]: https://jg.gg/2018/09/29/stacked-diffs-versus-pull-requests/
 
 ## Using several remotes

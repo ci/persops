@@ -3,3 +3,4 @@ source_type = manual
 profile = all
 installed_at = unknown
 local_changes = persops-specific skill
+local_patch_2026_09_18 = replaced removed-skill example with retained shadcn skill

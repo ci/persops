@@ -17,7 +17,7 @@ Use this workflow for skills managed in `~/p/persops/modules/ai/skills`.
 
 1. Start with `jj status`, then inspect `modules/ai/home.nix`, `modules/ai/skill-overrides.json`, and any existing skill directory you might touch.
 2. For new upstream skills, run `modules/ai/scripts/add-skill.sh [--profile <all|coding|codex>] <source> [skills-add args...]`.
-   - Example: `modules/ai/scripts/add-skill.sh https://github.com/vercel-labs/skills --skill find-skills`
+   - Example: `modules/ai/scripts/add-skill.sh https://github.com/shadcn/ui --skill shadcn`
    - Direct GitHub `blob` / `tree` skill URLs work too; the helper infers the single skill name and vendors only that skill.
 3. Review the vendored files under `modules/ai/skills/<name>/`. Keep repo-owned truth there and verify `UPSTREAM.txt`.
 4. If the profile is not default `all`, update `modules/ai/skill-overrides.json`. Use it for `coding`, `codex`, or other per-skill exceptions like `recursive = true`.

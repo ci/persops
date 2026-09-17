@@ -14,12 +14,6 @@
   "effect-ts": {
     "profile": "coding"
   },
-  "codex-first": {
-    "profile": "coding"
-  },
-  "claude-consult": {
-    "profile": "codex"
-  },
   "land": {
     "profile": "coding",
     "excludeMachines": ["work"]
@@ -27,9 +21,5 @@
   "share-page": {
     "profile": "all",
     "excludeMachines": ["work"]
-  },
-  "transcribe": {
-    "profile": "all",
-    "excludeMachines": ["aglaea", "work"]
   }
 }

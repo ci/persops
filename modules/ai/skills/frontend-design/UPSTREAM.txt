@@ -1,5 +1,8 @@
-source = local
-source_type = manual
+source = https://github.com/anthropics/skills/tree/ef740771ac901e03fbca3ce4e1c453a96010f30a/skills/frontend-design
+source_type = github
+rev = ef740771ac901e03fbca3ce4e1c453a96010f30a
 profile = all
 installed_at = unknown
-local_changes = provenance file added after the skill had already been vendored locally
+provenance_verified_at = 2026-09-18
+provenance_evidence = existing SKILL.md matched this upstream revision except its final newline; original installation date remains unknown
+local_changes = quoted description; restored LICENSE.txt from the matching upstream revision

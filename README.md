@@ -66,6 +66,11 @@ Example:
 ```sh
 modules/ai/scripts/add-skill.sh --profile coding vercel-labs/agent-skills
 modules/ai/scripts/add-skill.sh --profile codex owner/repo
-modules/ai/scripts/add-skill.sh https://github.com/vercel-labs/skills --skill find-skills
-modules/ai/scripts/add-skill.sh https://github.com/openai/skills/blob/main/skills/.curated/playwright-interactive
+modules/ai/scripts/add-skill.sh https://github.com/shadcn/ui --skill shadcn
+modules/ai/scripts/add-skill.sh https://github.com/openclaw/agent-skills/tree/main/skills/session-viewer
 ```
+
+Removed shared skills are unlinked by Home Manager on the next deployment. The
+retired Pi Compound Engineering bundle (`ce-*`, its `lfg` launcher, and companion
+agents) is moved out of active discovery into `~/.pi/agent/backups/` during
+activation, preserving mutable local copies.

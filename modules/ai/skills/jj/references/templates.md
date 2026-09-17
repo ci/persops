@@ -178,10 +178,10 @@ This type cannot be printed. The following methods are defined.
 * `.divergent() -> Boolean`: True if the commit's change ID corresponds to multiple
   visible commits.
 * `.hidden() -> Boolean`: True if the commit is not visible (a.k.a. abandoned).
-* `.change_offset() -> Option<Integer>`: The [change offset](glossary.md#change-offset)
+* `.change_offset() -> Option<Integer>`: The [change offset](https://docs.jj-vcs.dev/latest/glossary/#change-offset)
   of this commit. May not be available for some commits.
 * `.immutable() -> Boolean`: True if the commit is included in [the set of
-  immutable commits](config.md#set-of-immutable-commits).
+  immutable commits](config-reference.md#set-of-immutable-commits).
 * `.contained_in(revset: StringLiteral) -> Boolean`: True if the commit is included in
   [the provided revset](revsets.md).
 * `.conflict() -> Boolean`: True if the commit contains merge conflicts.
@@ -709,7 +709,7 @@ nested invocations of `label()`.
 You are free to use custom label names as well. This will only have a visible
 effect if you also [customize their colors][config-colors] explicitly.
 
-[config-colors]: config.md#custom-colors-and-styles
+[config-colors]: config-reference.md#custom-colors-and-styles
 
 ## Configuration
 

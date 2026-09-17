@@ -1,8 +1,0 @@
-source = openclaw/agent-skills
-source_type = github
-profile = all
-installed_at = 2026-05-25T23:19:40Z
-requested_source = https://github.com/openclaw/agent-skills/blob/main/skills/handoff/SKILL.md
-via = manual vendor from https://github.com/openclaw/agent-skills/commit/32df07d334db8699ab913a87b626d89ebbf5d4a7
-upstream_commit = 32df07d334db8699ab913a87b626d89ebbf5d4a7
-local_changes = none

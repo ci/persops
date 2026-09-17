@@ -45,9 +45,9 @@ change, creating two visible successors. This can happen when:
   `jj describe` and, while writing your commit description, an IDE integration
   fetches and rebases the branch you're working on.
 
-[divergent change]: ../glossary.md#divergent-change
-[visible commits]: ../glossary.md#visible-commits
-[change offset]: ../glossary.md#change-offset
+[divergent change]: https://docs.jj-vcs.dev/latest/glossary/#divergent-change
+[visible commits]: https://docs.jj-vcs.dev/latest/glossary/#visible-commits
+[change offset]: https://docs.jj-vcs.dev/latest/glossary/#change-offset
 
 ## How do I resolve divergent changes?
 

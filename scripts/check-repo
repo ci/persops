@@ -19,6 +19,7 @@ shell_scripts=(
 	scripts/remote-preflight
 	scripts/remote-verify
 	modules/ai/scripts/add-skill.sh
+	modules/ai/scripts/retire-pi-compound-engineering.sh
 )
 
 section "bash syntax"
@@ -39,6 +40,12 @@ shfmt -d "${shell_scripts[@]}"
 
 section "deployment target checks"
 bash scripts/test-deploy-check
+
+section "Pi Compound Engineering retirement"
+python3 scripts/test-retire-pi-compound-engineering.py
+
+section "session viewer"
+node --test modules/ai/skills/session-viewer/scripts/session-viewer.test.ts
 
 section "Kuma scheduled-job health checks"
 python3 scripts/test-kuma-job-health.py

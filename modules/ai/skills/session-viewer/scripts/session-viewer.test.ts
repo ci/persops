@@ -4,6 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { parseSessionDocument } from "./core/detect.ts";
 import { parseJsonl } from "./core/jsonl.ts";
@@ -775,7 +776,7 @@ test("CLI writes a one-file HTML export", async () => {
     "utf8",
   );
   await execFileAsync(process.execPath, [
-    "skills/session-viewer/scripts/session-viewer.ts",
+    fileURLToPath(new URL("./session-viewer.ts", import.meta.url)),
     input,
     "--out",
     output,

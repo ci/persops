@@ -1441,7 +1441,7 @@ backends.ssh.revocation-list = "/path/to/revocation-list"
 
 ### Manually signing commits
 
-You can use [`jj sign`](./cli-reference.md#jj-sign)/[`jj unsign`](./cli-reference.md#jj-unsign)
+You can use [`jj sign`](https://docs.jj-vcs.dev/latest/cli-reference/#jj-sign)/[`jj unsign`](https://docs.jj-vcs.dev/latest/cli-reference/#jj-unsign)
 to sign/unsign commits manually.
 
 !!! warning
@@ -1755,13 +1755,13 @@ All new files in the working copy that don't match the ignore patterns are
 tracked by default. You can set the `snapshot.auto-track` to set which paths
 get automatically tracked when they're added to the working copy. See the
 [fileset documentation](filesets.md) for the syntax. Files with paths matching
-[ignore files](working-copy.md#ignored-files) are never tracked automatically.
+[ignore files](https://docs.jj-vcs.dev/latest/working-copy/#ignored-files) are never tracked automatically.
 
 If you set `snapshot.auto-track` to a non-default value, untracked files can be
 tracked with `jj file track`.
 
 You can use `jj file untrack` to untrack a file while keeping it in the working
-copy. However, first [ignore](working-copy.md#ignored-files) them or remove them
+copy. However, first [ignore](https://docs.jj-vcs.dev/latest/working-copy/#ignored-files) them or remove them
 from the `snapshot.auto-track` patterns; otherwise they will be immediately
 tracked again.
 
@@ -1799,11 +1799,11 @@ automatically update stale working copies by setting:
 auto-update-stale = true
 ```
 
-This is particularly useful if you have [multiple workspaces](working-copy.md#workspaces)
+This is particularly useful if you have [multiple workspaces](https://docs.jj-vcs.dev/latest/working-copy/#workspaces)
 and want to avoid manually updating each one.
 
 For more information on stale working copies, see the [working copy
-documentation](working-copy.md#stale-working-copy).
+documentation](https://docs.jj-vcs.dev/latest/working-copy/#stale-working-copy).
 
 ## Working copy settings
 
@@ -1926,7 +1926,7 @@ JJ_CONFIG= jj log       # Ignores any settings specified in any config files.
 ```
 
 There are also the `--config-file <PATH>` and `--config <NAME=VALUE>`
-[global options](./cli-reference.md#options) which work with any `jj` command.
+[global options](https://docs.jj-vcs.dev/latest/cli-reference/#options) which work with any `jj` command.
 
 ### JSON Schema Support
 

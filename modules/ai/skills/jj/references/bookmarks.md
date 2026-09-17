@@ -148,7 +148,7 @@ is similar to Mercurial, which fetches all its bookmarks (equivalent to Git's
 branches) by default. Similarly, all newly created local bookmarks
 will be marked as "tracked", preparing them to be pushed with
 the next `jj git push` command. See ["Automatic tracking of
-bookmarks"](config.md#automatic-tracking-of-bookmarks) for details.
+bookmarks"](config-reference.md#automatic-tracking-of-bookmarks) for details.
 
 ## Bookmark updates
 
@@ -231,4 +231,4 @@ For example, `jj bookmark create BOOKMARK-NAME -r@` can be abbreviated as
 `jj b c BOOKMARK-NAME -r@`.
 
 [colocated-workspaces]: git-compatibility.md#colocated-jujutsugit-repos
-[design]: design/tracking-branches.md
+[design]: https://docs.jj-vcs.dev/latest/design/tracking-branches/

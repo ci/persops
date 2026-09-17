@@ -15,7 +15,7 @@ then resolve the conflict whenever you want. Conflicted states can be further
 rebased, merged, or backed out. Note that what's stored in the commit is a
 logical representation of the conflict, not conflict *markers*; rebasing a
 conflict doesn't result in a nested conflict markers (see
-[technical doc](technical/conflicts.md) for how this works).
+[technical doc](https://docs.jj-vcs.dev/latest/technical/conflicts/) for how this works).
 
 ## Advantages
 
@@ -49,7 +49,7 @@ The deeper understanding of conflicts has many advantages:
   interact with your project using Git.)
 
 For information about how conflicts are handled in the working copy, see
-[here](working-copy.md#conflicts).
+[here](https://docs.jj-vcs.dev/latest/working-copy/#conflicts).
 
 ## Conflict markers
 

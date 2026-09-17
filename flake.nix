@@ -109,6 +109,7 @@
         pkgs.actionlint
         pkgs.deadnix
         pkgs.nixfmt
+        pkgs.nodejs
         pkgs.shellcheck
         pkgs.shfmt
         pkgs.statix
