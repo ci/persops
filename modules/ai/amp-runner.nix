@@ -12,7 +12,8 @@ let
     "amalthea"
   ];
   amp = "${home}/.amp/bin/amp";
-  workingDirectory = "${home}/p";
+  discoveryRoot = "${home}/p";
+  workingDirectory = "${discoveryRoot}/persops";
   path = lib.concatStringsSep ":" (
     lib.optionals pkgs.stdenv.isDarwin [ "/bin" ]
     ++ lib.optionals pkgs.stdenv.isLinux [ "/run/wrappers/bin" ]
@@ -28,14 +29,25 @@ let
       "/sbin"
     ]
   );
-  arguments = [
-    amp
-    "--no-tui"
-    "--runner-id"
-    currentSystemName
-    "--remote-control-terminal"
-    "--discover-dirs"
-  ];
+  runner = pkgs.writeShellScript "amp-runner" ''
+    shopt -s nullglob
+    args=(
+      ${lib.escapeShellArg amp}
+      --no-tui
+      --runner-id ${lib.escapeShellArg currentSystemName}
+      --remote-control-terminal
+    )
+
+    for repository in ${lib.escapeShellArg discoveryRoot}/* ${lib.escapeShellArg discoveryRoot}/*/*; do
+      [[ -L "$repository" || ! -e "$repository/.git" ]] && continue
+      [[ "$repository" == ${lib.escapeShellArg "${discoveryRoot}/foss"}/* ]] && continue
+      [[ "$repository" == */node_modules/* ]] && continue
+      [[ "$repository" == "$PWD" ]] || args+=(--dir "$repository")
+    done
+
+    exec "''${args[@]}"
+  '';
+  arguments = [ (toString runner) ];
 in
 {
   launchd.agents.amp-runner = lib.mkIf (enabled && pkgs.stdenv.isDarwin) {
