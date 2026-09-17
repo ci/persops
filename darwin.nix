@@ -82,17 +82,14 @@
       "steipete/tap/codexbar"
       "steipete/tap/repobar"
       "nikitabobko/tap/aerospace"
-      "conductor" # agent session manager of choice
       "claude" # claudedesktop goes brrr
       "cleanshot"
       "font-jetbrains-mono-nerd-font"
       "ghostty" # best terminal atm
-      "helium-browser" # browser that finally stuck
       "homerow" # everywhere-navigation
       "thaw"
       "karabiner-elements"
       "keybase" # keybase-gui doesn't work on OSX yet
-      "kindavim" # vim-ify everything
       "linear" # linear app
       "obsidian"
       "orbstack" # container goodies on OSX
@@ -109,11 +106,6 @@
       "whatcable" # usb-c/thunderbolt cable info menu bar app
     ];
   };
-  # casks  = [
-  #   "1password"
-  #   "cleanshot"
-  #   "raycast"
-  # ];
 
   users.knownUsers = [ user ];
   users.users.${user} = {
