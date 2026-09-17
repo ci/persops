@@ -133,7 +133,6 @@ in
     packages =
       with pkgs;
       [
-        llmAgents.amp
         codex
         claude-code
         llmAgents.claude-plugins

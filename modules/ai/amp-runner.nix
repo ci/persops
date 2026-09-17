@@ -1,6 +1,5 @@
 {
   config,
-  inputs,
   lib,
   pkgs,
   currentSystemName,
@@ -12,7 +11,7 @@ let
     "aglaea"
     "amalthea"
   ];
-  amp = lib.getExe inputs.llm-agents.packages.${pkgs.stdenv.hostPlatform.system}.amp;
+  amp = "${home}/.amp/bin/amp";
   workingDirectory = "${home}/p";
   path = lib.concatStringsSep ":" (
     lib.optionals pkgs.stdenv.isDarwin [ "/bin" ]
@@ -35,6 +34,7 @@ let
     "--runner-id"
     currentSystemName
     "--remote-control-terminal"
+    "--discover-dirs"
   ];
 in
 {
