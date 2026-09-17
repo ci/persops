@@ -7,7 +7,7 @@ description: "Auto Review closeout for Git and Jujutsu changes. Uses Amp by defa
 
 Run the bundled structured review helper as a closeout check. This is code review, not Guardian `auto_review` approval routing.
 
-Amp is the default inside an Amp orb, detected by the documented `AMP_ORB=1` environment variable. Codex is the default elsewhere and usually delivers the best local review results. An explicit `--engine` always wins; `AUTOREVIEW_ENGINE` overrides the environment-based default. Codex defaults to `gpt-5.6-sol` and retries once with `gpt-5.6-terra` only when the account cannot access Sol; thinking follows the Codex CLI config. Claude defaults to `fable`, the claude CLI alias for the latest Fable. Amp defaults to `openai/gpt-5.6-sol` at `high` reasoning through a generated adapter plugin that reuses the existing `amp login`. Grok defaults to `grok-4.6`. Pi and opencode use the model their own CLI is configured for.
+Amp is the default inside an Amp orb, detected by the documented `AMP_ORB=1` environment variable. Codex is the default elsewhere and usually delivers the best local review results. An explicit `--engine` always wins; `AUTOREVIEW_ENGINE` overrides the environment-based default. Codex defaults to `gpt-5.6-sol` and retries once with `gpt-5.6-terra` only when the account cannot access Sol; thinking follows the Codex CLI config. Explicit `gpt-6-astra` defaults to `high` and accepts only `low`, `medium`, `high`, `xhigh`, or `max`. Claude defaults to `fable`, the claude CLI alias for the latest Fable. Amp defaults to `openai/gpt-5.6-sol` at `high` reasoning through a generated adapter plugin that reuses the existing `amp login`. Grok defaults to `grok-4.6`. Pi and opencode use the model their own CLI is configured for.
 
 Use when:
 
@@ -186,7 +186,8 @@ an Amp orb runs the codex+grok panel through amp's model providers:
 syntax (`codex=gpt-5.5,claude=sonnet` or a bare global value) and sit between
 CLI flags and built-in defaults.
 
-Thinking per engine: Codex maps to `model_reasoning_effort` (`low`-`max`).
+Thinking per engine: Codex maps to `model_reasoning_effort` (`none`-`max`),
+except GPT-6 Astra rejects `none` and `minimal` and defaults to `high`.
 Claude maps to `--effort` (`low`-`max`). Amp maps to the adapter plugin's
 `reasoningEffort` (`none`-`max`, default `high`) and its model must be a
 `provider/model` id (default `openai/gpt-5.6-sol`). Grok maps to `--effort`

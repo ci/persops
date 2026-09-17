@@ -22,7 +22,7 @@ from urllib.parse import urlparse
 
 ENGINES = ("codex", "claude", "amp", "grok", "droid", "copilot", "pi", "opencode")
 THINKING_LEVELS_BY_ENGINE = {
-    "codex": {"low", "medium", "high", "xhigh", "max"},
+    "codex": {"none", "minimal", "low", "medium", "high", "xhigh", "max"},
     "claude": {"low", "medium", "high", "xhigh", "max"},
     # amp maps thinking to amp.ai.generate reasoningEffort in the adapter plugin
     "amp": {"none", "low", "medium", "high", "xhigh", "max"},
@@ -1450,7 +1450,8 @@ def parse_args() -> argparse.Namespace:
         action="append",
         help=(
             "Thinking/effort for all reviewers or engine=level. Repeatable. Overrides AUTOREVIEW_THINKING. "
-            "Codex/Claude: low, medium, high, xhigh, max. Amp (agent mode): low, medium, high, ultra. Grok: low, medium, high, xhigh. "
+            "Codex: none, minimal, low, medium, high, xhigh, max; gpt-6-astra requires low through max and defaults to high. "
+            "Claude: low, medium, high, xhigh, max. Amp (agent mode): low, medium, high, ultra. Grok: low, medium, high, xhigh. "
             "Pi: off, minimal, low, medium, high, xhigh, max. OpenCode: minimal, low, medium, high, max."
         ),
     )
@@ -1612,9 +1613,15 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
             fallback_model = DEFAULT_CODEX_ACCESS_FALLBACK_MODEL
         else:
             fallback_model = None
-        if thinking and thinking not in THINKING_LEVELS_BY_ENGINE[engine]:
-            valid = ", ".join(sorted(THINKING_LEVELS_BY_ENGINE[engine])) or "none"
-            raise SystemExit(f"invalid thinking level for {engine}: {thinking} (valid: {valid})")
+        thinking_levels = THINKING_LEVELS_BY_ENGINE[engine]
+        thinking_target = engine
+        if engine == "codex" and model == "gpt-6-astra":
+            thinking = thinking or "high"
+            thinking_levels = thinking_levels - {"none", "minimal"}
+            thinking_target = f"{engine} model {model}"
+        if thinking and thinking not in thinking_levels:
+            valid = ", ".join(sorted(thinking_levels)) or "none"
+            raise SystemExit(f"invalid thinking level for {thinking_target}: {thinking} (valid: {valid})")
         clone = copy.copy(args)
         clone.engine = engine
         clone.model = model
