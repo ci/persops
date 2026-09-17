@@ -1,7 +1,6 @@
 ---
 name: one-password
 description: "1Password/op: service-account first, targeted secret read/store/inject, tmux."
-metadata: {"clawdbot":{"emoji":"🔐","requires":{"bins":["op","tmux"]},"install":[{"id":"brew","kind":"brew","formula":"1password-cli","bins":["op"],"label":"Install 1Password CLI (brew)"}]}}
 ---
 
 # 1Password CLI
@@ -53,9 +52,9 @@ The shell tool uses a fresh TTY per command. Run `op` inside one dedicated tmux 
 Example:
 
 ```bash
-SOCKET_DIR="${CLAWDBOT_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/clawdbot-tmux-sockets}"
+SOCKET_DIR="${TMPDIR:-/tmp}/op-tmux-sockets"
 mkdir -p "$SOCKET_DIR"
-SOCKET="$SOCKET_DIR/clawdbot-op.sock"
+SOCKET="$SOCKET_DIR/op.sock"
 SESSION="op-work"
 
 tmux -S "$SOCKET" has-session -t "$SESSION" 2>/dev/null ||
@@ -79,8 +78,8 @@ Target the session as `$SESSION:` instead of assuming window `0`; older sessions
 Use the persistent tmux session. Write the exact secret task to a temp script, then send that script into `op-work`; do not create a second tmux session for retries.
 
 ```bash
-SOCKET_DIR="${CLAWDBOT_TMUX_SOCKET_DIR:-${TMPDIR:-/tmp}/clawdbot-tmux-sockets}"
-SOCKET="$SOCKET_DIR/clawdbot-op.sock"
+SOCKET_DIR="${TMPDIR:-/tmp}/op-tmux-sockets"
+SOCKET="$SOCKET_DIR/op.sock"
 SESSION="op-work"
 tmux -S "$SOCKET" has-session -t "$SESSION" 2>/dev/null ||
   tmux -S "$SOCKET" new -d -s "$SESSION" -n shell

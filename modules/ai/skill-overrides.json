@@ -11,9 +11,6 @@
   "purpose-orchestrator": {
     "profile": "codex"
   },
-  "spotify-player": {
-    "profile": "claw"
-  },
   "effect-ts": {
     "profile": "coding"
   },

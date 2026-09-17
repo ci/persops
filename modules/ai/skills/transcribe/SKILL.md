@@ -1,7 +1,6 @@
 ---
 name: transcribe
 description: Speech-to-text with local NVIDIA Parakeet (NeMo) via the transcribe CLI.
-metadata: {"openclaw":{"emoji":"🎙️","requires":{"bins":["transcribe"]}}}
 ---
 
 # Transcribe

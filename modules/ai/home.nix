@@ -46,16 +46,12 @@ let
     all = [
       ".claude/skills"
       ".agents/skills"
-      ".openclaw/skills"
       ".pi/agent/skills"
     ];
     coding = [
       ".claude/skills"
       ".agents/skills"
       ".pi/agent/skills"
-    ];
-    claw = [
-      ".openclaw/skills"
     ];
     codex = [
       ".agents/skills"
