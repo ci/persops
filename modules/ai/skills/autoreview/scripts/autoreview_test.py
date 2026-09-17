@@ -76,5 +76,46 @@ class AstraValidationTests(unittest.TestCase):
                 self.assertEqual(self.reviewer("--thinking", effort).thinking, effort)
 
 
+class EngineRoutingTests(unittest.TestCase):
+    def reviewer(self, *arguments: str, env: dict[str, str] | None = None):
+        with mock.patch.dict(os.environ, env or {}, clear=True), mock.patch.object(
+            sys, "argv", ["autoreview", *arguments]
+        ):
+            args = AUTOREVIEW["parse_args"]()
+            return AUTOREVIEW["reviewer_args"](args)[0]
+
+    def test_orb_selects_amp_astra_high(self) -> None:
+        reviewer = self.reviewer(env={"AMP_ORB": "1"})
+        self.assertEqual(reviewer.engine, "amp")
+        self.assertEqual(reviewer.model, "openai/gpt-6-astra")
+        self.assertEqual(reviewer.thinking, "high")
+        self.assertIsNone(reviewer.fallback_model)
+
+    def test_outside_orb_keeps_codex_default_and_access_fallback(self) -> None:
+        reviewer = self.reviewer()
+        self.assertEqual(reviewer.engine, "codex")
+        self.assertEqual(reviewer.model, "gpt-5.6-sol")
+        self.assertEqual(reviewer.fallback_model, "gpt-5.6-terra")
+
+    def test_explicit_engine_wins_over_orb_and_environment(self) -> None:
+        reviewer = self.reviewer(
+            "--engine", "codex",
+            env={"AMP_ORB": "1", "AUTOREVIEW_ENGINE": "amp"},
+        )
+        self.assertEqual(reviewer.engine, "codex")
+
+    def test_environment_engine_wins_over_orb(self) -> None:
+        reviewer = self.reviewer(env={"AMP_ORB": "1", "AUTOREVIEW_ENGINE": "codex"})
+        self.assertEqual(reviewer.engine, "codex")
+
+    def test_explicit_model_and_effort_win_over_orb_defaults(self) -> None:
+        reviewer = self.reviewer(
+            "--model", "amp=openai/gpt-5.6-sol", "--thinking", "amp=xhigh",
+            env={"AMP_ORB": "1"},
+        )
+        self.assertEqual(reviewer.model, "openai/gpt-5.6-sol")
+        self.assertEqual(reviewer.thinking, "xhigh")
+
+
 if __name__ == "__main__":
     unittest.main()

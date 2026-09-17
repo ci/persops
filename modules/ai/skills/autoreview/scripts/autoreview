@@ -36,7 +36,7 @@ THINKING_LEVELS_BY_ENGINE = {
 DEFAULT_MODEL_BY_ENGINE = {
     "codex": "gpt-5.6-sol",
     "claude": "fable",  # claude CLI alias for the latest Fable
-    "amp": "openai/gpt-5.6-sol",
+    "amp": "openai/gpt-6-astra",
     "grok": "grok-4.6",
 }
 DEFAULT_THINKING_BY_ENGINE = {
