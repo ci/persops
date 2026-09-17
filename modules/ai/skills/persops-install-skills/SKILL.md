@@ -18,7 +18,8 @@ Use this workflow for skills managed in `~/p/persops/modules/ai/skills`.
 1. Start with `jj status`, then inspect `modules/ai/home.nix`, `modules/ai/skill-overrides.json`, and any existing skill directory you might touch.
 2. For new upstream skills, run `modules/ai/scripts/add-skill.sh [--profile <all|coding|codex>] <source> [skills-add args...]`.
    - Example: `modules/ai/scripts/add-skill.sh https://github.com/shadcn/ui --skill shadcn`
-   - Direct GitHub `blob` / `tree` skill URLs work too; the helper infers the single skill name and vendors only that skill.
+   - Direct GitHub `blob` / `tree` URLs must select a skill directory or its `SKILL.md`. The helper resolves the requested ref with `gh`, pins the commit, preserves the subdirectory, and records both in `UPSTREAM.txt`.
+   - Existing destinations reject the whole batch before copying or profile changes. Update existing skills explicitly; this helper only adds new ones.
 3. Review the vendored files under `modules/ai/skills/<name>/`. Keep repo-owned truth there and verify `UPSTREAM.txt`.
 4. If the profile is not default `all`, update `modules/ai/skill-overrides.json`. Use it for `coding`, `codex`, or other per-skill exceptions like `recursive = true`.
 5. If you create or update a repo-local skill, keep `SKILL.md` concise, keep `agents/openai.yaml` aligned, and validate the skill with `uv run --with pyyaml python3 /Users/cat/.codex/skills/.system/skill-creator/scripts/quick_validate.py <skill-dir>`.

@@ -4,3 +4,4 @@ profile = all
 installed_at = unknown
 local_changes = persops-specific skill
 local_patch_2026_09_18 = replaced removed-skill example with retained shadcn skill
+local_importer_2026_09_18 = documented revision-preserving GitHub imports and whole-batch collision preflight

@@ -108,6 +108,7 @@
       checkToolPackages = pkgs: [
         pkgs.actionlint
         pkgs.deadnix
+        pkgs.jq
         pkgs.nixfmt
         pkgs.nodejs
         pkgs.shellcheck

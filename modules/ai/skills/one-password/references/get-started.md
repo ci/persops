@@ -1,5 +1,9 @@
 # 1Password CLI get-started (summary)
 
+Desktop integration only: follow the consent gate in `../SKILL.md` first.
+Service-account automation does not need this flow; keep both desktop overrides
+disabled there. Keep CLI installation/updates managed by persops.
+
 - Works on macOS, Windows, and Linux.
   - macOS/Linux shells: bash, zsh, sh, fish.
   - Windows shell: PowerShell.

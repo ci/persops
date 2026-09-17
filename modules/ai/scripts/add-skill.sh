@@ -18,7 +18,7 @@ keep_temp=0
 source_repo=""
 source_input=""
 normalized_source=""
-inferred_skill=""
+resolved_source=""
 upstream_args=()
 
 while [[ $# -gt 0 ]]; do
@@ -71,15 +71,6 @@ done
 source_input="$source_repo"
 normalized_source="$source_repo"
 
-if [[ "$source_repo" =~ ^https://github\.com/([^/]+/[^/]+)/(blob|tree)/[^/]+/(.+)$ ]]; then
-	normalized_source="https://github.com/${BASH_REMATCH[1]}"
-	source_subpath="${BASH_REMATCH[3]%/}"
-	inferred_skill="$(basename "$source_subpath")"
-	if [[ "$inferred_skill" == "SKILL.md" ]]; then
-		inferred_skill="$(basename "$(dirname "$source_subpath")")"
-	fi
-fi
-
 case "$profile" in
 all | coding | codex) ;;
 *)
@@ -93,6 +84,11 @@ repo_root="$(cd "$script_dir/../../.." && pwd)"
 ai_dir="$repo_root/modules/ai"
 skills_dir="$ai_dir/skills"
 overrides_file="$ai_dir/skill-overrides.json"
+
+if [[ "$source_repo" =~ ^https://github\.com/[^/]+/[^/]+/(blob|tree)/ ]]; then
+	resolved_source="$(python3 "$script_dir/resolve-skill-source.py" "$source_repo")"
+	normalized_source="$(jq -r '.url' <<<"$resolved_source")"
+fi
 
 tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/persops-skill-add-XXXXXX")"
 
@@ -153,7 +149,7 @@ if has_upstream_flag "--all" ""; then
 	:
 else
 	if ! has_upstream_flag "--skill" "--skill=" && ! has_upstream_flag "-s" ""; then
-		effective_upstream_args+=(--skill "${inferred_skill:-*}")
+		effective_upstream_args+=(--skill "*")
 	fi
 	if ! has_upstream_flag "--agent" "--agent=" && ! has_upstream_flag "-a" ""; then
 		effective_upstream_args+=(--agent "*")
@@ -196,16 +192,22 @@ shopt -u nullglob
 
 imported=()
 
+# Check the entire batch before touching the managed skill tree or profiles.
 for skill_path in "${skill_paths[@]}"; do
 	[[ -d "$skill_path" ]] || continue
-
 	skill_name="$(basename "$skill_path")"
 	target_path="$skills_dir/$skill_name"
-
-	[[ ! -e "$target_path" ]] || {
+	[[ ! -e "$target_path" && ! -L "$target_path" ]] || {
 		printf 'Target already exists: %s\n' "$target_path" >&2
 		exit 1
 	}
+	jq -e --arg name "$skill_name" '.skills[$name] | type == "object"' "$tmp_dir/skills-lock.json" >/dev/null
+done
+
+for skill_path in "${skill_paths[@]}"; do
+	[[ -d "$skill_path" ]] || continue
+	skill_name="$(basename "$skill_path")"
+	target_path="$skills_dir/$skill_name"
 
 	cp -R "$skill_path" "$target_path"
 
@@ -219,8 +221,13 @@ for skill_path in "${skill_paths[@]}"; do
 		printf 'source_type = %s\n' "${upstream_source_type:-unknown}"
 		printf 'profile = %s\n' "$profile"
 		printf 'installed_at = %s\n' "$installed_at"
-		if [[ "$source_input" != "$normalized_source" ]]; then
+		if [[ "$source_input" != "$normalized_source" || -n "$resolved_source" ]]; then
 			printf 'requested_source = %s\n' "$source_input"
+		fi
+		if [[ -n "$resolved_source" ]]; then
+			printf 'requested_ref = %s\n' "$(jq -r '.ref' <<<"$resolved_source")"
+			printf 'revision = %s\n' "$(jq -r '.commit' <<<"$resolved_source")"
+			printf 'subpath = %s\n' "$(jq -r '.path' <<<"$resolved_source")"
 		fi
 		printf 'via = %s\n' "$via_command"
 		if [[ -n "$upstream_hash" ]]; then

@@ -70,6 +70,12 @@ modules/ai/scripts/add-skill.sh https://github.com/shadcn/ui --skill shadcn
 modules/ai/scripts/add-skill.sh https://github.com/openclaw/agent-skills/tree/main/skills/session-viewer
 ```
 
+Direct GitHub `tree`/`blob` links must select a skill directory or its `SKILL.md`.
+The importer uses `gh` to resolve the branch, tag, or commit (including refs with
+slashes), pins installation to that commit, and records the revision and path in
+`UPSTREAM.txt`. Existing skill names are rejected across the entire batch before
+any copying or profile changes; updating existing skills remains a separate edit.
+
 Removed shared skills are unlinked by Home Manager on the next deployment. The
 retired Pi Compound Engineering bundle (`ce-*`, its `lfg` launcher, and companion
 agents) is moved out of active discovery into `~/.pi/agent/backups/` during
