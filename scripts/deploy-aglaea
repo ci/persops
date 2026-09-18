@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "${1:-}" = "--worker" ]; then
+	flake="${2:?missing flake}"
+	status_file="${3:?missing status file}"
+
+	# Invoked by the EXIT trap below.
+	# shellcheck disable=SC2329
+	finish() {
+		status=$?
+		trap - EXIT
+		set +e
+		if ! printf '%s\n' "$status" >"${status_file}.$$" || ! mv "${status_file}.$$" "$status_file"; then
+			echo "error: unable to publish Aglaea activation status: ${status_file}" >&2
+		fi
+		# The controller propagates this status; the one-shot job must not be retried.
+		exit 0
+	}
+	trap finish EXIT
+
+	nh darwin switch "${flake}#aglaea"
+	ops-status
+	exit 0
+fi
+
+flake="${1:?missing flake}"
+script_path="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+cache_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/persops"
+label="org.nix-community.persops.deploy-aglaea"
+domain="gui/$(id -u)"
+log_file="${cache_dir}/deploy-aglaea.log"
+status_file="${cache_dir}/deploy-aglaea.status"
+lock_file="${cache_dir}/deploy-aglaea.lock"
+plist_file="${cache_dir}/deploy-aglaea.plist"
+mkdir -p "$cache_dir"
+
+job_is_terminal() {
+	local state="$1"
+	! printf '%s\n' "$state" | grep -Eq '^[[:space:]]*pid = [0-9]+$' &&
+		printf '%s\n' "$state" |
+		grep -Eq '^[[:space:]]*(last exit code|last terminating signal|state = (not running|exited))'
+}
+
+wait_for_job_removal() {
+	local attempt
+	for ((attempt = 0; attempt < 50; attempt++)); do
+		if ! launchctl print "${domain}/${label}" >/dev/null 2>&1; then
+			return 0
+		fi
+		sleep 0.1
+	done
+	echo "error: timed out waiting for Aglaea activation job removal" >&2
+	return 1
+}
+
+bootout_job() {
+	launchctl bootout "${domain}/${label}"
+	wait_for_job_removal
+}
+
+# Keep the file so lock ordering remains stable; the kernel releases the lock
+# if this controller is interrupted. This protects all shared job/status cleanup.
+exec 9>"$lock_file"
+if ! lockf -s -t 0 9; then
+	echo "error: another Aglaea deployment controller is active; log: ${log_file}" >&2
+	exit 1
+fi
+
+if job_state="$(launchctl print "${domain}/${label}" 2>/dev/null)"; then
+	if [ -f "$status_file" ]; then
+		bootout_job
+	elif job_is_terminal "$job_state"; then
+		echo "error: previous Aglaea activation exited without publishing status; log: ${log_file}" >&2
+		if [ -f "$log_file" ]; then
+			cat "$log_file" >&2
+		fi
+		bootout_job
+		exit 1
+	else
+		echo "error: an Aglaea activation is already running; log: ${log_file}" >&2
+		exit 1
+	fi
+fi
+
+rm -f "$status_file"
+: >"$log_file"
+
+plutil -create xml1 "$plist_file"
+plutil -insert Label -string "$label" "$plist_file"
+plutil -insert ProgramArguments -array "$plist_file"
+plutil -insert ProgramArguments.0 -string /usr/bin/env "$plist_file"
+plutil -insert ProgramArguments.1 -string "PATH=${PATH}" "$plist_file"
+plutil -insert ProgramArguments.2 -string "HOME=${HOME}" "$plist_file"
+plutil -insert ProgramArguments.3 -string "$script_path" "$plist_file"
+plutil -insert ProgramArguments.4 -string --worker "$plist_file"
+plutil -insert ProgramArguments.5 -string "$flake" "$plist_file"
+plutil -insert ProgramArguments.6 -string "$status_file" "$plist_file"
+plutil -insert RunAtLoad -bool YES "$plist_file"
+plutil -insert KeepAlive -bool NO "$plist_file"
+plutil -insert StandardOutPath -string "$log_file" "$plist_file"
+plutil -insert StandardErrorPath -string "$log_file" "$plist_file"
+launchctl bootstrap "$domain" "$plist_file"
+
+echo "Aglaea activation is running independently of the Amp runner."
+echo "Log: ${log_file}"
+
+startup_checks=0
+while [ ! -f "$status_file" ]; do
+	if ! job_state="$(launchctl print "${domain}/${label}" 2>/dev/null)"; then
+		echo "error: Aglaea activation job disappeared; log: ${log_file}" >&2
+		exit 1
+	fi
+	if job_is_terminal "$job_state"; then
+		echo "error: Aglaea activation exited without publishing status; log: ${log_file}" >&2
+		bootout_job
+		exit 1
+	fi
+	if ! printf '%s\n' "$job_state" | grep -Eq '^[[:space:]]*pid = [0-9]+$'; then
+		startup_checks=$((startup_checks + 1))
+		if [ "$startup_checks" -ge 30 ]; then
+			echo "error: timed out waiting for Aglaea activation to start; log: ${log_file}" >&2
+			bootout_job
+			exit 1
+		fi
+	fi
+	sleep 1
+done
+
+status="$(cat "$status_file")"
+cat "$log_file"
+bootout_job
+rm -f "$status_file"
+exit "$status"

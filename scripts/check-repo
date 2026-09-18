@@ -13,7 +13,9 @@ shell_scripts=(
 	.agents/setup
 	scripts/check-repo
 	scripts/deploy
+	scripts/deploy-aglaea
 	scripts/test-deploy-check
+	scripts/test-deploy-aglaea
 	scripts/kuma-job-secrets-install
 	scripts/pheme-watch-install
 	scripts/remote-preflight
@@ -40,6 +42,9 @@ shfmt -d "${shell_scripts[@]}"
 
 section "deployment target checks"
 bash scripts/test-deploy-check
+
+section "detached Aglaea deployment checks"
+bash scripts/test-deploy-aglaea
 
 section "Pi Compound Engineering retirement"
 python3 scripts/test-retire-pi-compound-engineering.py

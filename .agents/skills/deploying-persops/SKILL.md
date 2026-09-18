@@ -46,8 +46,10 @@ Controller defaults:
 The command runs repository checks and evaluates only the selected targets against
 one immutable Nix store snapshot before activation. A remote Amalthea deployment
 checks its deploy-rs profile; a local Amalthea deployment checks its NixOS config.
-Amalthea is verified with `scripts/remote-verify`; Aglaea runs `ops-status` after
-its local switch. Use `make check` separately to evaluate every machine config.
+Amalthea is verified with `scripts/remote-verify`. Aglaea activation and its
+`ops-status` verification run in a transient launchd job so replacing the Amp
+runner cannot interrupt the switch. Use `make check` separately to evaluate every
+machine config.
 
 ## Delegating From an Orb
 
@@ -66,7 +68,9 @@ the runner can access:
 Tell the runner thread the targets, exact revision or patch, and that live
 activation is authorized. Do not ask it to push. Account for a local switch
 restarting the runner: finish remote work first and place the controller's local
-switch last.
+switch last. The transient launchd activation continues across the disconnect;
+after reconnecting, inspect `~/.cache/persops/deploy-aglaea.log` and the managed
+runner state before deciding whether any retry is needed.
 
 ## Failure Handling
 

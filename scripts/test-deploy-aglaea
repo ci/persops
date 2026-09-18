@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+temp_dir="$(mktemp -d)"
+trap 'rm -rf "$temp_dir"' EXIT
+mkdir -p "$temp_dir/bin" "$temp_dir/home"
+
+cat >"$temp_dir/bin/launchctl" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >>"${TEST_CALLS:?}"
+case "$1" in
+print)
+	if [ -n "${TEST_JOB_REMOVED:-}" ] && [ -f "$TEST_JOB_REMOVED" ]; then
+		exit 1
+	fi
+	if [ -n "${TEST_JOB_COMPLETED:-}" ] && [ -f "$TEST_JOB_COMPLETED" ]; then
+		printf '\tlast exit code = 0\n'
+		exit 0
+	fi
+	if [ "${TEST_JOB_STATE:-absent}" = "terminal" ]; then
+		printf '\tstate = not running\n\tlast terminating signal = Killed: 9\n'
+		exit 0
+	fi
+	[ "${TEST_JOB_STATE:-absent}" != "absent" ]
+	;;
+bootstrap)
+	if [ "${TEST_SUBMIT_MODE:-run}" = "no-status" ]; then
+		: >"${TEST_JOB_COMPLETED:?}"
+		exit 0
+	fi
+	if "${TEST_SCRIPT_PATH:?}" --worker "${TEST_FLAKE:?}" "${TEST_STATUS_FILE:?}"; then
+		worker_status=0
+	else
+		worker_status=$?
+	fi
+	printf '%s\n' "$worker_status" >"${TEST_WORKER_EXIT:?}"
+	;;
+bootout)
+	if [ -n "${TEST_JOB_REMOVED:-}" ]; then
+		: >"$TEST_JOB_REMOVED"
+	fi
+	;;
+esac
+EOF
+
+cat >"$temp_dir/bin/plutil" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >>"${TEST_PLUTIL_CALLS:?}"
+if [ "$1" = "-create" ]; then
+	: >"${*: -1}"
+fi
+EOF
+
+cat >"$temp_dir/bin/lockf" <<'EOF'
+#!/usr/bin/env bash
+exit "${TEST_LOCK_STATUS:-0}"
+EOF
+
+cat >"$temp_dir/bin/nh" <<'EOF'
+#!/usr/bin/env bash
+printf 'nh %s\n' "$*"
+EOF
+
+cat >"$temp_dir/bin/ops-status" <<'EOF'
+#!/usr/bin/env bash
+echo ops-status
+exit "${TEST_OPS_STATUS:-0}"
+EOF
+chmod +x "$temp_dir/bin/launchctl" "$temp_dir/bin/lockf" "$temp_dir/bin/nh" "$temp_dir/bin/ops-status" "$temp_dir/bin/plutil"
+
+run_case() {
+	local expected_status="$1"
+	local actual_status=0
+	: >"$temp_dir/calls"
+	: >"$temp_dir/plutil-calls"
+	rm -f "$temp_dir/worker-exit"
+	if PATH="$temp_dir/bin:$PATH" \
+		HOME="$temp_dir/home" \
+		XDG_CACHE_HOME="$temp_dir/cache" \
+		TEST_CALLS="$temp_dir/calls" \
+		TEST_JOB_STATE=absent \
+		TEST_OPS_STATUS="$expected_status" \
+		TEST_PLUTIL_CALLS="$temp_dir/plutil-calls" \
+		TEST_SCRIPT_PATH="$repo_root/scripts/deploy-aglaea" \
+		TEST_FLAKE=/nix/store/test-source \
+		TEST_STATUS_FILE="$temp_dir/cache/persops/deploy-aglaea.status" \
+		TEST_WORKER_EXIT="$temp_dir/worker-exit" \
+		"$repo_root/scripts/deploy-aglaea" /nix/store/test-source >"$temp_dir/output" 2>&1; then
+		actual_status=0
+	else
+		actual_status=$?
+	fi
+
+	if [ "$actual_status" -ne "$expected_status" ]; then
+		echo "expected status ${expected_status}, got ${actual_status}" >&2
+		cat "$temp_dir/output" >&2
+		exit 1
+	fi
+	grep -Eq '^bootstrap gui/[0-9]+ .*/deploy-aglaea.plist$' "$temp_dir/calls"
+	grep -Eq '^-insert KeepAlive -bool NO ' "$temp_dir/plutil-calls"
+	grep -Eq '^nh darwin switch /nix/store/test-source#aglaea$' "$temp_dir/output"
+	grep -Eq '^ops-status$' "$temp_dir/output"
+	grep -Eq '^0$' "$temp_dir/worker-exit"
+}
+
+run_case 0
+run_case 7
+
+: >"$temp_dir/calls"
+if PATH="$temp_dir/bin:$PATH" \
+	HOME="$temp_dir/home" \
+	XDG_CACHE_HOME="$temp_dir/cache" \
+	TEST_CALLS="$temp_dir/calls" \
+	TEST_JOB_STATE=running \
+	"$repo_root/scripts/deploy-aglaea" /nix/store/test-source >"$temp_dir/output" 2>&1; then
+	echo "expected a concurrent deployment to be rejected" >&2
+	exit 1
+fi
+grep -Eq 'an Aglaea activation is already running' "$temp_dir/output"
+if grep -Eq '^bootstrap ' "$temp_dir/calls"; then
+	echo "concurrent deployment unexpectedly bootstrapped another job" >&2
+	exit 1
+fi
+
+mkdir -p "$temp_dir/cache/persops"
+printf '0\n' >"$temp_dir/cache/persops/deploy-aglaea.status"
+: >"$temp_dir/calls"
+rm -f "$temp_dir/job-removed"
+PATH="$temp_dir/bin:$PATH" \
+	HOME="$temp_dir/home" \
+	XDG_CACHE_HOME="$temp_dir/cache" \
+	TEST_CALLS="$temp_dir/calls" \
+	TEST_JOB_REMOVED="$temp_dir/job-removed" \
+	TEST_JOB_STATE=completed \
+	TEST_PLUTIL_CALLS="$temp_dir/plutil-calls" \
+	TEST_SCRIPT_PATH="$repo_root/scripts/deploy-aglaea" \
+	TEST_FLAKE=/nix/store/test-source \
+	TEST_STATUS_FILE="$temp_dir/cache/persops/deploy-aglaea.status" \
+	TEST_WORKER_EXIT="$temp_dir/worker-exit" \
+	"$repo_root/scripts/deploy-aglaea" /nix/store/test-source >"$temp_dir/output" 2>&1
+grep -Eq '^bootout gui/[0-9]+/org.nix-community.persops.deploy-aglaea$' "$temp_dir/calls"
+grep -Eq '^bootstrap ' "$temp_dir/calls"
+
+: >"$temp_dir/calls"
+if PATH="$temp_dir/bin:$PATH" \
+	HOME="$temp_dir/home" \
+	XDG_CACHE_HOME="$temp_dir/cache" \
+	TEST_CALLS="$temp_dir/calls" \
+	TEST_LOCK_STATUS=75 \
+	"$repo_root/scripts/deploy-aglaea" /nix/store/test-source >"$temp_dir/output" 2>&1; then
+	echo "expected a concurrent controller to be rejected" >&2
+	exit 1
+fi
+grep -Eq 'another Aglaea deployment controller is active' "$temp_dir/output"
+if [ -s "$temp_dir/calls" ]; then
+	echo "lock rejection unexpectedly invoked launchctl" >&2
+	exit 1
+fi
+
+if ! PATH="$temp_dir/bin:$PATH" \
+	TEST_OPS_STATUS=7 \
+	"$repo_root/scripts/deploy-aglaea" --worker /nix/store/test-source /dev/null/status \
+	>"$temp_dir/output" 2>&1; then
+	echo "worker status-publication failure would trigger a launchd retry" >&2
+	exit 1
+fi
+grep -Eq 'unable to publish Aglaea activation status' "$temp_dir/output"
+
+: >"$temp_dir/calls"
+rm -f "$temp_dir/job-completed"
+rm -f "$temp_dir/job-removed"
+if PATH="$temp_dir/bin:$PATH" \
+	HOME="$temp_dir/home" \
+	XDG_CACHE_HOME="$temp_dir/cache" \
+	TEST_CALLS="$temp_dir/calls" \
+	TEST_JOB_COMPLETED="$temp_dir/job-completed" \
+	TEST_JOB_REMOVED="$temp_dir/job-removed" \
+	TEST_JOB_STATE=absent \
+	TEST_PLUTIL_CALLS="$temp_dir/plutil-calls" \
+	TEST_SUBMIT_MODE=no-status \
+	"$repo_root/scripts/deploy-aglaea" /nix/store/test-source >"$temp_dir/output" 2>&1; then
+	echo "controller accepted a worker that failed to publish status" >&2
+	exit 1
+fi
+grep -Eq 'activation exited without publishing status' "$temp_dir/output"
+grep -Eq '^bootout gui/[0-9]+/org.nix-community.persops.deploy-aglaea$' "$temp_dir/calls"
+
+: >"$temp_dir/calls"
+rm -f "$temp_dir/job-removed"
+if PATH="$temp_dir/bin:$PATH" \
+	HOME="$temp_dir/home" \
+	XDG_CACHE_HOME="$temp_dir/cache" \
+	TEST_CALLS="$temp_dir/calls" \
+	TEST_JOB_REMOVED="$temp_dir/job-removed" \
+	TEST_JOB_STATE=terminal \
+	"$repo_root/scripts/deploy-aglaea" /nix/store/test-source >"$temp_dir/output" 2>&1; then
+	echo "controller accepted an inactive job with no status" >&2
+	exit 1
+fi
+grep -Eq 'previous Aglaea activation exited without publishing status' "$temp_dir/output"
+grep -Eq '^bootout gui/[0-9]+/org.nix-community.persops.deploy-aglaea$' "$temp_dir/calls"
+
+echo "detached Aglaea deployment checks passed"
