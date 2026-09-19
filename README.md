@@ -20,7 +20,13 @@ make deploy TARGETS="aglaea amalthea"        # run on aglaea
 Amalthea is always deployed and verified before a selected Aglaea switch so a
 controller restart cannot interrupt remaining remote work. From an Amp orb,
 delegate to the Aglaea runner for both targets or the Amalthea runner for
-Amalthea only.
+Amalthea only. Aglaea health warnings (exit 1) are reported without failing a
+successful activation; health failures (exit 2 or unexpected errors) still fail
+the deployment.
+
+AeroSpace is installed through Homebrew only. Nix manages its configuration and
+zen-toggle script, which calls the Homebrew CLI. After a Homebrew AeroSpace
+upgrade, restart `/Applications/AeroSpace.app` to keep the server and CLI matched.
 
 ## Updating AI Packages
 
@@ -38,7 +44,12 @@ make local
 `ops-status` prints a local health summary for the current machine: Nix, `persops`
 VCS state, Restic, Time Machine, Tailscale, desktop services, and Linux systemd
 services where available. Use `ops-status --remote` for a small read-only
-`amalthea` SSH probe.
+`amalthea` SSH probe. On Aglaea, Storage Box client readiness is separate from
+the S3 home-backup jobs. Appended Restic stderr is diagnostic history; launchd
+exit codes and log freshness determine the reported job health. Missing or failed
+Aglaea backup jobs, an unavailable Nix daemon, and broken Tailscale are failures
+(exit 2). Stale diagnostics, desktop issues, and checks without a completed run
+are warnings (exit 1).
 
 Can also run `nix flake update` to refresh everything, then switch.
 

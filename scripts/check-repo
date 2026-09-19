@@ -46,6 +46,9 @@ bash scripts/test-deploy-check
 section "detached Aglaea deployment checks"
 bash scripts/test-deploy-aglaea
 
+section "ops-status health reporting"
+python3 scripts/test-ops-status.py
+
 section "Pi Compound Engineering retirement"
 python3 scripts/test-retire-pi-compound-engineering.py
 

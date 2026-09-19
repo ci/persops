@@ -37,10 +37,11 @@ in
         HOME = home;
         PATH = path;
       };
-      WorkingDirectory = home;
+      # Claude does not persist trust for the home directory.
+      WorkingDirectory = "${home}/p/persops";
       KeepAlive = true;
       RunAtLoad = true;
-      ThrottleInterval = 5;
+      ThrottleInterval = 60;
       StandardOutPath = "${home}/Library/Logs/claude-remote-control.out.log";
       StandardErrorPath = "${home}/Library/Logs/claude-remote-control.err.log";
     };

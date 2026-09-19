@@ -144,7 +144,7 @@ let
       fi
     }
 
-    check_stderr_tail() {
+    show_stderr_tail() {
       local label="$1"
       local file="$2"
       local tail_line
@@ -155,7 +155,8 @@ let
       fi
 
       tail_line="$(last_nonempty "$file" | short)"
-      warn "$label" "stderr: $tail_line"
+      # launchd exit status determines health; these logs append across runs.
+      note "$label" "last stderr ($(file_age "$file")): $tail_line"
     }
 
     check_launch_agent() {
@@ -163,20 +164,22 @@ let
       local unit="$2"
       local out
       local exit_code
+      local terminating_signal
       local state_text
 
       if ! have launchctl; then
-        warn "$label" "launchctl missing"
+        fail "$label" "launchctl missing"
         return
       fi
 
       if ! out="$(launchctl print "gui/$(id -u)/$unit" 2>&1)"; then
-        warn "$label" "not loaded"
+        fail "$label" "not loaded"
         return
       fi
 
       state_text="$(printf '%s\n' "$out" | awk -F'= ' '/state =/ { print $2; exit }')"
       exit_code="$(printf '%s\n' "$out" | awk -F'= ' '/last exit code =/ { print $2; exit }')"
+      terminating_signal="$(printf '%s\n' "$out" | awk -F'= ' '/last terminating signal =/ { print $2; exit }')"
       if [ -z "$state_text" ]; then
         state_text="unknown state"
       fi
@@ -186,8 +189,12 @@ let
 
       if [ "$exit_code" = "0" ]; then
         ok "$label" "$state_text, last exit 0"
+      elif [ "$exit_code" = "unknown" ] && [ -n "$terminating_signal" ]; then
+        fail "$label" "$state_text, last terminating signal $terminating_signal"
+      elif [ "$exit_code" = "unknown" ]; then
+        warn "$label" "$state_text, no completed run yet"
       else
-        warn "$label" "$state_text, last exit $exit_code"
+        fail "$label" "$state_text, last exit $exit_code"
       fi
     }
 
@@ -233,10 +240,10 @@ let
         if nix store ping --store daemon >/dev/null 2>&1; then
           ok "nix daemon" "reachable"
         else
-          warn "nix daemon" "not reachable"
+          fail "nix daemon" "not reachable"
         fi
       else
-        warn "nix" "command missing"
+        fail "nix" "command missing"
       fi
 
       if [ -e /run/current-system ]; then
@@ -281,7 +288,7 @@ let
     }
 
     show_restic_darwin() {
-      section "restic"
+      section "storage box client"
       if have restic-storage-box; then
         ok "storage box client" "installed"
       else
@@ -292,15 +299,16 @@ let
       else
         warn "storage box secrets" "missing or unreadable"
       fi
+      section "restic home backup (S3)"
       check_launch_agent "backup agent" "org.nixos.restic-backup"
       check_launch_agent "prune agent" "org.nixos.restic-prune"
       check_launch_agent "check agent" "org.nixos.restic-check"
       check_recent_file "backup output" "/tmp/restic-backup.out.log" 10800
       check_recent_file "prune output" "/tmp/restic-prune.out.log" 172800
       check_recent_file "check output" "/tmp/restic-check.out.log" 777600
-      check_stderr_tail "backup stderr" "/tmp/restic-backup.err.log"
-      check_stderr_tail "prune stderr" "/tmp/restic-prune.err.log"
-      check_stderr_tail "check stderr" "/tmp/restic-check.err.log"
+      show_stderr_tail "backup stderr" "/tmp/restic-backup.err.log"
+      show_stderr_tail "prune stderr" "/tmp/restic-prune.err.log"
+      show_stderr_tail "check stderr" "/tmp/restic-check.err.log"
     }
 
     show_restic_linux() {
@@ -337,6 +345,7 @@ let
       local latest_rc
       local snapshots
       local snapshots_rc
+      local latest_timeout="30s"
       local tmutil_timeout
 
       if ! have tmutil; then
@@ -362,19 +371,19 @@ let
         fi
       fi
 
-      if latest_out="$(timed "$tmutil_timeout" tmutil latestbackup)" && printf '%s\n' "$latest_out" | grep -q '^/'; then
+      if latest_out="$(timed "$latest_timeout" tmutil latestbackup)" && printf '%s\n' "$latest_out" | grep -q '^/'; then
         ok "latest" "$(printf '%s\n' "$latest_out" | first_line)"
       else
         latest_rc="$?"
         if [ "$latest_rc" -eq 124 ] || [ "$latest_rc" -eq 137 ]; then
-          warn "latest" "timed out after $tmutil_timeout"
+          warn "latest" "timed out after $latest_timeout"
         else
           warn "latest" "$(printf '%s\n' "$latest_out" | first_line | short)"
         fi
       fi
 
       if snapshots="$(timed "$tmutil_timeout" tmutil listlocalsnapshots /)"; then
-        snapshots="$(printf '%s\n' "$snapshots" | wc -l | tr -d ' ')"
+        snapshots="$(printf '%s\n' "$snapshots" | grep -c '^com.apple.TimeMachine\.')"
         note "local snapshots" "$snapshots"
       else
         snapshots_rc="$?"
@@ -394,16 +403,16 @@ let
       if have tailscale; then
         if self="$(tailscale status --self 2>&1)" && ! printf '%s\n' "$self" | grep -qi 'failed'; then
           ip="$(tailscale ip -4 2>/dev/null | first_line)"
-          if printf '%s\n' "$ip" | grep -qi 'failed'; then
-            warn "tailscale" "$(printf '%s\n' "$ip" | first_line | short)"
+          if [ -z "$ip" ] || printf '%s\n' "$ip" | grep -qi 'failed'; then
+            fail "tailscale" "$(printf '%s\n' "$ip" | first_line | short)"
           else
             ok "tailscale" "$ip"
           fi
         else
-          warn "tailscale" "$(printf '%s\n' "$self" | first_line | short)"
+          fail "tailscale" "$(printf '%s\n' "$self" | first_line | short)"
         fi
       else
-        warn "tailscale" "command missing"
+        fail "tailscale" "command missing"
       fi
     }
 
@@ -415,11 +424,11 @@ let
       fi
 
       section "desktop"
-      version_out="$(aerospace --version 2>&1)"
-      if printf '%s\n' "$version_out" | grep -q 'server version: Unknown'; then
-        warn "aerospace" "server not running"
-      else
+      if version_out="$(aerospace --version 2>&1)" &&
+        ! printf '%s\n' "$version_out" | grep -Eqi 'server version: Unknown|incompatible|not responding'; then
         ok "aerospace" "$(printf '%s\n' "$version_out" | tail -n 1)"
+      else
+        warn "aerospace" "$(printf '%s\n' "$version_out" | tail -n 1 | short)"
       fi
     }
 

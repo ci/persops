@@ -20,7 +20,17 @@ if [ "${1:-}" = "--worker" ]; then
 	trap finish EXIT
 
 	nh darwin switch "${flake}#aglaea"
-	ops-status
+	if ops-status; then
+		exit 0
+	else
+		health_status=$?
+		if [ "$health_status" -eq 1 ]; then
+			echo "Aglaea activation succeeded; ops-status reported health warnings."
+		else
+			echo "Aglaea activation succeeded; health verification failed (exit $health_status)." >&2
+			exit "$health_status"
+		fi
+	fi
 	exit 0
 fi
 

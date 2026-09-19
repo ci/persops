@@ -1,6 +1,12 @@
 { lib, pkgs, ... }:
 let
-  inherit (pkgs.stdenv) isDarwin;
+  inherit (pkgs.stdenv.hostPlatform) isDarwin;
+  # Homebrew owns both the app and CLI so macOS uses the upstream app signature.
+  aerospaceBin =
+    if pkgs.stdenv.hostPlatform.isAarch64 then
+      "/opt/homebrew/bin/aerospace"
+    else
+      "/usr/local/bin/aerospace";
 
   # AeroSpace has no runtime gaps command and no config includes, so the only way
   # to toggle gaps is to swap the whole config file and reload-config. We build two
@@ -34,7 +40,6 @@ let
   toggleScript = pkgs.writeShellApplication {
     name = "aerospace-zen-toggle";
     runtimeInputs = [
-      pkgs.aerospace
       pkgs.coreutils
     ];
     text = ''
@@ -44,13 +49,12 @@ let
       else
         install -m 0644 ${zenToml} "$active"
       fi
-      aerospace reload-config
+      ${aerospaceBin} reload-config
     '';
   };
 in
 {
   home.packages = lib.mkIf isDarwin [
-    pkgs.aerospace
     pkgs.jankyborders # nice active borders around windows
     toggleScript
   ];
@@ -62,7 +66,7 @@ in
     lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       run mkdir -p "$HOME/.config/aerospace"
       run ${pkgs.coreutils}/bin/install -m 0644 ${normalToml} "$HOME/.config/aerospace/aerospace.toml"
-      run ${pkgs.aerospace}/bin/aerospace reload-config || true
+      run ${aerospaceBin} reload-config || true
     ''
   );
 }
