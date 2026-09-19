@@ -2,12 +2,25 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+bash_bin="$(command -v bash)"
 temp_dir="$(mktemp -d)"
 trap 'rm -rf "$temp_dir"' EXIT
 mkdir -p "$temp_dir/bin" "$temp_dir/home"
 
-cat >"$temp_dir/bin/launchctl" <<'EOF'
-#!/usr/bin/env bash
+write_stub() {
+	local dest="$temp_dir/bin/$1"
+	{
+		printf '#!%s\n' "$bash_bin"
+		cat
+	} >"$dest"
+	chmod +x "$dest"
+}
+
+run_deploy() {
+	"$bash_bin" "$repo_root/scripts/deploy-aglaea" "$@"
+}
+
+write_stub launchctl <<'EOF'
 set -euo pipefail
 printf '%s\n' "$*" >>"${TEST_CALLS:?}"
 case "$1" in
@@ -30,7 +43,7 @@ bootstrap)
 		: >"${TEST_JOB_COMPLETED:?}"
 		exit 0
 	fi
-	if "${TEST_SCRIPT_PATH:?}" --worker "${TEST_FLAKE:?}" "${TEST_STATUS_FILE:?}"; then
+	if "${TEST_BASH:?}" "${TEST_SCRIPT_PATH:?}" --worker "${TEST_FLAKE:?}" "${TEST_STATUS_FILE:?}"; then
 		worker_status=0
 	else
 		worker_status=$?
@@ -45,8 +58,7 @@ bootout)
 esac
 EOF
 
-cat >"$temp_dir/bin/plutil" <<'EOF'
-#!/usr/bin/env bash
+write_stub plutil <<'EOF'
 set -euo pipefail
 printf '%s\n' "$*" >>"${TEST_PLUTIL_CALLS:?}"
 if [ "$1" = "-create" ]; then
@@ -54,23 +66,19 @@ if [ "$1" = "-create" ]; then
 fi
 EOF
 
-cat >"$temp_dir/bin/lockf" <<'EOF'
-#!/usr/bin/env bash
+write_stub lockf <<'EOF'
 exit "${TEST_LOCK_STATUS:-0}"
 EOF
 
-cat >"$temp_dir/bin/nh" <<'EOF'
-#!/usr/bin/env bash
+write_stub nh <<'EOF'
 printf 'nh %s\n' "$*"
 exit "${TEST_NH_STATUS:-0}"
 EOF
 
-cat >"$temp_dir/bin/ops-status" <<'EOF'
-#!/usr/bin/env bash
+write_stub ops-status <<'EOF'
 echo ops-status
 exit "${TEST_OPS_STATUS:-0}"
 EOF
-chmod +x "$temp_dir/bin/launchctl" "$temp_dir/bin/lockf" "$temp_dir/bin/nh" "$temp_dir/bin/ops-status" "$temp_dir/bin/plutil"
 
 run_case() {
 	local ops_status="$1"
@@ -88,11 +96,12 @@ run_case() {
 		TEST_OPS_STATUS="$ops_status" \
 		TEST_NH_STATUS="$activation_status" \
 		TEST_PLUTIL_CALLS="$temp_dir/plutil-calls" \
+		TEST_BASH="$bash_bin" \
 		TEST_SCRIPT_PATH="$repo_root/scripts/deploy-aglaea" \
 		TEST_FLAKE=/nix/store/test-source \
 		TEST_STATUS_FILE="$temp_dir/cache/persops/deploy-aglaea.status" \
 		TEST_WORKER_EXIT="$temp_dir/worker-exit" \
-		"$repo_root/scripts/deploy-aglaea" /nix/store/test-source >"$temp_dir/output" 2>&1; then
+		run_deploy /nix/store/test-source >"$temp_dir/output" 2>&1; then
 		actual_status=0
 	else
 		actual_status=$?
@@ -128,7 +137,7 @@ if PATH="$temp_dir/bin:$PATH" \
 	XDG_CACHE_HOME="$temp_dir/cache" \
 	TEST_CALLS="$temp_dir/calls" \
 	TEST_JOB_STATE=running \
-	"$repo_root/scripts/deploy-aglaea" /nix/store/test-source >"$temp_dir/output" 2>&1; then
+	run_deploy /nix/store/test-source >"$temp_dir/output" 2>&1; then
 	echo "expected a concurrent deployment to be rejected" >&2
 	exit 1
 fi
@@ -149,11 +158,12 @@ PATH="$temp_dir/bin:$PATH" \
 	TEST_JOB_REMOVED="$temp_dir/job-removed" \
 	TEST_JOB_STATE=completed \
 	TEST_PLUTIL_CALLS="$temp_dir/plutil-calls" \
+	TEST_BASH="$bash_bin" \
 	TEST_SCRIPT_PATH="$repo_root/scripts/deploy-aglaea" \
 	TEST_FLAKE=/nix/store/test-source \
 	TEST_STATUS_FILE="$temp_dir/cache/persops/deploy-aglaea.status" \
 	TEST_WORKER_EXIT="$temp_dir/worker-exit" \
-	"$repo_root/scripts/deploy-aglaea" /nix/store/test-source >"$temp_dir/output" 2>&1
+	run_deploy /nix/store/test-source >"$temp_dir/output" 2>&1
 grep -Eq '^bootout gui/[0-9]+/org.nix-community.persops.deploy-aglaea$' "$temp_dir/calls"
 grep -Eq '^bootstrap ' "$temp_dir/calls"
 
@@ -163,7 +173,7 @@ if PATH="$temp_dir/bin:$PATH" \
 	XDG_CACHE_HOME="$temp_dir/cache" \
 	TEST_CALLS="$temp_dir/calls" \
 	TEST_LOCK_STATUS=75 \
-	"$repo_root/scripts/deploy-aglaea" /nix/store/test-source >"$temp_dir/output" 2>&1; then
+	run_deploy /nix/store/test-source >"$temp_dir/output" 2>&1; then
 	echo "expected a concurrent controller to be rejected" >&2
 	exit 1
 fi
@@ -175,7 +185,7 @@ fi
 
 if ! PATH="$temp_dir/bin:$PATH" \
 	TEST_OPS_STATUS=7 \
-	"$repo_root/scripts/deploy-aglaea" --worker /nix/store/test-source /dev/null/status \
+	run_deploy --worker /nix/store/test-source /dev/null/status \
 	>"$temp_dir/output" 2>&1; then
 	echo "worker status-publication failure would trigger a launchd retry" >&2
 	exit 1
@@ -194,7 +204,7 @@ if PATH="$temp_dir/bin:$PATH" \
 	TEST_JOB_STATE=absent \
 	TEST_PLUTIL_CALLS="$temp_dir/plutil-calls" \
 	TEST_SUBMIT_MODE=no-status \
-	"$repo_root/scripts/deploy-aglaea" /nix/store/test-source >"$temp_dir/output" 2>&1; then
+	run_deploy /nix/store/test-source >"$temp_dir/output" 2>&1; then
 	echo "controller accepted a worker that failed to publish status" >&2
 	exit 1
 fi
@@ -209,7 +219,7 @@ if PATH="$temp_dir/bin:$PATH" \
 	TEST_CALLS="$temp_dir/calls" \
 	TEST_JOB_REMOVED="$temp_dir/job-removed" \
 	TEST_JOB_STATE=terminal \
-	"$repo_root/scripts/deploy-aglaea" /nix/store/test-source >"$temp_dir/output" 2>&1; then
+	run_deploy /nix/store/test-source >"$temp_dir/output" 2>&1; then
 	echo "controller accepted an inactive job with no status" >&2
 	exit 1
 fi
