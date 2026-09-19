@@ -15,11 +15,9 @@
     "profile": "coding"
   },
   "land": {
-    "profile": "coding",
-    "excludeMachines": ["work"]
+    "profile": "coding"
   },
   "share-page": {
-    "profile": "all",
-    "excludeMachines": ["work"]
+    "profile": "all"
   }
 }

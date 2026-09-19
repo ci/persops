@@ -4,3 +4,4 @@ profile = all
 installed_at = unknown
 local_changes = persops-specific closeout workflow
 local_patch_2026_09_18 = aligned launcher prompt with user and repository PR status preferences
+local_patch_2026_09_19 = review before committing; one coherent initial commit, then focused follow-up commits

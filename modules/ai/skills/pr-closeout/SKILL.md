@@ -14,7 +14,9 @@ This skill is about turning working code into a reviewable branch. Use
 ## Contract
 
 - Preserve reviewable commit boundaries. Do not squash or amend unless asked.
-- Make follow-up fixes as new focused commits so the user can track the loop.
+- Review the initial work before making one coherent commit. Keep private
+  review iterations in that pending change; make later fixes to an already
+  committed or shared change as new focused commits so the user can track them.
 - Open or update remote PRs only when the user asked for that outcome; the
   draft/non-draft state follows the global AGENTS.md preference unless the
   user says otherwise.
@@ -35,16 +37,17 @@ This skill is about turning working code into a reviewable branch. Use
      per the contract, and then do all closeout work there
    - read repo docs and PR/CI guidance relevant to the touched surface
 2. Establish commit shape:
-   - if work is dirty but coherent, suggest or create a commit before review
-   - keep review fixes in separate conventional commits
+   - identify a coherent initial change or a focused follow-up to an existing commit
+   - review and validate each pending change before creating its conventional commit
    - do not hide generated-artifact or test updates inside unrelated commits
 3. Review loop:
    - run focused tests or typechecks for the touched surface
    - run `$autoreview` against the right target: local dirty patch, commit, or
      branch vs PR base
    - verify every accepted/actionable finding by reading the real code path
-   - fix true findings, rerun focused validation, commit, then rerun autoreview
-   - stop when autoreview reports no accepted/actionable findings
+   - fix true findings, rerun focused validation, then rerun autoreview on the updated change
+   - stop when autoreview reports no accepted/actionable findings; commit after
+     the required validation gate passes, reusing the clean review while code is unchanged
 4. Generated and contract surfaces:
    - if serializers, schemas, APIs, SDK payloads, or tools changed, check
      downstream generated clients, snapshots, docs, and consumers

@@ -2,7 +2,6 @@
   pkgs,
   inputs,
   lib,
-  currentSystemName ? null,
   ...
 }:
 let
@@ -75,24 +74,8 @@ let
         else
           throw "Unknown AI skill profile '${profile}' for ${name}";
     };
-  # Skills listing the current machine in excludeMachines are not published there.
-  skillEnabledHere =
-    name:
-    !(builtins.elem currentSystemName ((localSkillOverrides.${name} or { }).excludeMachines or [ ]));
-  localSkillTargets = map mkLocalSkill (
-    builtins.filter skillEnabledHere (builtins.attrNames localSkillDirs)
-  );
-  workAgentsText = ''
-    ## Work Machine
-
-    - `AGENTS.md` changes usually mean `~/p/persops/modules/ai/AGENTS.md`. Use root `~/p/persops/AGENTS.md` only when the user specifically says persops repo AGENTS, or the note is explicitly about doing work inside persops.
-    - Work repos usually live in `~/p/`.
-    - Unless already working from a different path, create new worktrees under `~/p/worktrees/{original-repo}-plus-some-specific-name` so they stay distinguishable.
-    - When opening a PR, prefer draft unless user asks otherwise (work override of the global non-draft default).
-  '';
-  agentsText =
-    (builtins.readFile ./AGENTS.md)
-    + lib.optionalString (currentSystemName == "work") ("\n\n" + workAgentsText);
+  localSkillTargets = map mkLocalSkill (builtins.attrNames localSkillDirs);
+  agentsText = builtins.readFile ./AGENTS.md;
   agentsFile = pkgs.writeText "AGENTS.md" agentsText;
   piAgentsFile = pkgs.writeText "pi-AGENTS.md" (
     agentsText + "\n\n" + (builtins.readFile ./pi/AGENTS.extra.md)

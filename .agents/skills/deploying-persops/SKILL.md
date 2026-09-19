@@ -22,7 +22,7 @@ try to activate Aglaea from Amalthea.
 
 ## Before Applying
 
-1. Run `git status --short --branch` and identify the exact source state.
+1. Run `jj status` first and use `$jj` when it succeeds; otherwise run `git status --short --branch`. Identify the exact source state.
 2. Confirm the requested targets. A switch changes live machines and requires
    explicit authorization; a request to inspect, build, or check does not imply it.
 3. Preserve unrelated working-copy changes. The deploy command intentionally

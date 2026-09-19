@@ -17,7 +17,8 @@ gh pr view <n> --json number,title,state,author,body,comments,reviews,files,comm
 gh pr diff <n> --patch
 ```
 
-For repo-local review, also inspect:
+For repo-local review, run `jj status` first. If it succeeds, load `$jj` and use
+its native status, fetch, log, and provenance commands. Otherwise use Git:
 
 ```bash
 git status --short --branch
@@ -58,7 +59,7 @@ Prefer current source and executable proof over issue comments. Treat stale comm
 
 For bug/regression reviews, include a compact `Provenance:` answer when feasible:
 
-- Use `git log -S/-G`, `git blame`, linked PRs/issues, and tests.
+- Use the active VCS's history and annotation tools, linked PRs/issues, and tests (`jj log` / `jj file annotate` in jj; `git log -S/-G` / `git blame` in Git).
 - Separate author, committer/merger, and current PR author when they differ.
 - Phrase as `introduced by`, `made visible by`, or `carried forward by`.
 - Include confidence: `clear`, `likely`, or `unknown`.

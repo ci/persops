@@ -5,3 +5,4 @@ installed_at = 2026-07-30T23:14:48Z
 via = bunx --bun skills add https://github.com/mattpocock/skills --skill prototype --agent \* --yes --copy
 computed_hash = faba901c53a6ca245174c4ba5db3929d14253232b3050fdbd46539720adf1ab8
 local_changes = shortened SKILL.md description for local routing rules
+local_patch_2026_09_19 = prototype handoff does not authorize production integration or remote publication

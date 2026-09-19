@@ -9,7 +9,7 @@ Anti-slop is vendored code: the target repository owns its rules, diagnostics, t
 
 ## Choose the path
 
-Read the repository's agent instructions and `git status`. Identify its package manager, Oxlint/Vite+ configuration, and any existing anti-slop entry points, including renamed or relocated copies referenced by `jsPlugins`.
+Read the repository's agent instructions and run `jj status` first. If it succeeds, load `$jj` and use it for VCS operations; otherwise inspect `git status`. Identify its package manager, Oxlint/Vite+ configuration, and any existing anti-slop entry points, including renamed or relocated copies referenced by `jsPlugins`.
 
 - **Existing installation — update, upgrade, migrate, or reconfigure:** read [Update a vendored installation](references/update.md) and follow that procedure instead of the fresh-install steps below.
 - **No installation — fresh install:** follow the procedure below. If the user requested an update but no installation can be found, confirm the target before installing.

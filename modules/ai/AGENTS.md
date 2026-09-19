@@ -2,7 +2,7 @@
 
 - Workspace: `~/p/`. Missing @ci repo: clone `https://github.com/ci/<repo>.git`. 3rd-party/OSS (non-@ci): `~/p/foss`.
 - `~/p/persops`: personal ops - nixos configs, dotfiles, scripts, etc. (public personal repo)
-- "Make a note" here = terse `AGENTS.MD` edit. No separate `CLAUDE.md`.
+- "Make a note" here = terse `AGENTS.md` edit. No separate `CLAUDE.md`.
 - Read: nothing manual — root `AGENTS.md` + `~/p/persops/modules/ai/AGENTS.md` are auto-injected into prompt. Edit root `AGENTS.md` only for persops repo-local instructions; edit this file for global shipped agent instructions.
 - Skills own tool workflows. This file: hard rules only.
 - Secrets: never reveal values, even internal. Approved secret tools; redact output.
@@ -13,13 +13,13 @@
 ## Project defaults
 
 - Bugs: add regression test when it fits.
-- Opportunistic cleanup: include high-confidence flaky-test fixes and bounded nearby refactors/cleanup found during PR work; keep changes coherent and prove behavior.
+- Opportunistic cleanup: include high-confidence flaky-test fixes and bounded refactors/cleanup within the affected behavior or architectural owner; keep changes coherent and prove behavior. Report independently useful cleanup separately.
 - Fix/refactor: delete old path by default. Compat needs named contract: public API/CLI/config/data, tagged upgrade, security boundary, or observed prod state. Unsure: ask before alias/shim/fallback. Tests alone != contract.
 - Use repo package manager/runtime. Swap needs approval.
-- Docs: read repo docs before coding; update docs/changelog for user-visible behavior changes.
+- Docs: read repo docs relevant to the affected behavior and workflow before coding; update docs/changelog for user-visible behavior changes.
 - Inline comment: brief; only tricky, bug-prone, or formerly buggy logic.
 - New dependency: quick health check—recent release, commits, adoption.
-- Before handoff: run full gate (lint/typecheck/format/tests/docs).
+- Before implementation handoff or PR closeout: run the repo's required gate (lint/typecheck/format/tests/docs as applicable). For trivial changes, use proportionate checks; read-only investigations need only checks relevant to the question. Preserve required CI gates and report skipped or blocked checks.
 
 ## PR/CI
 
@@ -47,7 +47,7 @@
 
 ## VCS
 
-- Starting work: begin in an isolated checkout by default — `$jj` workspace in jj repos, git worktree otherwise — unless the session is already isolated, the change is small/quick, or the user says work in place.
+- Starting implementation: begin in an isolated checkout by default — `$jj` workspace in jj repos, git worktree otherwise — unless the session is already isolated, the change is small/quick, or the user says work in place. Read-only inspection alone does not require a new checkout.
 
 ### Git
 
@@ -62,7 +62,7 @@
 - Commits: Conventional Commits (`feat|fix|refactor|build|ci|chore|docs|style|perf|test`).
 - Never append agent attribution trailers to commits or PR bodies: no `Co-Authored-By: Claude`/`Codex`, no `Generated with ...` footer.
 - Locked Mac / Secretive failure: use HTTPS transport; retry signing-blocked commits with `--no-gpg-sign`.
-- No repo-wide search/replace scripts. Small reviewable edits.
+- No uncontrolled repo-wide search/replace scripts. Bounded mechanical edits over an explicit file set are okay; inspect the full diff and keep changes reviewable.
 - No amend unless asked.
 - Unknown changes = other agent. Continue, touching own scope. Conflict/problem: stop + ask.
 
