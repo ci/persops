@@ -1,3 +1,7 @@
+config-version = 2
+# Preserve the workspaces previously inferred from key bindings.
+persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+
 ## extra configurations
 start-at-login = true
 automatically-unhide-macos-hidden-apps = true
