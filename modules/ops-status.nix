@@ -183,7 +183,7 @@ let
       if [ -z "$state_text" ]; then
         state_text="unknown state"
       fi
-      if [ -z "$exit_code" ]; then
+      if [ -z "$exit_code" ] || [ "$exit_code" = "(never exited)" ]; then
         exit_code="unknown"
       fi
 

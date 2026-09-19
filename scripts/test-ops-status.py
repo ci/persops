@@ -51,6 +51,18 @@ show_stderr_tail stderr '{log.name}' ''')
                 result = self.run_report(body)
                 self.assertEqual(result.returncode, expected, result.stderr)
 
+    def test_launchd_never_exited_sentinel_is_not_failure(self):
+        for state in ['running', 'not running']:
+            with self.subTest(state=state):
+                result = self.run_report(f'''launchctl() {{ printf 'state = {state}\\nlast exit code = (never exited)\\n'; }}
+check_launch_agent backup new''')
+                self.assertEqual(result.returncode, 1, result.stderr)
+                self.assertIn('no completed run yet', result.stdout)
+
+        result = self.run_report('''launchctl() { printf 'state = not running\\nlast exit code = (never exited)\\nlast terminating signal = Killed: 9\\n'; }
+check_launch_agent backup killed''')
+        self.assertEqual(result.returncode, 2, result.stderr)
+
     def test_time_machine_timeout_and_snapshot_header(self):
         result = self.run_report('''tmutil() { :; }
 timed() {
