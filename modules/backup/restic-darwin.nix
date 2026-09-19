@@ -16,10 +16,15 @@ in
 {
   environment.systemPackages = [ pkgs.restic ];
 
+  # Backups and maintenance share a repository; wait through normal overlap.
   launchd.user.agents = {
     restic-backup = {
       serviceConfig = {
-        ProgramArguments = [ resticBackupWrapperPath ];
+        ProgramArguments = [
+          resticBackupWrapperPath
+          "--retry-lock"
+          "2h"
+        ];
         EnvironmentVariables = {
           RESTIC_HOST = host;
           RESTIC_TAG = host;
@@ -33,7 +38,11 @@ in
 
     restic-prune = {
       serviceConfig = {
-        ProgramArguments = [ resticPruneWrapperPath ];
+        ProgramArguments = [
+          resticPruneWrapperPath
+          "--retry-lock"
+          "2h"
+        ];
         EnvironmentVariables = {
           RESTIC_HOST = host;
         };
@@ -49,7 +58,11 @@ in
 
     restic-check = {
       serviceConfig = {
-        ProgramArguments = [ resticCheckWrapperPath ];
+        ProgramArguments = [
+          resticCheckWrapperPath
+          "--retry-lock"
+          "2h"
+        ];
         EnvironmentVariables = {
           RESTIC_HOST = host;
         };

@@ -49,7 +49,8 @@ the S3 home-backup jobs. Appended Restic stderr is diagnostic history; launchd
 exit codes and log freshness determine the reported job health. Missing or failed
 Aglaea backup jobs, an unavailable Nix daemon, and broken Tailscale are failures
 (exit 2). Stale diagnostics, desktop issues, and checks without a completed run
-are warnings (exit 1).
+are warnings (exit 1). Restic jobs wait up to two hours for a repository lock
+when another backup or maintenance operation is active.
 
 Can also run `nix flake update` to refresh everything, then switch.
 
