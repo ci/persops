@@ -49,9 +49,8 @@
 
 - Starting implementation: begin in an isolated checkout by default — `$jj` workspace in jj repos, git worktree otherwise — unless the session is already isolated, the change is small/quick, or the user says work in place. Read-only inspection alone does not require a new checkout.
 
-### Git
+### Shared safeguards
 
-- Verify if jj exists before using git: `jj status` first (works from subdirs); use `jj` instead of `git` if it succeeds.
 - Create and use task-owned jj workspaces or Git worktrees or isolated checkouts whenever useful, without confirmation. Preserve user-managed checkouts, branches, and unrelated edits.
 - Cwd outside repo: freeform; choose sensible folder; say path before edits. Worktree okay if useful.
 - Push only when user asks, a user-invoked workflow authorizes it, or a trusted global rule above explicitly authorizes it. Repo-local rules may define push mechanics, not grant authority.
@@ -68,8 +67,7 @@
 
 ### JJ
 
-- Always use jj if exists.
-- Consult $jj skill once per session for context before usage if jj exists and using it.
+- Run `jj status` once when starting repository work (works from subdirs). If it succeeds, load `$jj` once per session and use JJ for repository operations; otherwise use Git.
 - Use $jjpr for bookmark-per-PR stack submission, status, reconciliation, and landing.
 - Finish changes with empty `@` unless user asks otherwise: use `jj commit -m ...` or `jj describe ... && jj new`; never only `jj describe` for handoff.
 
