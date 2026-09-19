@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -29,7 +30,7 @@ class ImportTests(unittest.TestCase):
             shutil.copy2(ROOT / "modules/ai/scripts" / filename, self.scripts / filename)
         self.bin = self.root / "bin"
         self.bin.mkdir()
-        self.write_executable("gh", '''#!/usr/bin/env python3
+        self.write_executable("gh", '''
 import json, os, sys
 from urllib.parse import unquote
 fixture = json.loads(os.environ["IMPORT_FIXTURE"])
@@ -45,7 +46,7 @@ else:
     print(json.dumps({"status": "422" if "/commits/" in endpoint else "404", "message": "No commit found for SHA: " + endpoint}))
     sys.exit(1)
 ''')
-        self.write_executable("bunx", '''#!/usr/bin/env python3
+        self.write_executable("bunx", '''
 import json, os, pathlib, sys
 fixture = json.loads(os.environ["IMPORT_FIXTURE"])
 pathlib.Path(os.environ["IMPORT_CALL"]).write_text(json.dumps(sys.argv[1:]))
@@ -66,7 +67,7 @@ pathlib.Path("skills-lock.json").write_text(json.dumps(lock))
 
     def write_executable(self, name, content):
         path = self.bin / name
-        path.write_text(content)
+        path.write_text(f"#!{sys.executable}\n" + content.lstrip("\n"))
         path.chmod(0o755)
 
     def run_import(self, source, *args):
