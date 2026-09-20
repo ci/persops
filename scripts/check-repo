@@ -58,6 +58,9 @@ node --test modules/ai/skills/session-viewer/scripts/session-viewer.test.ts
 section "autoreview routing"
 python3 modules/ai/skills/autoreview/scripts/autoreview_test.py
 
+section "snag inbox"
+python3 modules/ai/skills/snag/scripts/snag_test.py
+
 section "skill imports"
 python3 scripts/test-add-skill.py
 

@@ -1,57 +1,76 @@
 ---
 name: snag
-description: "Log a minor off-topic issue noticed mid-task (broken thing, wrong output shape, tooling friction) and keep going; or triage the logged list."
+description: "Capture an actionable issue discovered outside the current task, save evidence, and continue without fixing it. Use for unrelated bugs, recurring tooling friction, and skill failures; also for snag triage. Exclude current-task blockers and requested review findings."
 ---
 
 # Snag
 
-Log-and-continue for small problems you notice while doing something else. The
-list is reviewed later; logging is not a request to fix now.
+Keep a durable inbox of observed problems without expanding the current task.
+Capture issues outside the task's affected behavior or architectural owner;
+continue authorized, bounded cleanup within that boundary normally. Severity
+is independent of scope: flag serious unrelated findings prominently.
 
-Use when:
+Use for an unrelated broken script, repeatable tooling friction, or a skill
+failure that required a workaround. Skip ordinary transient failures, problems
+already fixed in this session, current-task blockers, and requested review
+findings. Generic notes, preferences, and reminders do not belong here.
 
-- Working on X, notice Y is broken, flaky, misleading, or awkward, and Y is not
-  the task.
-- A skill, script, pipeline stage, or harness produced the wrong shape/format
-  but you could still proceed.
-- The user says `snag …`, "log that", "note that for later", or `snag triage`.
+## Capture
 
-Do not use for: blockers on the current task (fix or ask), findings the user
-asked you to review, or anything already fixed in the same session.
-
-## Logging
+Run `scripts/snag` relative to **this skill's directory**, using its full resolved
+path from any working directory. It requires Python 3.10+ (standard library only).
+There is no assumed `snag` command on PATH. `$snag triage` invokes this skill;
+the script's `triage` command provides the ranked inbox for that workflow.
 
 ```sh
-~/.agents/skills/snag/scripts/snag add -k KIND [-s SKILL] [-e EVIDENCE] [-f FIX] [-d DETAIL] "TITLE"
+<skill-dir>/scripts/snag add --key missing-json-output --impact medium \
+  --source '<task URL or session ID>' -s example-skill \
+  -e 'command, file:line, or concise observed error' 'Example skill emits prose instead of JSON'
 ```
 
-- `KIND`: `bug` (default), `tooling`, `skill`, `docs`, `process`, `env`.
-- `-s`: skill name when the issue is in a skill's instructions or script.
-- `-e`: command, file path, error line, or URL that reproduces/shows it.
-- `-f`: one-line suggested fix if obvious.
-- `-d -`: read a longer detail from stdin.
-- Title: one specific sentence, stable wording. Same open title within 30 days
-  bumps `seen` instead of adding a row, so repeated wording is the dedup key.
+- Record observed evidence, not a speculative improvement. Redact secrets from
+  evidence and details; store a pointer rather than unrelated private content.
+- Ownership defaults to `skill:NAME` with `-s`, otherwise `repo:REPO` detected
+  from JJ/Git. Use `--owner` for a shared tool or another explicit owner;
+  `--repo` overrides detection. Shared skill observations across repos belong
+  together, while unrelated repo issues stay separate.
+- Reuse a stable `--key` within that owner. Without one, the normalized title
+  is the key. Match an existing open record when known; do not spend time
+  investigating just to log. Open issues never age out of deduplication.
+- Each add preserves evidence, details, suggested fix, repository, harness,
+  source, and time. Reobserving a closed issue reopens the same ID with its
+  history intact. Impact can increase on recurrence; it never silently drops.
+- `--impact`: `high` for substantial breakage/risk, `medium` for repeatable
+  friction or incorrect behavior, `low` for a minor nuisance. `-k` optionally
+  categorizes as `bug`, `tooling`, `skill`, `docs`, `process`, or `env`.
+- `--source` defaults to `SNAG_SOURCE` or `CODEX_THREAD_ID`. Supply the task/session
+  reference when available; leave it unknown rather than inventing one.
+  `SNAG_HARNESS` overrides session-marker detection (set it for Pi or unknown
+  hosts); `SNAG_CONTEXT` adds optional run context.
+- `-d -` reads longer details from stdin; `-f` records an obvious suggested fix.
 
-Harness and repo are auto-detected. Override with `SNAG_HARNESS`; attach
-pipeline context with `SNAG_CONTEXT=run=<id>,stage=<name>`.
+After successful capture, tell the user briefly what was snagged and continue.
+If storage, permissions, or tooling fail, mention that it was **not saved** and
+continue; do not start a repair/approval detour just to maintain the inbox.
+Logging is not authorization to fix the issue.
 
-After logging: one short line to the user ("snagged: <title>"), then continue
-the original task. Do not detour into fixing unless the fix is trivial and
-in-scope.
+## Triage
 
-## Triage (`snag triage`)
+Use the resolved script path for each command:
 
-1. `snag ls` (open only; `--all` for everything, `--json` for tooling).
-2. Group by `kind`/`skill`/repo. `seen` count first: repeated snags are the
-   real signal.
-3. Per group, propose one of: fix now (small, in this session), spin off as a
-   separate task/handoff, or `wontfix`. Say why.
-4. Apply status changes only after the user picks: `snag done ID`,
-   `snag wontfix ID`, `snag reopen ID`.
+1. `triage` lists open issues by impact, distinct known source references, then
+   last observation. `--owner OWNER` or `--repo REPO` filters the inbox;
+   `show ID` displays all evidence. `SEEN` is raw observations, not independent
+   occurrences: retries in one task count as one source; unknown sources add none.
+2. Group related issues by owner. Assess impact and evidence as well as recurrence;
+   suggest a bounded fix, a separate task/handoff, or dismissal, explaining why.
+3. Apply `done ID`, `wontfix ID`, or `reopen ID` when authorized by the user.
+   A triage request alone is read-only; an existing instruction to fix/close an
+   issue is sufficient authorization. Do not request that permission twice.
 
-## Reference
-
-- Storage: `snag path` (default `~/.local/state/snag/snags.jsonl`, per machine).
-- `snag show ID` prints the full record.
-- Help: `~/.agents/skills/snag/scripts/snag --help`.
+Storage is **per machine**, at `path` (normally
+`~/.local/state/snag/snags.sqlite3`; override with `SNAG_HOME` or `XDG_STATE_HOME`).
+State which machine was reviewed; do not imply Aglaea's inbox includes Amalthea.
+`ls --all --json` exports full records with observations; no synchronization or
+external issue creation happens automatically. Nonempty legacy `snags.jsonl`
+files cause a clear error until reviewed/migrated, rather than hiding old data.
