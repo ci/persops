@@ -13,6 +13,7 @@
 ## Project defaults
 
 - Bugs: add regression test when it fits.
+- Actionable issues observed outside the current task and its affected behavior/owner: use `$snag` to save evidence, mention it briefly, and continue. Keep authorized in-scope cleanup in scope; do not snag current-task blockers or requested review findings.
 - Opportunistic cleanup: include high-confidence flaky-test fixes and bounded refactors/cleanup within the affected behavior or architectural owner; keep changes coherent and prove behavior. Report independently useful cleanup separately.
 - Fix/refactor: delete old path by default. Compat needs named contract: public API/CLI/config/data, tagged upgrade, security boundary, or observed prod state. Unsure: ask before alias/shim/fallback. Tests alone != contract.
 - Use repo package manager/runtime. Swap needs approval.

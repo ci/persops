@@ -1,0 +1,252 @@
+#!/usr/bin/env python3
+"""Capture off-task observations in a machine-local SQLite inbox."""
+
+import argparse
+import json
+import os
+from pathlib import Path
+import re
+import socket
+import sqlite3
+import subprocess
+import sys
+from datetime import datetime, timezone
+from urllib.parse import urlsplit
+from uuid import uuid4
+
+KINDS = ("bug", "tooling", "skill", "docs", "process", "env")
+IMPACTS = ("low", "medium", "high")
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS issues (
+    id TEXT PRIMARY KEY, owner TEXT NOT NULL, key TEXT NOT NULL,
+    title TEXT NOT NULL, kind TEXT NOT NULL, skill TEXT NOT NULL,
+    impact TEXT NOT NULL, status TEXT NOT NULL,
+    created TEXT NOT NULL, updated TEXT NOT NULL,
+    UNIQUE(owner, key)
+);
+CREATE TABLE IF NOT EXISTS observations (
+    sequence INTEGER PRIMARY KEY, issue TEXT NOT NULL REFERENCES issues(id),
+    ts TEXT NOT NULL, source TEXT NOT NULL, harness TEXT NOT NULL,
+    repo TEXT NOT NULL, cwd TEXT NOT NULL, context TEXT NOT NULL,
+    evidence TEXT NOT NULL, detail TEXT NOT NULL, fix TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS observations_issue ON observations(issue);
+"""
+
+
+def normalize(value):
+    return " ".join(value.casefold().split())
+
+
+def nonempty(value):
+    value = value.strip()
+    if not value:
+        raise argparse.ArgumentTypeError("must not be blank")
+    return value
+
+
+def command(*args):
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, timeout=2)
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def repo_name(url):
+    if "://" in url:
+        parsed = urlsplit(url)
+        # Drop credentials and query strings; retain host to separate forges.
+        return f"{parsed.hostname or ''}{parsed.path}".removesuffix(".git").rstrip("/")
+    match = re.fullmatch(r"(?:[^/@]+@)?([^/:]+):(.+)", url)
+    if match:
+        return f"{match[1]}/{match[2]}".removesuffix(".git").rstrip("/")
+    return str(Path(url).resolve())
+
+
+def detect_repo():
+    remotes = command("jj", "--ignore-working-copy", "git", "remote", "list")
+    url = next((line.split()[1] for line in remotes.splitlines()
+                if line.startswith("origin ") and len(line.split()) > 1), "")
+    url = url or command("git", "remote", "get-url", "origin")
+    if url:
+        return repo_name(url)
+    root = command("jj", "--ignore-working-copy", "root")
+    root = root or command("git", "rev-parse", "--show-toplevel")
+    return str(Path(root or Path.cwd()).resolve())
+
+
+def harness():
+    if os.getenv("SNAG_HARNESS"):
+        return os.environ["SNAG_HARNESS"]
+    # Configuration such as globally exported CODEX_HOME does not identify a session.
+    for name, marker in (("claude", "CLAUDECODE"), ("codex", "CODEX_THREAD_ID"),
+                         ("amp", "AMP_THREAD_ID")):
+        if os.getenv(marker):
+            return name
+    return "unknown"
+
+
+def parser():
+    cli = argparse.ArgumentParser(description=__doc__)
+    sub = cli.add_subparsers(dest="command", required=True)
+    add = sub.add_parser("add", help="capture evidence; reopen a closed matching issue")
+    add.add_argument("title", type=nonempty)
+    add.add_argument("--owner", type=nonempty, help="default: skill:NAME or repo:REPO")
+    add.add_argument("--key", type=nonempty, help="stable issue key; default: normalized title")
+    add.add_argument("--repo", type=nonempty, help="override repository detection")
+    add.add_argument("-k", "--kind", choices=KINDS, default="bug")
+    add.add_argument("-s", "--skill", type=nonempty)
+    add.add_argument("--impact", choices=IMPACTS, default="medium")
+    add.add_argument("--source", default=os.getenv("SNAG_SOURCE") or os.getenv("CODEX_THREAD_ID", ""),
+                     help="task/session URL or ID; default: SNAG_SOURCE or CODEX_THREAD_ID")
+    add.add_argument("-e", "--evidence", required=True, type=nonempty)
+    add.add_argument("-d", "--detail", default="", help="use - to read stdin")
+    add.add_argument("-f", "--fix", default="")
+    for name in ("ls", "triage"):
+        listing = sub.add_parser(name, help="list by impact, independent sources, then last seen")
+        listing.add_argument("--all", action="store_true")
+        listing.add_argument("--owner", type=nonempty)
+        listing.add_argument("--repo", type=nonempty, help="match any observation's repository")
+        listing.add_argument("--json", action="store_true", help="export full records and observations")
+    for name in ("show", "done", "wontfix", "reopen"):
+        action = sub.add_parser(name)
+        action.add_argument("id")
+    sub.add_parser("path", help="print this machine's database location")
+    return cli
+
+
+def connect(path, write):
+    if write:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        legacy = path.with_name("snags.jsonl")
+        if legacy.exists() and legacy.stat().st_size:
+            raise ValueError(f"legacy JSONL exists at {legacy}; preserve and review it before using this store")
+        db = sqlite3.connect(path, timeout=2)
+        try:
+            db.executescript(SCHEMA)
+            db.execute("BEGIN IMMEDIATE")
+        except sqlite3.Error:
+            db.close()
+            raise
+    else:
+        db = sqlite3.connect(path.as_uri() + "?mode=ro", uri=True, timeout=2)
+    db.row_factory = sqlite3.Row
+    return db
+
+
+def add_observation(db, args):
+    now = datetime.now(timezone.utc).isoformat(timespec="microseconds")
+    owner = args.owner or (f"skill:{args.skill}" if args.skill else f"repo:{args.repo}")
+    key = normalize(args.key or args.title)
+    existing = db.execute("SELECT * FROM issues WHERE owner=? AND key=?", (owner, key)).fetchone()
+    if existing:
+        issue_id = existing["id"]
+        impact = max((existing["impact"], args.impact), key=IMPACTS.index)
+        db.execute("UPDATE issues SET status='open', impact=?, updated=? WHERE id=?",
+                   (impact, now, issue_id))
+    else:
+        issue_id = uuid4().hex[:12]
+        db.execute("INSERT INTO issues VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)",
+                   (issue_id, owner, key, args.title, args.kind, args.skill or "", args.impact, now, now))
+    db.execute("""INSERT INTO observations
+        (issue, ts, source, harness, repo, cwd, context, evidence, detail, fix)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               (issue_id, now, args.source.strip(), harness(), args.repo, str(Path.cwd()),
+                os.getenv("SNAG_CONTEXT", ""), args.evidence, args.detail, args.fix))
+    return issue_id
+
+
+def records(db, args):
+    clauses, params = [], []
+    if args.command == "show":
+        clauses.append("i.id=?")
+        params.append(args.id)
+    else:
+        if not args.all:
+            clauses.append("i.status='open'")
+        if args.owner:
+            clauses.append("i.owner=?")
+            params.append(args.owner)
+        if args.repo:
+            clauses.append("EXISTS (SELECT 1 FROM observations o WHERE o.issue=i.id AND o.repo=?)")
+            params.append(args.repo)
+    query = "SELECT i.* FROM issues i" + (" WHERE " + " AND ".join(clauses) if clauses else "")
+    result = []
+    for row in db.execute(query, params):
+        item = dict(row)
+        observations = [dict(o) for o in db.execute(
+            "SELECT ts, source, harness, repo, cwd, context, evidence, detail, fix "
+            "FROM observations WHERE issue=? ORDER BY sequence", (item["id"],))]
+        item.update(observations=observations, seen=len(observations),
+                    sources=len({o["source"] for o in observations if o["source"]}),
+                    last_seen=observations[-1]["ts"])
+        result.append(item)
+    return sorted(result, key=lambda item: (IMPACTS.index(item["impact"]), item["sources"], item["last_seen"]), reverse=True)
+
+
+def display(items, args, path):
+    if args.command == "show":
+        if not items:
+            raise ValueError(f"no snag {args.id}")
+        print(json.dumps(items[0], indent=2))
+    elif args.json:
+        print(json.dumps(items, indent=2))
+    else:
+        print(f"Machine-local inbox: {socket.gethostname()} — {path}")
+        print("ID\tIMPACT\tSOURCES\tSEEN\tSTATUS\tOWNER\tTITLE")
+        for item in items:
+            # Keep embedded newlines/control characters out of terminal rows.
+            print("\t".join(json.dumps(str(item[key]), ensure_ascii=False)[1:-1]
+                            for key in ("id", "impact", "sources", "seen", "status", "owner", "title")))
+        if not items:
+            print("No matching snags.")
+
+
+def main():
+    args = parser().parse_args()
+    os.umask(0o077)
+    home = Path(os.getenv("SNAG_HOME") or Path(os.getenv("XDG_STATE_HOME", Path.home() / ".local/state")) / "snag")
+    path = home.expanduser().resolve() / "snags.sqlite3"
+    if args.command == "path":
+        print(path)
+        return
+    write = args.command in ("add", "done", "wontfix", "reopen")
+    if args.command == "add":
+        # Detect context and read stdin before taking the transaction lock.
+        args.repo = args.repo or detect_repo()
+        if args.detail == "-":
+            args.detail = sys.stdin.read()
+    if not write and not path.exists():
+        legacy = path.with_name("snags.jsonl")
+        if legacy.exists() and legacy.stat().st_size:
+            raise ValueError(f"legacy JSONL exists at {legacy}; this inbox has not been migrated")
+        display([], args, path)
+        return
+    db = connect(path, write)
+    try:
+        with db:
+            if args.command == "add":
+                issue_id = add_observation(db, args)
+                message = f"snag {issue_id} (open)"
+            elif write:
+                new = {"done": "done", "wontfix": "wontfix", "reopen": "open"}[args.command]
+                updated = db.execute("UPDATE issues SET status=?, updated=? WHERE id=?",
+                                     (new, datetime.now(timezone.utc).isoformat(), args.id))
+                if not updated.rowcount:
+                    raise ValueError(f"no snag {args.id}")
+                message = f"snag {args.id} -> {new}"
+            else:
+                display(records(db, args), args, path)
+        if write:
+            print(message)
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, sqlite3.Error, ValueError) as exc:
+        print(f"snag: {exc}", file=sys.stderr)
+        sys.exit(1)
