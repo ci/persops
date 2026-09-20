@@ -34,7 +34,7 @@ THINKING_LEVELS_BY_ENGINE = {
     "opencode": {"minimal", "low", "medium", "high", "max"},
 }
 DEFAULT_MODEL_BY_ENGINE = {
-    "codex": "gpt-5.6-sol",
+    "codex": "gpt-6-astra",
     "claude": "fable",  # claude CLI alias for the latest Fable
     "amp": "openai/gpt-6-astra",
     "grok": "grok-4.6",
@@ -42,7 +42,7 @@ DEFAULT_MODEL_BY_ENGINE = {
 DEFAULT_THINKING_BY_ENGINE = {
     "amp": "high",
 }
-# Retried once when the account cannot access the default Codex model.
+# Retried once when the account cannot access an explicitly selected Sol model.
 DEFAULT_CODEX_ACCESS_FALLBACK_MODEL = "gpt-5.6-terra"
 PRIORITIES = ("P0", "P1", "P2", "P3")
 
@@ -1609,7 +1609,7 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
         if (engine, model) in seen:
             raise SystemExit(f"reviewer specified more than once: {engine} model={model}")
         seen.add((engine, model))
-        if engine == "codex" and model == DEFAULT_MODEL_BY_ENGINE["codex"]:
+        if engine == "codex" and model == "gpt-5.6-sol":
             fallback_model = DEFAULT_CODEX_ACCESS_FALLBACK_MODEL
         else:
             fallback_model = None
