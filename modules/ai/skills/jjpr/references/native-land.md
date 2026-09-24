@@ -27,9 +27,11 @@ jj status
 jj log -r '((<stack-base>..<top>):: & ~::<top>) & ~empty()'
 ```
 
-Record the result, exact `@` commit ID, and every member change and commit ID
-before GitHub can rewrite survivors. Stop if the query finds work; move,
-publish, or otherwise resolve it before landing.
+Record the result, exact `@` commit ID, and every member's original reviewed
+head SHA/tree and complete oldest-to-newest commit segment before GitHub can
+rewrite survivors. Check PR titles/bodies and remote commit membership against
+those segments. Stop if the query finds work; move, publish, or otherwise
+resolve it before landing.
 
 ## Enforce policy gates
 
@@ -89,6 +91,11 @@ A queue submission is not a completed landing. Poll until every selected and
 lower PR has REST `.merged == true` or report the queue/failure state without
 cleanup. If a grouped merge reports failure, assume lower PRs may have landed
 until remote state proves otherwise. Do not trust one `merge_commit_sha` field.
+After a direct whole-Stack landing, confirm the actual merge commits are on the
+Stack base and its tree equals the original reviewed top tree if the base had
+no independent changes. Otherwise compare to a separately reviewed expected
+integration tree. Do not treat merged flags, rewritten local tips, or green CI
+as proof of content preservation.
 
 ## Settle a partial merge
 
@@ -103,6 +110,9 @@ On timeout or queue failure, stop with observed remote state. Once bases settle,
 classify survivors bottom-to-top as a contiguous server-rebased prefix whose
 heads changed followed by an unchanged suffix. A changed head above an
 unchanged one is inconsistent; stop. Reread immediately before any later push.
+Verify the landed base tree against the original reviewed head of the selected
+prefix when no independent base changes intervened; otherwise compare with a
+reviewed expected integration tree before settling survivors.
 
 ```bash
 jj git fetch --remote REMOTE

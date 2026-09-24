@@ -75,13 +75,10 @@ For phased or multi-part work when the user asks for stacked PRs:
   split further instead.
 - Run the full closeout loop (gate + autoreview) per phase before opening its
   PR.
-- With an ordinary `$jjpr` stack, let submit repair PR bases and merge reconcile
-  the remainder. For native GitHub Stack members, let `jjpr submit` update only
-  a shape-preserving chain, use PR-number-only `gh stack link` only for initial
-  registration, use the `$jjpr` REST-add path for a preflighted top append, and
-  reserve `gh stack merge` for landing. A rewritten lower change makes jj
-  rebase descendants; inspect the graph, then dry-run and resubmit rather than
-  manually retargeting GitHub.
+- Follow `$jjpr`'s ordinary or native path for submission and landing. Verify
+  every PR's title, head/base, and complete commit segment after submit or
+  restack. Do not rely on jjpr rebase reconciliation for multi-commit segments
+  on 0.39.1/0.40.0; preserve original reviewed SHAs/trees for landing proof.
 - In plain Git, phase N bases on phase N-1; after a parent merges, retarget and
   rebase the child as needed.
 - Between phases, report what's next with a go/no-go recommendation and wait

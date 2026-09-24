@@ -14,15 +14,14 @@ ends at the PR.
 
 - Merge only PRs this session owns or ones the user named.
 - Run `jj status` first. When it succeeds, use `$jj`; for a stack managed by
-  bookmarks, use `$jjpr` for status and reconciliation. Detect native GitHub
+  bookmarks, use `$jjpr` for submission/status and its landing guide. Detect native GitHub
   Stack membership before choosing the landing command.
 - Conflicts and stale base are yours to fix: get the branch on latest main
   (rebase or merge, whichever is simpler — don't ask which), resolve conflicts,
   rerun the repo gate if code changed, push, continue.
-- Ordinary `$jjpr` stacks merge base-most first and reconcile the remainder
-  according to config. Native GitHub Stacks land only through the `$jjpr`
-  skill's `gh stack merge` workflow. For plain Git stacks, retarget/rebase each
-  child, wait for CI, then merge it.
+- Ordinary jjpr stacks need the `$jjpr` multi-commit landing guard; native
+  GitHub Stacks use its `gh stack merge` workflow. For plain Git stacks,
+  retarget/rebase each child, wait for CI, then merge it.
 - Release PRs (release-please and similar) and staging/prod deploy watching are
   explicit-ask only. Do not merge a release PR or babysit deploy workflows
   unless the user asked for that in this session.
@@ -44,12 +43,11 @@ ends at the PR.
    authorized landing scope exactly equals one Stack's complete open membership
    or one explicit bottom prefix. For a mixed chain or multiple Stacks,
    partition and verify every separately authorized scope; otherwise stop.
-   Follow `$jjpr` **Land a native Stack**, including its pre-merge local-work
-   inventory, bounded remote settlement, and survivor reconciliation; never
-   run `jjpr merge` on native members. For a wholly ordinary stack, run
-   `jjpr merge <top> --base <base> --remote <remote> --dry-run`, then the same
-   command without `--dry-run`. Re-run after any
-   CI/review blocker clears; do not reproduce reconciliation with Git commands.
+   Follow `$jjpr` **Land a native Stack** for native members. For a wholly
+   ordinary stack, follow its **Ordinary jjpr stacks** landing procedure; never
+   run rebase-reconciling `jjpr merge`/`watch` on multi-commit segments with
+   affected versions. Journal original reviewed heads/trees and verify landed
+   content, not just merged PR flags. Recheck gates after survivor rewrites.
 4. Single PR or plain Git stack: sync a stale/conflicted branch per contract,
    push, merge, and delete the remote branch if the merge did not.
 5. Plain Git stack: repeat 2 and 4 per child in order.
