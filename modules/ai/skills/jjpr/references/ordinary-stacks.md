@@ -27,6 +27,12 @@ complete commit list against the intended oldest-to-newest segment (`jj log -r
 '<lower>..<upper>' --no-graph --reversed -T 'commit_id ++ "\n"'`; use the
 bottom base for the first PR). Page forge commit lists; counts alone miss
 misassignment.
+If a title/body came from the wrong segment, correct the existing PR before
+review; on GitHub use `gh pr edit PR --repo OWNER/REPO --title 'INTENDED_TITLE'`
+and, only if the body is wrong, `--body-file BODY_FILE` with a prepared,
+inspected body. Preserve correct metadata. Repeat the check and repair after
+every resubmit; do not change PR bases or branches to fix a title. If actual
+commit membership is wrong, stop instead of masking it with a metadata edit.
 Before landing, reshape with jj and let scoped submit update ordinary PR bases;
 the manual landing exception below applies only after a lower PR merges.
 

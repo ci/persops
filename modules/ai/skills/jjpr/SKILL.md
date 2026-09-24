@@ -151,6 +151,13 @@ jj log -r '<bookmark>' --no-graph -T 'commit_id ++ "\n"'
 ```
 
 Require `headRefOid == commit_id` for every bookmark before continuing.
+If metadata belongs to another segment, correct that PR's title/body through
+the forge before review (on GitHub: `gh pr edit PR_NUMBER --repo OWNER/REPO
+--title 'INTENDED_TITLE'`; use `--body-file BODY_FILE` only if the body is
+wrong, after preparing and inspecting that file). Preserve correct metadata.
+This repairs metadata only, not commit membership; recheck both after every
+later `jjpr submit`, which may update the PR again. Stop if the published
+commits or base differ from the intended segment.
 
 Do not pass bookmark or branch names to `gh stack link`; PR-number-only linking
 prevents another tool from pushing the branches.
