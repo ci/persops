@@ -8,7 +8,8 @@ description: "Manage stacked pull requests with jjpr in Jujutsu repositories."
 Use with the `$jj` skill. Keep one authority per layer:
 
 - `jj` owns changes, ancestry, bookmarks, workspaces, and recovery.
-- `jjpr` owns ordinary GitHub, GitLab, and Forgejo PR submission and landing.
+- `jjpr` submits ordinary GitHub, GitLab, and Forgejo PRs; use the ordinary
+  landing guide rather than assuming its merge reconciliation is safe.
 - For native GitHub Stacks only, `jjpr` creates or updates the PRs,
   `gh stack link` or the Stacks REST API registers them, and `gh stack merge`
   lands them.
@@ -16,7 +17,10 @@ Use with the `$jj` skill. Keep one authority per layer:
 Never use Git-local `gh stack init`, `add`, `modify`, `rebase`, `sync`, `push`,
 or `submit` in a jj-owned repository.
 
-The ordinary workflow is validated with jjpr 0.39.1. The native GitHub path is
+jjpr 0.39.1 and 0.40.0 misassign multi-commit bookmark segments: submitted PR
+titles can come from a neighboring segment, and squash/rebase landing can lose
+commits while reporting success. Do not use `jjpr merge` or `jjpr watch` with
+rebase reconciliation for such stacks. The native GitHub path is
 additionally validated with gh 2.97.0, gh-stack 0.1.0, and API version
 `2026-03-10`. If a selected tool version differs, stop before its first forge
 write and revalidate that path.
@@ -134,15 +138,26 @@ jjpr submit <top> --base <base> --remote <remote> --reviewer alice,bob --reviewe
 ```
 
 After submission, resolve each bookmark to exactly one open PR and record the
-PR numbers bottom to top. Verify the head and base, not only the number:
+PR numbers bottom to top. Verify title/body, head, base, and complete commit
+membership against the intended segment; jjpr's graph may misattribute titles
+even when the published commit list is correct:
 
 ```bash
 gh pr view <bookmark> --repo OWNER/REPO \
-  --json number,headRefName,headRefOid,baseRefName,state,isDraft,url
+  --json number,title,body,headRefName,headRefOid,baseRefName,state,isDraft,url
+gh api --paginate 'repos/OWNER/REPO/pulls/PR_NUMBER/commits?per_page=100' \
+  --jq '.[].sha'
 jj log -r '<bookmark>' --no-graph -T 'commit_id ++ "\n"'
 ```
 
 Require `headRefOid == commit_id` for every bookmark before continuing.
+If metadata belongs to another segment, correct that PR's title/body through
+the forge before review (on GitHub: `gh pr edit PR_NUMBER --repo OWNER/REPO
+--title 'INTENDED_TITLE'`; use `--body-file BODY_FILE` only if the body is
+wrong, after preparing and inspecting that file). Preserve correct metadata.
+This repairs metadata only, not commit membership; recheck both after every
+later `jjpr submit`, which may update the PR again. Stop if the published
+commits or base differ from the intended segment.
 
 Do not pass bookmark or branch names to `gh stack link`; PR-number-only linking
 prevents another tool from pushing the branches.

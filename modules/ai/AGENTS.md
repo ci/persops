@@ -69,7 +69,8 @@
 ### JJ
 
 - Run `jj status` once when starting repository work (works from subdirs). If it succeeds, load `$jj` once per session and use JJ for repository operations; otherwise use Git.
-- Use $jjpr for bookmark-per-PR stack submission, status, reconciliation, and landing.
+- Use $jjpr for bookmark-per-PR submission and status. Follow its landing guide;
+  jjpr 0.39.1/0.40.0 can drop commits when rebasing multi-commit PR segments.
 - Finish changes with empty `@` unless user asks otherwise: use `jj commit -m ...` or `jj describe ... && jj new`; never only `jj describe` for handoff.
 
 ## Tools

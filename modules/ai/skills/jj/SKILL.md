@@ -46,7 +46,8 @@ Non-negotiable when operating as an automated agent:
 1. **Always use `-m` for messages.** Never invoke a command that opens an editor. Commands that need `-m`: `jj new`, `jj describe`, `jj commit`, `jj squash`.
 2. **Never use interactive commands.** `jj split` (without file paths), `jj squash -i`, `jj resolve` — all hang. Use file-path args or `jj restore` workflows.
 3. **Verify after mutations.** Run `jj st` after `squash`, `abandon`, `rebase`, `restore`, or any destructive op.
-4. **Use change IDs, not commit IDs.** Change IDs survive rewrites.
+4. **Use change IDs for local edits; use immutable commit IDs/trees for audits.**
+   A change ID survives rewrites, so it cannot prove which reviewed version landed.
 5. **Quote revsets.** Always single-quote: `jj log -r 'mine() & ::@'`.
 
 ### Agent-Specific Configuration

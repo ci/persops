@@ -22,46 +22,79 @@ useful when forge detection is unambiguous, but it has no remote selector in
 0.39.1; do not use it as proof in a multi-remote repository.
 
 Use `--draft`, `--ready`, `--reviewer`, and `--reviewer-scope` only as requested.
-Never repair a base with raw Git or direct forge edits; reshape with jj, inspect
-the graph, and let the next scoped submit update ordinary PR bases.
+After every submit/restack, check each PR's title/body, exact head/base, and
+complete commit list against the intended oldest-to-newest segment (`jj log -r
+'<lower>..<upper>' --no-graph --reversed -T 'commit_id ++ "\n"'`; use the
+bottom base for the first PR). Page forge commit lists; counts alone miss
+misassignment.
+If a title/body came from the wrong segment, correct the existing PR before
+review; on GitHub use `gh pr edit PR --repo OWNER/REPO --title 'INTENDED_TITLE'`
+and, only if the body is wrong, `--body-file BODY_FILE` with a prepared,
+inspected body. Preserve correct metadata. Repeat the check and repair after
+every resubmit; do not change PR bases or branches to fix a title. If actual
+commit membership is wrong, stop instead of masking it with a metadata edit.
+Before landing, reshape with jj and let scoped submit update ordinary PR bases;
+the manual landing exception below applies only after a lower PR merges.
 
 ## Land
 
 Resolve the actual bottom base first: it may be repository trunk or an intended
 coworker/foreign remote branch. Require the local base bookmark to track and
-equal that selected remote base. Preview the exact stack and use jjpr for the
-whole ordinary lifecycle:
+equal that selected remote base. Record every original reviewed PR head SHA and
+tree, its complete commit segment (including the oldest commit), base, title,
+reviews, and CI. Check the effective jjpr policy and merge/reconciliation config
+(CLI, repo, global, built-in), the exact remote PR state, and native Stack
+membership. Before **each** manual merge, enforce jjpr's effective
+`required_approvals` and `require_ci_pass` even if forge branch protection is
+weaker: require an open, non-draft, mergeable PR, no outstanding changes requests,
+and enough current approvals and passing checks. On GitHub, use the paginated
+latest-per-reviewer calculation in [Native Stack landing](native-land.md#enforce-policy-gates);
+use equivalent forge checks elsewhere. After every write, verify remote
+heads/bases/commit lists and reacquire gates before merging another PR. A
+rewritten head may dismiss approvals.
 
-```bash
-jj log -r '<base> | <base>@<remote>'
-jjpr merge <top> --base <base> --remote <remote> --dry-run
-jjpr merge <top> --base <base> --remote <remote>
-```
+**Multi-commit segments on jjpr 0.39.1/0.40.0:** never use `jjpr merge` or
+`jjpr watch` with rebase reconciliation. Live private-repo E2E showed both
+versions report a successful squash merge while omitting earlier commits in
+surviving segments. Merge reconciliation avoids that specific tip-only rebase
+but retains old ancestry and does not repair segment attribution; do not treat
+it as a general fix. Do not convert already-reviewed ordinary PRs to a native
+Stack without separately checking membership, review continuity, and authority.
 
-jjpr checks draft state, CI, approvals, requested changes, conflicts, and native
-GitHub membership before each merge. It lands bottom-up, fetches the base,
-reconciles and pushes survivors, and retargets the next ordinary PR. Re-run only
-after a reported blocker clears. Never bypass a native-membership refusal; use
-the main skill's native landing path.
+For a **GitHub native Stack**, use [Native Stack landing](native-land.md) when
+the PRs are registered members and the selected scope is authorized. A direct
+whole-Stack merge avoids jjpr's intermediate reconciliation; queued merges are
+not atomic whole-Stack completion. For **ordinary PRs**, land manually from the
+bottom, using the repository's allowed merge method and the gates above. On
+GitHub, for squash use `gh pr merge PR --repo
+OWNER/REPO --squash --match-head-commit CURRENT_GATED_HEAD`. Read this SHA
+fresh for each PR after any survivor rewrite; keep the original reviewed
+SHA/tree separately for the content audit. That option guards the head, not the
+base: recheck the base immediately before merging. Do not delete survivor branches.
 
-Merge method and reconciliation are separate: `merge_method` controls forge
-history; `reconcile_strategy` controls survivor sync (`rebase` or `merge`). Read
-effective config before landing. Precedence is CLI, repo-local
-`.jj/jjpr.toml`, global config, then built-in defaults. On persops-managed
-machines, edit `modules/jjpr.nix`, not generated config.
+After each lower merge, fetch the new base and rebase the **oldest commit of the
+first surviving PR segment** onto it with `jj rebase -s OLDEST -d BASE`. This
+moves the entire surviving subtree; rebasing the tip drops earlier commits.
+Stop on conflicts. Push only the affected survivor bookmarks with `jj git push
+-b NAME --remote REMOTE`; verify every remote head and segment against the
+original snapshots. Retarget the first surviving GitHub PR with `gh pr edit
+PR --repo OWNER/REPO --base BASE` (or the equivalent forge operation), preserving
+its PR number and discussion. This direct base edit is a landing-only exception to
+the submit rule above. Recheck the complete chain and gates before the next
+merge. Stop rather than silently resubmitting or repairing an unexpected graph.
 
-## Watch and recover
+Finally verify the actual merged commit(s) are on the intended base and compare
+the landed base tree to the **original reviewed top tree** when no independent
+base changes intervened. Otherwise independently compose/review the expected
+integration tree and compare against that. Rewritten local tips, change IDs,
+PR counts, green CI, and `jjpr` success are not content proof.
 
-`jjpr watch` is a live remote mutation loop with no useful dry-run. Use it only
-when explicitly requested, with an explicit bookmark, base, remote, and bounded
-timeout:
+Never bypass a native-membership refusal.
 
-```bash
-jjpr watch <top> --base <base> --remote <remote> --timeout MINUTES
-```
+## Recover
 
 On fetch, reconcile, or push failure, stop before the next merge. Inspect exact
-local and remote state:
+local and remote state before any retry:
 
 ```bash
 jj git fetch --remote <remote>
