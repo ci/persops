@@ -693,6 +693,9 @@ in
       settings = {
         base-url = "https://notify.reverse-justitia.ts.net";
         behind-proxy = true;
+        # nixpkgs now defaults to [::1]:2586. Tailscale serve and local checks
+        # still target 127.0.0.1:2586, which does not reach an IPv6-only socket.
+        listen-http = "127.0.0.1:2586";
         auth-default-access = "deny-all";
         enable-login = true;
         require-login = true;
