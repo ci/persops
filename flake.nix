@@ -56,6 +56,10 @@
     };
     jujutsu.url = "github:jj-vcs/jj";
     zig.url = "github:mitchellh/zig-overlay";
+    opnix = {
+      url = "github:brizzbuzz/opnix/v0.11.0";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     flox = {
       url = "github:flox/flox/latest";
     };

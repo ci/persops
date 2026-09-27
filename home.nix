@@ -52,6 +52,7 @@ in
     ./modules/yazi.nix
     ./modules/ai/home.nix
     ./modules/ops-status.nix
+    ./modules/secrets/home.nix
   ];
 
   programs = {
