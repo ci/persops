@@ -294,6 +294,11 @@ let
       else
         warn "storage box client" "missing"
       fi
+      if [ -s "$HOME/.config/opnix/token" ]; then
+        check_recent_file "1Password secrets" "$HOME/.local/state/persops/opnix/last-success" 2592000
+      else
+        warn "1Password secrets" "missing ~/.config/opnix/token (docs/secrets.md)"
+      fi
       if [ -r "$HOME/.config/restic-storage-box/password" ] && [ -r "$HOME/.ssh/hetzner-storage-box-aglaea" ]; then
         ok "storage box secrets" "readable"
       else
@@ -462,7 +467,7 @@ let
         ok "failed units" "none"
       fi
 
-      for unit in tailscaled.service samba-smbd.service; do
+      for unit in tailscaled.service samba-smbd.service opnix-secrets.service opnix-secrets-poll.timer; do
         if systemctl list-unit-files "$unit" --no-legend 2>/dev/null | grep -q .; then
           if systemctl is-active --quiet "$unit"; then
             ok "$unit" "active"

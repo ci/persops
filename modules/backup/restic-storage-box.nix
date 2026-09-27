@@ -67,4 +67,19 @@ in
   };
 
   environment.systemPackages = [ storageBoxClient ];
+
+  # Amalthea's copies are system files; see restic-storage-box-nixos.nix.
+  home-manager.users.${currentSystemUser}.persops.homeSecrets = lib.mkIf isDarwin {
+    files.storageBoxPassword = {
+      reference = "op://persops/Restic - Archive Storage Box/repository_password";
+      path = passwordFile;
+    };
+    templates.storageBoxKey = {
+      text = ''
+        {{ op://persops/Hetzner Storage Box - ${lib.toSentenceCase currentSystemName}/ssh_private_key }}
+      '';
+      path = identityFile;
+      mode = "0600";
+    };
+  };
 }

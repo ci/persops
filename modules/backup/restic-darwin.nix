@@ -16,6 +16,28 @@ in
 {
   environment.systemPackages = [ pkgs.restic ];
 
+  home-manager.users.${user}.persops.homeSecrets = {
+    files = {
+      resticPassword = {
+        reference = "op://persops/restic ${host}/password";
+        path = "${darwinHome}/.config/restic/password";
+      };
+      resticRepository = {
+        reference = "op://persops/restic ${host}/repository";
+        path = "${darwinHome}/.config/restic/repository";
+      };
+    };
+    templates.resticS3Env = {
+      text = ''
+        AWS_ACCESS_KEY_ID={{ op://persops/restic ${host}/aws_access_key_id }}
+        AWS_SECRET_ACCESS_KEY={{ op://persops/restic ${host}/aws_secret_access_key }}
+        AWS_DEFAULT_REGION={{ op://persops/restic ${host}/aws_default_region }}
+      '';
+      path = "${darwinHome}/.config/restic/s3.env";
+      mode = "0600";
+    };
+  };
+
   # Backups and maintenance share a repository; wait through normal overlap.
   launchd.user.agents = {
     restic-backup = {
