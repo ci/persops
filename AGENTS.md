@@ -178,7 +178,8 @@ darwinConfigurations."<name>" = mkSystem "<name>" {
 
 ## Gotchas
 
-- **Backups (restic/S3)**: `modules/backup/restic-darwin.nix` + `modules/backup/restic-nixos.nix` wired into aglaea/amalthea. Secrets live outside Nix store. Repo file + env + password:
+- **Host secrets**: 1Password `persops` vault -> opnix (read-only service account); see `docs/secrets.md`. Never hand-copy into `/etc/secrets` or `~/.config/restic`.
+- **Backups (restic/S3)**: `modules/backup/restic-darwin.nix` + `modules/backup/restic-nixos.nix` wired into aglaea/amalthea. Repo file + env + password:
   - macOS: `~/.config/restic/{repository,s3.env,password}`
   - NixOS: `/etc/secrets/restic/{repository,s3.env,password}`
     Schedules: hourly backup, daily prune, weekly check.

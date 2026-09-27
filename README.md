@@ -39,6 +39,11 @@ nix flake update codex-cli-nix claude-code-nix llm-agents
 make local
 ```
 
+## Host secrets
+
+Host secrets come from the shared `persops` 1Password vault through opnix; see
+[docs/secrets.md](docs/secrets.md).
+
 ## Ops status
 
 `ops-status` prints a local health summary for the current machine: Nix, `persops`
