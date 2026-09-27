@@ -17,11 +17,9 @@ Authentication is deny-by-default and provisioned from the 1Password item
 - both use dedicated bearer tokens; passwords remain available for interactive
   login.
 
-The declarative values are installed outside Git and the Nix store:
-
-```sh
-./scripts/ntfy-secrets-install
-```
+The declarative values stay outside Git and the Nix store: opnix renders
+`/etc/secrets/ntfy-sh/environment` from `infra/ntfy/environment.tpl` and the
+`persops/ntfy-amalthea` item, then restarts ntfy (see [secrets](secrets.md)).
 
 ntfy keeps seven days of messages. `upstream-base-url = "https://ntfy.sh"`
 enables instant iOS notifications by forwarding an opaque poll request; message
@@ -30,8 +28,8 @@ them. Subscribe the mobile app to the `alerts` topic on the private server and
 use the personal token from 1Password.
 
 Desktop Web Push uses a persistent VAPID key pair in the same 1Password item
-(`web_push_public_key` and `web_push_private_key`), installed by the secrets
-script. Never regenerate these during deploys: changing the key invalidates
+(`web_push_public_key` and `web_push_private_key`), rendered with the other
+values. Never regenerate these during deploys: changing the key invalidates
 browser subscriptions. The subscription database lives at
 `/var/lib/ntfy-sh/webpush.db`, inside the existing nightly backup.
 

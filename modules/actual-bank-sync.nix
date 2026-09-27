@@ -88,10 +88,21 @@ in
     }
   ];
 
+  services.onepassword-secrets.secrets = {
+    actualAutomationPassword = {
+      reference = "op://persops/Actual-Budget/password";
+      path = "/etc/secrets/actual-automation/password";
+      mode = "0400";
+    };
+    actualAutomationSyncId = {
+      reference = "op://persops/Actual-Budget/sync_id";
+      path = "/etc/secrets/actual-automation/sync-id";
+      mode = "0400";
+    };
+  };
+
   systemd.tmpfiles.rules = [
     "d /etc/secrets/actual-automation 0700 root root -"
-    "z /etc/secrets/actual-automation/password 0400 root root -"
-    "z /etc/secrets/actual-automation/sync-id 0400 root root -"
     "d ${backupGateDir} 0700 root root -"
     "z ${backupStamp} 0400 root root -"
   ];

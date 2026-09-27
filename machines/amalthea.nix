@@ -457,7 +457,6 @@ in
   systemd = {
     tmpfiles.rules = [
       "d /etc/secrets/ntfy-sh 0700 root root -"
-      "z /etc/secrets/ntfy-sh/environment 0400 root root -"
       "d /archive 0755 root root -"
       "d /srv/sea16 0755 root root -"
     ];
@@ -607,6 +606,12 @@ in
         '';
       };
     };
+  };
+
+  persops.secretTemplates.ntfyEnv = {
+    text = builtins.readFile ../infra/ntfy/environment.tpl;
+    path = "/etc/secrets/ntfy-sh/environment";
+    restartUnits = [ "ntfy-sh.service" ];
   };
 
   services = {

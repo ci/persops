@@ -23,7 +23,7 @@ Pheme runs a small Python/systemd watcher independently of Matrix containers:
 ## Security and secrets
 
 The fallback name is 256 random bits, stored as `pheme_fallback_topic` in
-`Personal/ntfy-amalthea` in 1Password, alongside `pheme_watch_token` and
+`persops/ntfy-amalthea` in 1Password, alongside `pheme_watch_token` and
 `pheme_watch_password_hash`. Never commit or log the topic. Free ntfy.sh topics
 have **no authenticated ownership**: anyone obtaining the name can read or forge
 messages. Use only generic outage text, never logs, account data, or credentials.
@@ -53,8 +53,7 @@ first (`ntfy token generate`, `ntfy user hash`, and a cryptographic random topic
 Then, from the reviewed source checkout:
 
 ```sh
-bash scripts/ntfy-secrets-install
-ssh amalthea sudo systemctl restart ntfy-sh
+ssh amalthea sudo systemctl start opnix-secrets-poll.service
 bash scripts/pheme-watch-install
 ```
 

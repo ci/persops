@@ -47,10 +47,12 @@ them. A success is the systemd job's exit result, not a fresh restore test or an
 independent audit of bank-provider data. If observation fails, no heartbeat is
 sent for that job, so its push deadline eventually reports down.
 
-After applying OpenTofu, run `scripts/kuma-job-secrets-install`, then deploy
-Amalthea. Tokens are exported from the private OpenTofu state into a root-owned
-0400 file and loaded through systemd credentials, never embedded in Nix or Git.
-Repeat token installation if a push monitor is recreated. Lost checker state
+After applying OpenTofu, run `scripts/kuma-job-secrets-install` from the
+1Password tmux session, then deploy Amalthea (or start
+`opnix-secrets-poll.service`). The script publishes the tokens from private
+OpenTofu state to the `persops/kuma-job-tokens` document; opnix writes them to a
+root-owned 0400 file loaded through systemd credentials, never embedded in Nix
+or Git. Republish if a push monitor is recreated. Lost checker state
 is reconstructed from current systemd results; after reboot, absent evidence
 stays down until the next successful scheduled run.
 

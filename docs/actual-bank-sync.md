@@ -29,8 +29,10 @@ The Actual password and budget sync ID stay outside the Nix store:
 /etc/secrets/actual-automation/enabled
 ```
 
-All three files are root-owned mode `0400`; the password and sync ID are
-exposed to the dynamic service user with systemd credentials. The `enabled`
+All three files are root-owned mode `0400`; the password and sync ID come from
+the `persops/Actual-Budget` 1Password item through opnix (see
+[secrets](secrets.md)) and are exposed to the dynamic service user with systemd
+credentials. The `enabled`
 marker file is an explicit activation gate, including for manual starts.
 The account IDs, names, currencies, stable
 bridge rates, dedicated adjustment payee, and dedicated FX category are
