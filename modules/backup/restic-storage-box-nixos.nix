@@ -1,6 +1,8 @@
 {
+  config,
   currentSystemName,
   currentSystemUser,
+  lib,
   pkgs,
   ...
 }:
@@ -33,9 +35,30 @@ in
 
   systemd.tmpfiles.rules = [
     "d ${secretDir} 0750 root restic -"
-    "z ${passwordFile} 0440 root restic -"
-    "z ${identityFile} 0400 ${currentSystemUser} restic -"
   ];
+
+  services.onepassword-secrets.secrets.storageBoxPassword = {
+    reference = "op://persops/Restic - Archive Storage Box/repository_password";
+    path = passwordFile;
+    group = "restic";
+    mode = "0440";
+  };
+
+  # The template supplies the trailing newline OpenSSH requires.
+  persops.secretTemplates.storageBoxKey = {
+    text = ''
+      {{ op://persops/Hetzner Storage Box - ${lib.toSentenceCase currentSystemName}/ssh_private_key }}
+    '';
+    path = identityFile;
+    owner = currentSystemUser;
+    group = "restic";
+    # Jobs wait for their credentials and are retried if they failed without them.
+    restartUnits = map (name: "restic-backups-${name}.service") (
+      lib.attrNames (
+        lib.filterAttrs (_: backup: backup.passwordFile == passwordFile) config.services.restic.backups
+      )
+    );
+  };
 
   services.restic.backups = {
     actual-daily = storageBoxBackupFor "root" // {

@@ -175,6 +175,15 @@ printf 'verify: host '
 hostname
 show_system_state
 check_system_unit tailscaled.service
+check_system_unit opnix-secrets.service
+check_enabled_system_unit opnix-secrets-poll.timer
+for unit in persops-secret-ntfyEnv.service persops-secret-resticS3Env.service persops-secret-storageBoxKey.service; do
+	check_system_unit "$unit"
+done
+check_root_secret_file "/etc/secrets/login/${remote_user}.hash"
+check_system_unit persops-login-hash.service
+echo "verify: ${remote_user} password is set, not locked"
+sudo getent shadow "$remote_user" | cut -d: -f2 | grep -q '^\$'
 check_system_unit actual.service
 if systemctl is-enabled --quiet actual-bank-sync.timer; then
 	check_completed_oneshot actual-bank-sync.service

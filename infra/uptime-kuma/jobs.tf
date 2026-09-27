@@ -16,7 +16,7 @@ resource "uptimekuma_monitor_push" "jobs" {
 }
 
 output "job_push_tokens" {
-  description = "Install with scripts/kuma-job-secrets-install; never put tokens in Nix or Git."
+  description = "Publish with scripts/kuma-job-secrets-install; never put tokens in Nix or Git."
   value       = { for key, monitor in uptimekuma_monitor_push.jobs : key => monitor.push_token }
   sensitive   = true
 }

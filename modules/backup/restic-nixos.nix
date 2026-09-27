@@ -1,4 +1,5 @@
 {
+  config,
   pkgs,
   lib,
   currentSystemName,
@@ -19,11 +20,40 @@ in
   users.groups.restic = { };
   users.users.${user}.extraGroups = lib.mkAfter [ "restic" ];
   systemd.tmpfiles.rules = [
-    "z /etc/secrets/restic 0750 root restic -"
-    "z /etc/secrets/restic/password 0440 root restic -"
-    "z /etc/secrets/restic/repository 0440 root restic -"
-    "z /etc/secrets/restic/s3.env 0440 root restic -"
+    "d /etc/secrets/restic 0750 root restic -"
   ];
+
+  services.onepassword-secrets.secrets = {
+    resticPassword = {
+      reference = "op://persops/restic ${host}/password";
+      path = nixPasswordFile;
+      group = "restic";
+      mode = "0440";
+    };
+    resticRepository = {
+      reference = "op://persops/restic ${host}/repository";
+      path = nixRepositoryFile;
+      group = "restic";
+      mode = "0440";
+    };
+  };
+
+  persops.secretTemplates.resticS3Env = {
+    text = ''
+      AWS_ACCESS_KEY_ID={{ op://persops/restic ${host}/aws_access_key_id }}
+      AWS_SECRET_ACCESS_KEY={{ op://persops/restic ${host}/aws_secret_access_key }}
+      AWS_DEFAULT_REGION={{ op://persops/restic ${host}/aws_default_region }}
+    '';
+    path = nixEnvFile;
+    group = "restic";
+    mode = "0440";
+    # Jobs wait for their credentials and are retried if they failed without them.
+    restartUnits = map (name: "restic-backups-${name}.service") (
+      lib.attrNames (
+        lib.filterAttrs (_: backup: backup.passwordFile == nixPasswordFile) config.services.restic.backups
+      )
+    );
+  };
 
   services.restic.backups = {
     home-hourly = {

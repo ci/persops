@@ -1,6 +1,7 @@
 { pkgs, ... }:
 let
   jobs = ../infra/uptime-kuma/jobs.json;
+  tokens = "/etc/secrets/kuma-job-health/tokens.json";
 in
 {
   # The system D-Bus rejects transient DynamicUser identities on this host.
@@ -10,9 +11,16 @@ in
     group = "kuma-job-health";
   };
 
+  # Published from OpenTofu state by scripts/kuma-job-secrets-install.
+  services.onepassword-secrets.secrets.kumaJobTokens = {
+    reference = "op://persops/kuma-job-tokens/tokens.json";
+    kind = "file";
+    path = tokens;
+    mode = "0400";
+  };
+
   systemd.tmpfiles.rules = [
     "d /etc/secrets/kuma-job-health 0700 root root -"
-    "z /etc/secrets/kuma-job-health/tokens.json 0400 root root -"
   ];
 
   systemd.services.kuma-job-health = {
@@ -25,7 +33,7 @@ in
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${pkgs.python3}/bin/python3 ${./kuma-job-health.py} ${jobs} %d/tokens.json /var/lib/kuma-job-health/state.json";
-      LoadCredential = [ "tokens.json:/etc/secrets/kuma-job-health/tokens.json" ];
+      LoadCredential = [ "tokens.json:${tokens}" ];
       StateDirectory = "kuma-job-health";
       StateDirectoryMode = "0700";
       User = "kuma-job-health";

@@ -1,7 +1,9 @@
 {
+  config,
   pkgs,
   lib,
   user,
+  currentSystemName,
   ...
 }:
 
@@ -9,6 +11,8 @@ let
   agentServicePath = "/etc/profiles/per-user/%u/bin:/run/current-system/sw/bin:%h/.local/bin:%h/.local/share/pnpm:%h/.npm-global/bin:%h/go/bin";
 in
 {
+  imports = [ ./modules/secrets/nixos.nix ];
+
   nix.settings = {
     substituters = [
       "https://cache.nixos.org"
@@ -108,7 +112,9 @@ in
     ];
     shell = pkgs.fish;
     linger = true;
-    hashedPassword = "$6$PMNZvv84d34ZY2BK$CEhbBGRm79WxIxFE5j4aY6l1/2HPqSjvFEXEhbgYJHaMoR9.A2/HHq2ninahWRVMaPQKQc8xfE7AZkf4Bm3CD/";
+    # Activation locks the password while this file is missing; persops-login-hash
+    # applies it once opnix has fetched it.
+    hashedPasswordFile = config.services.onepassword-secrets.secretPaths.loginPasswordHash;
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFP05x9Bg50efrFPX0NXfV45RwcsYmgpKUKTnR2Ee7LA cat"
     ];
@@ -141,6 +147,29 @@ in
   security.sudo.wheelNeedsPassword = false;
 
   systemd = {
+    tmpfiles.rules = [ "d /etc/secrets/login 0700 root root -" ];
+
+    # hashedPasswordFile is read only during activation; apply fetched or rotated
+    # hashes without waiting for the next deploy.
+    services.persops-login-hash = {
+      description = "Apply ${user}'s password hash fetched by opnix";
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+      # Fail rather than skip when missing: opnix only re-starts failed units.
+      script = ''
+        hash_file=${config.services.onepassword-secrets.secretPaths.loginPasswordHash}
+        if [ ! -s "$hash_file" ]; then
+          echo "$hash_file missing; ${user}'s password stays locked until opnix fetches it" >&2
+          exit 1
+        fi
+        hash="$(cat "$hash_file")"
+        printf '%s:%s\n' ${user} "$hash" | ${pkgs.shadow}/bin/chpasswd --encrypted
+      '';
+    };
+
     user.services = {
       codex-remote-control = {
         description = "Codex remote control bridge";
@@ -195,6 +224,13 @@ in
   };
 
   services = {
+    onepassword-secrets.secrets.loginPasswordHash = {
+      reference = "op://persops/${currentSystemName} login hash/password";
+      path = "/etc/secrets/login/${user}.hash";
+      mode = "0400";
+      services = [ "persops-login-hash" ];
+    };
+
     openssh = {
       enable = true;
       settings.PasswordAuthentication = true;
