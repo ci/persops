@@ -32,7 +32,8 @@ off-host watchdog and notification route remain separate follow-up work.
 
 ## Daily jobs
 
-Seven push monitors cover Actual bank sync and the Actual, GoLinks, Home
+Eight push monitors cover Actual bank sync, the 6-hourly 1Password secret poll
+(12-hour window, see [secrets](secrets.md)), and the Actual, GoLinks, Home
 Assistant, Kuma, ntfy, and archive backups. A separate Nix-managed timer polls
 systemd every five minutes; it does not run, restart, or modify these jobs.
 It reports down for a failed latest run, disabled/inactive job timer, missing
