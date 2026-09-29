@@ -1,7 +1,5 @@
 return {
   "nvim-treesitter/nvim-treesitter",
-  branch = "master",
-  commit = "b50774079aa3de80a06dce1634e7e1aa26d25848", -- pre-notification to update
   opts = {
     ensure_installed = {
       "bash",
@@ -31,7 +29,6 @@ return {
       "jq",
       "jsdoc",
       "json",
-      "jsonc",
       "json5",
       "jsonnet",
       "lua",
@@ -52,7 +49,6 @@ return {
       "rust",
       "sql",
       "terraform",
-      "tmux",
       "toml",
       "tsx",
       "typescript",
