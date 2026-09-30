@@ -121,6 +121,10 @@ return {
 ### Patterns
 
 ```lua
+-- Host profile from modules/nvim.nix ("personal" | "work"); prefer `cond`
+-- over `enabled` so the shared lazy-lock.json keeps the plugin
+cond = vim.g.persops_profile == "personal",
+
 -- Conditional logic
 if vim.env.SSH_TTY then
   vim.g.clipboard = "osc52"
@@ -181,7 +185,7 @@ darwinConfigurations."<name>" = mkSystem "<name>" {
 
 ## Gotchas
 
-- **Work profile isolation**: `currentSystemProfile == "work"` (ergane) must never reach personal infra: no persops vault secrets, Tailscale, `amalthea` SSH, Atuin sync, or deploy targets to/from aglaea/amalthea. Gate personal-only additions with `currentSystemProfile == "personal"`.
+- **Work profile isolation**: `currentSystemProfile == "work"` (ergane) must never reach personal infra: no persops vault secrets, Tailscale, `amalthea` SSH, Atuin sync, or deploy targets to/from aglaea/amalthea. Gate personal-only additions with `currentSystemProfile == "personal"` (Lua: `vim.g.persops_profile`).
 - **Host secrets**: 1Password `persops` vault -> opnix (read-only service account); see `docs/secrets.md`. Never hand-copy into `/etc/secrets` or `~/.config/restic`.
 - **Backups (restic/S3)**: `modules/backup/restic-darwin.nix` + `modules/backup/restic-nixos.nix` wired into aglaea/amalthea. Repo file + env + password:
   - macOS: `~/.config/restic/{repository,s3.env,password}`

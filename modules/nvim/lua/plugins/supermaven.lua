@@ -1,6 +1,8 @@
 return {
   {
     "supermaven-inc/supermaven-nvim",
+    -- Cloud completion stays off work hosts; `cond` keeps it in the shared lockfile.
+    cond = vim.g.persops_profile == "personal",
     event = "VimEnter",
     opts = function()
       -- Get theme-aware color from Comment highlight group

@@ -1,4 +1,4 @@
-{ config, ... }:
+{ config, currentSystemProfile, ... }:
 {
   programs.neovim = {
     enable = true;
@@ -9,6 +9,10 @@
     withRuby = true;
     # Do not write HM's generated init.lua into the live checkout symlink.
     sideloadInitLua = true;
+    # Lets the shared live Lua config tell personal and work hosts apart.
+    initLua = ''
+      vim.g.persops_profile = "${currentSystemProfile}"
+    '';
   };
 
   xdg.configFile."nvim" = {

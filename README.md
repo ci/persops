@@ -36,6 +36,7 @@ toolchains, coding agents, Slack, and work-safe casks. Personal apps, CTF/media 
 the `personal` profile. It is isolated from personal infrastructure: no persops
 vault token or home secrets (enforced by an assertion), restic, Tailscale,
 `amalthea` SSH entry, Atuin sync, `share-page` skill, or remote targets.
+Neovim skips Supermaven cloud completion there (`vim.g.persops_profile`).
 
 First switch on a fresh Mac:
 
