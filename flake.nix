@@ -39,7 +39,7 @@
       url = "github:numtide/llm-agents.nix";
     };
     herdr = {
-      url = "github:ogulcancelik/herdr/v0.7.5";
+      url = "github:herdrdev/herdr/v0.9.3";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     jj-starship = {
