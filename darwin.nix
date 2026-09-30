@@ -97,6 +97,7 @@ in
       "raycast" # spotlight go away
       "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
       "secretive"
+      "spotify" # muuuusic
     ]
     ++ lib.optionals isPersonal [
       "steipete/tap/repobar"
@@ -105,7 +106,6 @@ in
       "obsidian"
       "orbstack" # container goodies on OSX; commercial use needs a paid license
       "osaurus" # local LLM server
-      "spotify" # muuuusic
       "sonic-visualiser" # audio stegano
       "superhuman"
       "tailscale-app" # personal tailnet; work hosts must stay off it

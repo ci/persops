@@ -93,10 +93,14 @@ let
     zoom-us
   ];
 
+  # Desktop tools every Mac gets, whatever its profile.
+  commonDarwinPackages = lib.optionals pkgs.stdenv.isDarwin [
+    pkgs.mos
+  ];
+
   darwinPackages = lib.optionals pkgs.stdenv.isDarwin [
     pkgs.docker-credential-helpers
     pkgs.hexfiend
-    pkgs.mos
     pkgs.numi
   ];
 
@@ -124,5 +128,5 @@ let
       [ ];
 in
 {
-  home.packages = commonPackages ++ hostPackages;
+  home.packages = commonPackages ++ commonDarwinPackages ++ hostPackages;
 }
