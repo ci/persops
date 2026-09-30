@@ -1,24 +1,39 @@
+# Work Mac. Uses the "work" profile (see lib/mksystem.nix): no persops vault,
+# backups, tailnet, or remote targets. Only ergane itself deploys ergane.
 {
   pkgs,
   self,
   currentSystem,
+  currentSystemName,
   ...
 }:
 {
-  system.stateVersion = 4;
+  # Fresh upstream Nix install; nixbld ids use the stateVersion >= 5 defaults.
+  system.stateVersion = 7;
   system.configurationRevision = self.rev or self.dirtyRev or null;
-
-  # for the determinate nix installer
-  ids.gids.nixbld = 350;
 
   # We use proprietary software on this machine
   nixpkgs.config.allowUnfree = true;
 
   nixpkgs.hostPlatform = currentSystem;
 
+  networking = {
+    hostName = currentSystemName;
+    computerName = currentSystemName;
+  };
+
   # TODO: pull this out into a shared file
   nix = {
-    enable = false;
+    # Automatic garbage collection
+    gc = {
+      automatic = true;
+      interval = {
+        Weekday = 0;
+        Hour = 2;
+        Minute = 0;
+      }; # Sunday 2am
+      options = "--delete-older-than 30d";
+    };
 
     settings = {
       # We need to enable flakes
@@ -26,11 +41,15 @@
         "nix-command"
         "flakes"
       ];
-      substituters = [
-        "https://cache.flox.dev"
-      ];
-      trusted-public-keys = [
-        "flox-cache-public-1:7F4OyH7ZCnFhcze3fJdfyXYLQw/aV7GEed86nQ7IsOs="
+      # devenv's mprocs process manager symlinks the system pbcopy via an impure
+      # derivation; allow that host path so the build is permitted. Nix 2.34 has
+      # no working `extra-` form here, so restate the darwin defaults + pbcopy.
+      allowed-impure-host-deps = [
+        "/System/Library"
+        "/bin/sh"
+        "/dev"
+        "/usr/lib"
+        "/usr/bin/pbcopy"
       ];
     };
   };
@@ -39,6 +58,9 @@
   # configuring the rc correctly with nix-darwin paths.
   programs.zsh.enable = true;
   programs.fish.enable = true;
+
+  # 1Password beta was installed before nix-darwin; the stable cask conflicts.
+  homebrew.casks = [ "1password@beta" ];
 
   environment = {
     shells = with pkgs; [
@@ -50,7 +72,6 @@
       pam_u2f
       pam-reattach
       pam-watchid
-      # inputs.flox.packages.${currentSystem}.flox
     ];
     # https://write.rog.gr/writing/using-touchid-with-tmux/
     # https://github.com/LnL7/nix-darwin/pull/787

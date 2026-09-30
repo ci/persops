@@ -2,9 +2,11 @@
   pkgs,
   inputs,
   lib,
+  currentSystemProfile,
   ...
 }:
 let
+  isPersonal = currentSystemProfile == "personal";
   hostSystem = pkgs.stdenv.hostPlatform.system;
   llmAgents = inputs.llm-agents.packages.${hostSystem};
   summarizePackage = pkgs.callPackage ./summarize.nix {
@@ -57,7 +59,11 @@ let
     ];
   };
   localSkillOverrides = builtins.fromJSON (builtins.readFile ./skill-overrides.json);
-  localSkillDirs = lib.filterAttrs (_: type: type == "directory") (builtins.readDir ./skills);
+  # share-page publishes to the personal share domain with a Private-vault token.
+  personalOnlySkills = [ "share-page" ];
+  localSkillDirs = lib.filterAttrs (
+    name: type: type == "directory" && (isPersonal || !builtins.elem name personalOnlySkills)
+  ) (builtins.readDir ./skills);
   mkLocalSkill =
     name:
     let
@@ -129,12 +135,14 @@ in
         llmAgents.pi
         llmAgents.qmd
         llmAgents.rtk
+        osgrepPackage
+        # llm
+      ]
+      ++ lib.optionals isPersonal [
         yt-dlp
         gifgrepPackage
-        osgrepPackage
         spogoPackage
         summarizePackage
-        # llm
       ]
       ++ lib.optionals (sherpaOnnxOfflinePackage != null) [
         sherpaOnnxOfflinePackage
@@ -146,6 +154,8 @@ in
         baseFiles = {
           ".claude/CLAUDE.md".source = agentsFile;
           ".codex/AGENTS.md".source = agentsFile;
+        }
+        // lib.optionalAttrs isPersonal {
           ".summarize/config.json".text = builtins.toJSON {
             model = {
               mode = "auto";

@@ -2,9 +2,13 @@
   pkgs,
   user,
   lib,
+  currentSystemProfile,
   ...
 }:
 
+let
+  isPersonal = currentSystemProfile == "personal";
+in
 {
   nix.settings = {
     substituters = [
@@ -67,20 +71,21 @@
 
     taps = [
       "steipete/tap"
+    ]
+    ++ lib.optionals isPersonal [
       "darrylmorley/whatcable"
     ];
-    brews = [
+    brews = lib.optionals isPersonal [
       "cowsay"
       "gemini-cli"
       "libpq" # for ruby `pg` gems through mise
       "sshpass" # ansible ssh automation
       "qemu" # virtualization goodies
     ];
+    # The 1Password app cask is per machine (stable and beta conflict).
     casks = [
-      "1password"
       "1password-cli"
       "steipete/tap/codexbar"
-      "steipete/tap/repobar"
       "nikitabobko/tap/aerospace"
       "claude" # claudedesktop goes brrr
       "cleanshot"
@@ -89,18 +94,21 @@
       "homerow" # everywhere-navigation
       "thaw"
       "karabiner-elements"
-      "keybase" # keybase-gui doesn't work on OSX yet
-      "linear" # linear app
-      "obsidian"
-      "orbstack" # container goodies on OSX
-      "osaurus" # local LLM server
       "raycast" # spotlight go away
       "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
       "secretive"
+    ]
+    ++ lib.optionals isPersonal [
+      "steipete/tap/repobar"
+      "keybase" # keybase-gui doesn't work on OSX yet
+      "linear" # linear app
+      "obsidian"
+      "orbstack" # container goodies on OSX; commercial use needs a paid license
+      "osaurus" # local LLM server
       "spotify" # muuuusic
       "sonic-visualiser" # audio stegano
       "superhuman"
-      "tailscale-app" # wireguard mesh goodies
+      "tailscale-app" # personal tailnet; work hosts must stay off it
       "vagrant" # + qemu = nice
       "whatcable" # usb-c/thunderbolt cable info menu bar app
     ];

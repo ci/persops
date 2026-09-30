@@ -3,9 +3,13 @@
   pkgs,
   config,
   inputs,
+  currentSystemProfile,
   ...
 }:
 let
+  isPersonal = currentSystemProfile == "personal";
+  # Backups (and their wrappers) live on personal Macs only.
+  installResticWrappers = pkgs.stdenv.isDarwin && isPersonal;
   resticWrapperSrc = ./modules/backup/restic-wrapper.c;
   resticWrapperBin = pkgs.runCommand "restic-wrapper" { nativeBuildInputs = [ pkgs.stdenv.cc ]; } ''
     ${pkgs.stdenv.cc}/bin/cc -std=c11 -O2 -Wall -Wextra ${resticWrapperSrc} -o $out
@@ -74,8 +78,8 @@ in
         "--disable-up-arrow"
       ];
       settings = {
-        # login & setup keys manually
-        auto_sync = true;
+        # login & setup keys manually; work hosts never sync personal history
+        auto_sync = isPersonal;
         sync_frequency = "5m";
         sync_address = "https://api.atuin.sh";
         ctrl_n_shortcuts = true;
@@ -126,7 +130,7 @@ in
     };
 
     activation = {
-      resticWrappers = lib.optionalString pkgs.stdenv.isDarwin resticWrapperInstall;
+      resticWrappers = lib.optionalString installResticWrappers resticWrapperInstall;
       ensurePathDirs = ''
         mkdir -p "$HOME/.local/share/pnpm" "$HOME/.npm-global/bin" "$HOME/.npm-global/lib/node_modules"
       '';

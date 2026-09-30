@@ -1,12 +1,14 @@
 # User-owned host secrets from the shared `persops` 1Password vault; see
 # docs/secrets.md. opnix's own Home Manager module exits the whole activation
 # script when its token is missing, so this runs the opnix CLI directly and
-# keeps existing files whenever a fetch fails.
+# keeps existing files whenever a fetch fails. Work-profile hosts must never
+# hold the persops-opnix token, so they cannot declare any of these files.
 {
   config,
   inputs,
   lib,
   pkgs,
+  currentSystemProfile,
   ...
 }:
 let
@@ -103,12 +105,17 @@ in
   };
 
   config = lib.mkIf (cfg.files != { } || cfg.templates != { }) {
-    assertions =
-      secretsLib.assertions cfg.templates
-      ++ lib.mapAttrsToList (name: file: {
-        assertion = lib.hasPrefix "op://${secretsLib.vault}/" file.reference;
-        message = "persops home secret '${name}' must reference op://${secretsLib.vault}/";
-      }) cfg.files;
+    assertions = [
+      {
+        assertion = currentSystemProfile != "work";
+        message = "persops home secrets are not allowed on work-profile hosts (docs/secrets.md)";
+      }
+    ]
+    ++ secretsLib.assertions cfg.templates
+    ++ lib.mapAttrsToList (name: file: {
+      assertion = lib.hasPrefix "op://${secretsLib.vault}/" file.reference;
+      message = "persops home secret '${name}' must reference op://${secretsLib.vault}/";
+    }) cfg.files;
 
     home.activation.persopsSecrets = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       if [ ! -s ${lib.escapeShellArg tokenFile} ]; then

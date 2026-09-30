@@ -10,6 +10,7 @@ Personal configuration managing macOS (darwin) and NixOS systems via Nix flakes.
 | ----------------------------------------------------------- | ----------------------------------------------- |
 | `make switch`                                               | Apply configuration (auto-detects darwin/nixos) |
 | `make deploy TARGETS="aglaea amalthea"`                     | Check and deploy selected reachable machines    |
+| `make deploy TARGETS=ergane`                                | Check and switch ergane (only from ergane)      |
 | `make build`                                                | Build without applying on either platform       |
 | `make test`                                                 | macOS: build only; NixOS: build and temporarily activate |
 | `make check`                                                | Current-system flake check + eval machine configs |
@@ -33,7 +34,7 @@ darwin.nix          # macOS-specific config
 nixos.nix           # Linux-specific config
 home.nix            # Home-manager entry (shared)
 lib/mksystem.nix    # System builder helper
-machines/           # Per-machine configs (aglaea=mac, amalthea=linux)
+machines/           # Per-machine configs (aglaea=mac, amalthea=linux, ergane=work mac)
 modules/            # Modular configurations
 ├── fish.nix, tmux.nix, nvim.nix, ...
 ├── nvim/lua/plugins/*.lua  # Neovim LazyVim plugins
@@ -166,7 +167,7 @@ shellAbbrs = { abbr = "expanded"; };  # expands as typed
 ### Add New Machine
 
 1. Create `machines/<name>.nix`
-2. Add to `flake.nix`:
+2. Add to `flake.nix` (`profile = "work";` for work machines):
 
 ```nix
 darwinConfigurations."<name>" = mkSystem "<name>" {
@@ -176,8 +177,11 @@ darwinConfigurations."<name>" = mkSystem "<name>" {
 };
 ```
 
+3. Add Darwin hosts to `DARWIN_HOSTS` (and `WORK_HOSTS` if work) in `Makefile`.
+
 ## Gotchas
 
+- **Work profile isolation**: `currentSystemProfile == "work"` (ergane) must never reach personal infra: no persops vault secrets, Tailscale, `amalthea` SSH, Atuin sync, or deploy targets to/from aglaea/amalthea. Gate personal-only additions with `currentSystemProfile == "personal"`.
 - **Host secrets**: 1Password `persops` vault -> opnix (read-only service account); see `docs/secrets.md`. Never hand-copy into `/etc/secrets` or `~/.config/restic`.
 - **Backups (restic/S3)**: `modules/backup/restic-darwin.nix` + `modules/backup/restic-nixos.nix` wired into aglaea/amalthea. Repo file + env + password:
   - macOS: `~/.config/restic/{repository,s3.env,password}`

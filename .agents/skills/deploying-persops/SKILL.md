@@ -1,6 +1,6 @@
 ---
 name: deploying-persops
-description: "Deploys persops configurations to aglaea and amalthea. Use when asked to build, apply, switch, or deploy persops locally or through an Amp runner."
+description: "Deploys persops configurations to aglaea, amalthea, and ergane. Use when asked to build, apply, switch, or deploy persops locally or through an Amp runner."
 ---
 
 # Deploying Persops
@@ -11,14 +11,17 @@ Aglaea locally when selected.
 
 ## Current Capability Matrix
 
-| Controller | aglaea target | amalthea target |
-| --- | --- | --- |
-| aglaea | local switch | remote deploy-rs switch |
-| amalthea | unavailable | local switch |
-| orb | delegate to a runner | delegate to a runner |
+| Controller | aglaea target | amalthea target | ergane target |
+| --- | --- | --- | --- |
+| aglaea | local switch | remote deploy-rs switch | unavailable |
+| amalthea | unavailable | local switch | unavailable |
+| ergane | unavailable | unavailable | local switch |
+| orb | delegate to a runner | delegate to a runner | unavailable |
 
 Aglaea has no remote SSH deployment yet. Never bypass the controller guard or
-try to activate Aglaea from Amalthea.
+try to activate Aglaea from Amalthea. Ergane is a work Mac isolated from
+personal infrastructure: it deploys only itself, has no runner, and must never
+be reached from or used to reach aglaea or amalthea.
 
 ## Before Applying
 
@@ -35,12 +38,14 @@ make deploy                                  # controller defaults
 make deploy TARGETS=amalthea
 make deploy TARGETS=aglaea                   # aglaea only
 make deploy TARGETS="aglaea amalthea"        # aglaea only
+make deploy TARGETS=ergane                   # ergane only
 ```
 
 Controller defaults:
 
 - Aglaea deploys Amalthea first, then Aglaea.
 - Amalthea deploys only itself.
+- Ergane deploys only itself, in the foreground, then runs `ops-status`.
 - Every other host fails and directs the operator to an Amp runner.
 
 The command runs repository checks and evaluates only the selected targets against

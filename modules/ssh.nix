@@ -1,7 +1,13 @@
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  currentSystemProfile,
+  ...
+}:
 
 let
   inherit (pkgs.stdenv) isDarwin;
+  isPersonal = currentSystemProfile == "personal";
 
   onePassDarwinPath = ''"~/Library/Group Containers/2BUA8C4S2C.com.1password/t/agent.sock"'';
 
@@ -33,7 +39,7 @@ in
           IdentityAgent = onePassDarwinPath;
         };
     }
-    // lib.optionalAttrs isDarwin {
+    // lib.optionalAttrs (isDarwin && isPersonal) {
       amalthea = {
         ForwardAgent = "yes";
         ControlMaster = "auto";

@@ -14,8 +14,12 @@ name:
   system,
   user,
   darwin ? false,
+  # "work" hosts get a lean package set and stay isolated from personal
+  # infrastructure: no persops vault, tailnet, remote targets, or history sync.
+  profile ? "personal",
 }:
 
+assert profile == "personal" || profile == "work";
 let
   # True if Linux, which is a heuristic for not being Darwin.
   isLinux = !darwin;
@@ -62,6 +66,7 @@ systemFunc rec {
           currentSystem = system;
           currentSystemName = name;
           currentSystemUser = user;
+          currentSystemProfile = profile;
         };
         users.${user} = import userHMConfig;
       };
@@ -74,6 +79,7 @@ systemFunc rec {
         currentSystem = system;
         currentSystemName = name;
         currentSystemUser = user;
+        currentSystemProfile = profile;
       };
     }
   ];

@@ -13,14 +13,16 @@ fi
 
 usage() {
 	cat <<'EOF'
-usage: scripts/deploy [aglaea] [amalthea]
+usage: scripts/deploy [aglaea] [amalthea] [ergane]
 
 Defaults:
   aglaea controller:   aglaea amalthea
   amalthea controller: amalthea
+  ergane controller:   ergane
 
 Aglaea currently requires local activation. Amalthea can be activated locally
-or remotely from aglaea.
+or remotely from aglaea. Ergane (work) is isolated: it deploys only itself, and
+no other host deploys it.
 EOF
 }
 
@@ -37,6 +39,9 @@ if [ "$#" -eq 0 ]; then
 	amalthea)
 		set -- amalthea
 		;;
+	ergane)
+		set -- ergane
+		;;
 	*)
 		echo "error: ${controller} is not a deployment controller; use the aglaea or amalthea Amp runner" >&2
 		exit 1
@@ -47,6 +52,7 @@ fi
 deployment_targets=("$@")
 deploy_aglaea=0
 deploy_amalthea=0
+deploy_ergane=0
 for target in "${deployment_targets[@]}"; do
 	case "$target" in
 	aglaea)
@@ -63,6 +69,13 @@ for target in "${deployment_targets[@]}"; do
 		fi
 		deploy_amalthea=1
 		;;
+	ergane)
+		if [ "$controller" != "ergane" ]; then
+			echo "error: ergane can be deployed only from ergane" >&2
+			exit 1
+		fi
+		deploy_ergane=1
+		;;
 	*)
 		echo "error: unknown deployment target: ${target}" >&2
 		usage >&2
@@ -78,6 +91,9 @@ if [ "$deploy_amalthea" -eq 1 ]; then
 fi
 if [ "$deploy_aglaea" -eq 1 ]; then
 	printf ' aglaea'
+fi
+if [ "$deploy_ergane" -eq 1 ]; then
+	printf ' ergane'
 fi
 printf '\n'
 
@@ -135,4 +151,17 @@ fi
 
 if [ "$deploy_aglaea" -eq 1 ]; then
 	"$repo_root/scripts/deploy-aglaea" "$flake"
+fi
+
+# Ergane runs no Amp runner, so it switches in the foreground.
+if [ "$deploy_ergane" -eq 1 ]; then
+	nh darwin switch "${flake}#ergane"
+	health_status=0
+	ops-status || health_status=$?
+	if [ "$health_status" -eq 1 ]; then
+		echo "Ergane activation succeeded; ops-status reported health warnings."
+	elif [ "$health_status" -ne 0 ]; then
+		echo "Ergane activation succeeded; health verification failed (exit $health_status)." >&2
+		exit "$health_status"
+	fi
 fi

@@ -15,6 +15,9 @@ store. Each item's notes name the files it feeds.
 | `kuma-job-tokens` (document) | `/etc/secrets/kuma-job-health/tokens.json` | |
 | `amalthea login hash` | `/etc/secrets/login/cat.hash` (`hashedPasswordFile`) | |
 
+Work-profile hosts (ergane) never get the token or any of these files;
+`modules/secrets/home.nix` fails evaluation if one declares a home secret.
+
 Still manual, by design: the initrd SSH host key and sea16 LUKS key (needed
 before the network is up), Actual's `enabled` kill-switch marker, pheme's
 credentials (not a Nix host; `scripts/pheme-watch-install` injects them), and

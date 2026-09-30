@@ -53,6 +53,8 @@
   programs.zsh.enable = true;
   programs.fish.enable = true;
 
+  homebrew.casks = [ "1password" ];
+
   environment = {
     shells = with pkgs; [
       bashInteractive

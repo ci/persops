@@ -1,4 +1,9 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  lib,
+  currentSystemProfile,
+  ...
+}:
 
 let
   opsStatus = pkgs.writeShellScriptBin "ops-status" ''
@@ -7,6 +12,8 @@ let
 
     status=0
     include_remote=0
+    # Work-profile hosts have no backups, Time Machine, tailnet, or remote targets.
+    profile=${lib.escapeShellArg currentSystemProfile}
 
     usage() {
       printf 'usage: ops-status [--remote]\n' >&2
@@ -15,6 +22,10 @@ let
     while [ "$#" -gt 0 ]; do
       case "$1" in
         --remote)
+          if [ "$profile" = work ]; then
+            printf 'ops-status: --remote is disabled on work-profile hosts\n' >&2
+            exit 2
+          fi
           include_remote=1
           ;;
         -h|--help)
@@ -565,8 +576,10 @@ let
     show_nix
     show_repo
     if [ "$os" = "Darwin" ]; then
-      show_restic_darwin
-      show_time_machine
+      if [ "$profile" != work ]; then
+        show_restic_darwin
+        show_time_machine
+      fi
       show_desktop
       show_launchd_agents
     else
@@ -574,8 +587,10 @@ let
       show_systemd
       show_user_services
     fi
-    show_network
-    show_remote
+    if [ "$profile" != work ]; then
+      show_network
+      show_remote
+    fi
 
     section "summary"
     case "$status" in

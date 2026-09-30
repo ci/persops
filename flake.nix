@@ -210,10 +210,11 @@
         darwin = true;
       };
 
-      darwinConfigurations."work" = mkSystem "work" {
+      darwinConfigurations."ergane" = mkSystem "ergane" {
         system = "aarch64-darwin";
         user = "cat";
         darwin = true;
+        profile = "work";
       };
 
       nixosConfigurations."amalthea" = mkSystem "amalthea" {

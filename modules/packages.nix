@@ -1,9 +1,11 @@
-# Keep universal CLI packages in commonPackages. Host extras: work stays thin;
-# aglaea and amalthea share personal+ops; Darwin-only tools stay Darwin-gated.
+# Keep universal CLI packages in commonPackages. Host extras: the work profile
+# stays thin; aglaea and amalthea share personal+ops; Darwin-only tools stay
+# Darwin-gated.
 {
   pkgs,
   lib,
   currentSystemName ? null,
+  currentSystemProfile,
   blogwatcherPackage,
   goplacesPackage,
   gwsPackage,
@@ -107,14 +109,15 @@ let
     [
       awscli2
       pgcli
+      slack
     ]
     ++ opsPackages;
 
   hostPackages =
-    if currentSystemName == "aglaea" then
-      aglaeaPackages
-    else if currentSystemName == "work" then
+    if currentSystemProfile == "work" then
       workPackages
+    else if currentSystemName == "aglaea" then
+      aglaeaPackages
     else if currentSystemName == "amalthea" then
       amaltheaPackages
     else

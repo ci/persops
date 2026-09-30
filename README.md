@@ -8,14 +8,19 @@ distro: OSX
 
 `make deploy` snapshots and checks the current flake before switching any target.
 Aglaea can deploy itself locally and Amalthea remotely; Amalthea can deploy only
-itself until remote SSH deployment is enabled on Aglaea.
+itself until remote SSH deployment is enabled on Aglaea. Ergane deploys only
+itself, and no other host can deploy it.
 
 ```sh
 make deploy                                  # host defaults
 make deploy TARGETS=amalthea
 make deploy TARGETS=aglaea                   # run on aglaea
 make deploy TARGETS="aglaea amalthea"        # run on aglaea
+make deploy TARGETS=ergane                   # run on ergane
 ```
+
+`make switch` picks the Darwin config named after `hostname -s` and refuses
+unknown hosts.
 
 Amalthea is always deployed and verified before a selected Aglaea switch so a
 controller restart cannot interrupt remaining remote work. From an Amp orb,
@@ -23,6 +28,34 @@ delegate to the Aglaea runner for both targets or the Amalthea runner for
 Amalthea only. Aglaea health warnings (exit 1) are reported without failing a
 successful activation; health failures (exit 2 or unexpected errors) still fail
 the deployment.
+
+## Ergane (work Mac)
+
+Ergane uses the `work` profile (`lib/mksystem.nix`): core CLI and language
+toolchains, coding agents, Slack, and work-safe casks. Personal apps, CTF/media tooling, and the extra language stacks stay on
+the `personal` profile. It is isolated from personal infrastructure: no persops
+vault token or home secrets (enforced by an assertion), restic, Tailscale,
+`amalthea` SSH entry, Atuin sync, `share-page` skill, or remote targets.
+
+First switch on a fresh Mac:
+
+1. Install upstream Nix (multi-user). nix-darwin manages Nix here, as on
+   aglaea, so don't install Determinate Nix.
+2. Hand apps that were installed outside Homebrew over to their casks, e.g.
+   `brew install --cask --adopt claude`, or move the app to the Trash first.
+3. Run the first switch with nix-darwin pinned by this flake. It also sets the
+   hostname, so later runs are plain `make switch` or `make deploy`:
+
+   ```sh
+   sudo nix --extra-experimental-features 'nix-command flakes' \
+     run --inputs-from ~/p/persops nix-darwin#darwin-rebuild -- \
+     switch --flake ~/p/persops#ergane
+   ```
+
+   If activation stops on unrecognized files in `/etc`, rename them with the
+   `.before-nix-darwin` suffix it suggests and rerun.
+
+Never copy the `persops-opnix` token to ergane.
 
 AeroSpace is installed through Homebrew only. Nix manages its configuration and
 zen-toggle script, which calls the Homebrew CLI. After a Homebrew AeroSpace

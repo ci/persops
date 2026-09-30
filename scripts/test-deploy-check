@@ -56,16 +56,34 @@ eval --raw /snapshot#deploy.nodes.amalthea.profiles.system.path.drvPath
 eval --raw /snapshot#darwinConfigurations.aglaea.config.system.build.toplevel.drvPath
 EOF
 
-: >"$temp_dir/calls"
-if PATH="$temp_dir/bin:$PATH" DEPLOY_CHECK_CALLS="$temp_dir/calls" TEST_HOSTNAME=aglaea \
-	make --no-print-directory --silent -C "$repo_root" \
-	FLAKE=/snapshot DEPLOY_CONTROLLER=aglaea TARGETS=work deploy-check >/dev/null 2>&1; then
-	echo "deploy-check accepted an unknown target" >&2
-	exit 1
-fi
-if [ -s "$temp_dir/calls" ]; then
-	echo "deploy-check ran Nix before rejecting an unknown target" >&2
-	exit 1
-fi
+run_case ergane ergane <<'EOF'
+flake check --print-build-logs /snapshot
+eval --raw /snapshot#darwinConfigurations.ergane.config.system.build.toplevel.drvPath
+EOF
+
+reject_case() {
+	local controller="$1"
+	local targets="$2"
+
+	: >"$temp_dir/calls"
+	if PATH="$temp_dir/bin:$PATH" DEPLOY_CHECK_CALLS="$temp_dir/calls" TEST_HOSTNAME="$controller" \
+		make --no-print-directory --silent -C "$repo_root" \
+		FLAKE=/snapshot DEPLOY_CONTROLLER="$controller" TARGETS="$targets" deploy-check >/dev/null 2>&1; then
+		printf 'deploy-check accepted %s/%s\n' "$controller" "$targets" >&2
+		return 1
+	fi
+	if [ -s "$temp_dir/calls" ]; then
+		printf 'deploy-check ran Nix before rejecting %s/%s\n' "$controller" "$targets" >&2
+		return 1
+	fi
+}
+
+reject_case aglaea work
+# Ergane is isolated: it deploys only itself and nothing else deploys it.
+reject_case aglaea ergane
+reject_case amalthea ergane
+reject_case ergane aglaea
+reject_case ergane amalthea
+reject_case ergane "ergane amalthea"
 
 echo "deployment target checks passed"

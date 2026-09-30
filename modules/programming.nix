@@ -2,10 +2,12 @@
   pkgs,
   lib,
   currentSystemName ? null,
+  currentSystemProfile,
   ...
 }:
 
 let
+  isPersonal = currentSystemProfile == "personal";
   myRuby = pkgs.ruby_3_4;
   appleToolchainShims = lib.hiPrio (
     pkgs.symlinkJoin {
@@ -37,16 +39,63 @@ let
   );
 in
 {
+  # Work hosts keep the core toolchains; project-specific runtimes come from mise.
   home.packages =
     lib.optionals
       (builtins.elem currentSystemName [
         "aglaea"
         "amalthea"
-        "work"
+        "ergane"
       ])
       (
         with pkgs;
         [
+          gcc
+
+          go
+
+          (python314.withPackages (
+            ps:
+            with ps;
+            [
+              build
+              ipython
+              pip
+              pipx
+              pydantic
+              requests
+              setuptools
+              twine
+            ]
+            ++ lib.optionals isPersonal [
+              aiohttp
+              beautifulsoup4
+              jupyter
+              matplotlib
+              numpy
+              openpyxl
+              pandas
+              pwntools
+              ropgadget
+              z3-solver
+            ]
+          ))
+          uv
+
+          deno
+          nodejs
+          yarn
+
+          lefthook
+
+          # nvim :Mason deps / language toolchains
+          (lib.hiPrio rust-analyzer)
+          rustup
+          unzip
+
+          zig_0_14
+        ]
+        ++ lib.optionals isPersonal [
           (myRuby.withPackages (
             ps: with ps; [
               cocoapods
@@ -63,54 +112,16 @@ in
             ]
           ))
 
-          gcc
-
           kamal
 
           beam.packages.erlang_28.elixir_1_20
-          go
 
           flutter
 
-          (python314.withPackages (
-            ps: with ps; [
-              aiohttp
-              beautifulsoup4
-              build
-              ipython
-              jupyter
-              matplotlib
-              numpy
-              openpyxl
-              pandas
-              pip
-              pipx
-              pwntools
-              pydantic
-              requests
-              ropgadget
-              setuptools
-              twine
-              z3-solver
-            ]
-          ))
-          uv
-
-          deno
-          nodejs
-          yarn
           php83
           php83Packages.composer
 
-          lefthook
-
-          # nvim :Mason deps / language toolchains
-          (lib.hiPrio rust-analyzer)
-          rustup
-          unzip
           cabal-install
-
-          zig_0_14
         ]
         ++ lib.optionals pkgs.stdenv.isDarwin [
           # Keep generic compiler names on macOS pointed at Apple's SDK-aware
