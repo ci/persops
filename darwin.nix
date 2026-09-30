@@ -93,7 +93,6 @@ in
       "ghostty" # best terminal atm
       "homerow" # everywhere-navigation
       "thaw"
-      "karabiner-elements"
       "raycast" # spotlight go away
       "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
       "secretive"
