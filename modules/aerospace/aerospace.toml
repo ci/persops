@@ -5,13 +5,11 @@ persistent-workspaces = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
 ## extra configurations
 start-at-login = true
 automatically-unhide-macos-hidden-apps = true
-default-root-container-layout = 'tiles'
+default-root-container-layout = 'accordion' # v_accordion everywhere, like alt-s
+default-root-container-orientation = 'vertical'
 
 after-startup-command = [
-  'exec-and-forget borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0',
-  # Per-workspace default layouts (persistent workspaces exist at startup).
-  # Only runs at login, not on reload-config.
-  'layout --workspace 2 --root v_accordion', # chat: stacked, like alt-s
+  'exec-and-forget borders active_color=0xffe1e3e4 inactive_color=0xff494d64 width=5.0'
 ]
 
 # Reference: https://github.com/i3/i3/blob/next/etc/config
