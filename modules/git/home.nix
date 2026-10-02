@@ -16,6 +16,10 @@ let
       key = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBC5hHouSghgUsKasZMfCkMiuOCU0kU4KwMyN6tCelex+LHxp++ZsMQCtdZJN6q0tyxN31wQ7D3F8DjSM/F412L4= ci-ghgl-signing@secretive.aglaea.local";
       path = "/Users/${currentSystemUser}/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/PublicKeys/a9cbb4c069d69eec1b485cf51b58aec1.pub";
     };
+    ergane = {
+      identities = "catalin@oxidecomputer.com,6650666+ci@users.noreply.github.com";
+      key = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBADjNY1+2tfqHBzFnGEm+d7PtpyvPTRFsZ7DaxnRlX0qGLgm75ZsKLD1E3rKolKJRUPjyyym6sai02e3wgZmU9U= ergane-sign@secretive.ergane.local";
+    };
   };
   secretiveSigningConfig =
     if currentSystemName != null && builtins.hasAttr currentSystemName secretiveSigningConfigs then
@@ -24,6 +28,11 @@ let
       null;
   secretiveSocket = "/Users/${currentSystemUser}/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh";
   useSecretiveSigning = isDarwin && secretiveSigningConfig != null;
+  # Without `path`, the key is written out below: Secretive's PublicKeys folder
+  # is privacy-protected, and git/jj only take inline keys starting with `ssh-`.
+  writeSecretivePublicKey = useSecretiveSigning && !(secretiveSigningConfig ? path);
+  secretivePublicKeyPath =
+    secretiveSigningConfig.path or "/Users/${currentSystemUser}/.config/git/secretive-signing.pub";
 in
 {
   home.file = {
@@ -65,7 +74,7 @@ in
         if useSecretiveSigning then
           ''
             [user]
-                signingkey = ${secretiveSigningConfig.path}
+                signingkey = ${secretivePublicKeyPath}
 
             [gpg "ssh"]
                 program = /Users/${currentSystemUser}/.local/bin/git-ssh-sign-secretive
@@ -86,7 +95,7 @@ in
         [signing]
         behavior = "own"
         backend = "ssh"
-        key = "${secretiveSigningConfig.path}"
+        key = "${secretivePublicKeyPath}"
 
         [signing.backends.ssh]
         program = "/Users/${currentSystemUser}/.local/bin/git-ssh-sign-secretive"
@@ -94,6 +103,11 @@ in
       '';
       force = true;
     };
+  }
+  // lib.optionalAttrs writeSecretivePublicKey {
+    "git/secretive-signing.pub".text = ''
+      ${secretiveSigningConfig.key}
+    '';
   };
 
   home.packages = with pkgs; [

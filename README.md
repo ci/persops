@@ -39,7 +39,9 @@ vault token or home secrets (enforced by an assertion), restic, Tailscale,
 Neovim skips Supermaven cloud completion there (`vim.g.persops_profile`).
 
 Homebrew on ergane is fully declarative: a switch uninstalls any formula or cask
-not declared in `darwin.nix` or `machines/ergane.nix`.
+not declared in `darwin.nix` or `machines/ergane.nix`. Commits are signed with
+the Secretive key `ergane-sign`; pushes authenticate through the 1Password SSH
+agent.
 
 First switch on a fresh Mac:
 

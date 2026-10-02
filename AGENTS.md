@@ -193,5 +193,6 @@ darwinConfigurations."<name>" = mkSystem "<name>" {
     Schedules: hourly backup, daily prune, weekly check.
 - **stateVersion**: Never change without reading release notes
 - **Homebrew**: Some packages still via homebrew (see darwin.nix); ergane uninstalls anything undeclared on switch
+- **Commit signing**: Secretive keys per Mac in `modules/git/home.nix` (`secretiveSigningConfigs`); SSH auth/push stays on the 1Password agent
 - **allowUnfree**: Enabled globally
 - **Fish themes**: Catppuccin fetched from GitHub, pinned by sha256
