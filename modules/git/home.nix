@@ -115,6 +115,10 @@ in
     git
     git-absorb
     git-revise
+    (writeShellApplication {
+      name = "git-cl";
+      text = builtins.readFile ./git-cl.sh;
+    })
     lazygit
   ];
 }
