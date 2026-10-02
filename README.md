@@ -38,6 +38,9 @@ vault token or home secrets (enforced by an assertion), restic, Tailscale,
 `amalthea` SSH entry, Atuin sync, `share-page` skill, or remote targets.
 Neovim skips Supermaven cloud completion there (`vim.g.persops_profile`).
 
+Homebrew on ergane is fully declarative: a switch uninstalls any formula or cask
+not declared in `darwin.nix` or `machines/ergane.nix`.
+
 First switch on a fresh Mac:
 
 1. Install upstream Nix (multi-user). nix-darwin manages Nix here, as on

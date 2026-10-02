@@ -192,6 +192,6 @@ darwinConfigurations."<name>" = mkSystem "<name>" {
   - NixOS: `/etc/secrets/restic/{repository,s3.env,password}`
     Schedules: hourly backup, daily prune, weekly check.
 - **stateVersion**: Never change without reading release notes
-- **Homebrew**: Some packages still via homebrew (see darwin.nix)
+- **Homebrew**: Some packages still via homebrew (see darwin.nix); ergane uninstalls anything undeclared on switch
 - **allowUnfree**: Enabled globally
 - **Fish themes**: Catppuccin fetched from GitHub, pinned by sha256

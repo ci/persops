@@ -59,8 +59,16 @@
   programs.zsh.enable = true;
   programs.fish.enable = true;
 
-  # 1Password beta was installed before nix-darwin; the stable cask conflicts.
-  homebrew.casks = [ "1password@beta" ];
+  homebrew = {
+    # Homebrew is fully declarative here: undeclared formulae and casks are
+    # uninstalled on switch, so add them here or in darwin.nix.
+    onActivation.cleanup = "uninstall";
+    casks = [
+      # 1Password beta was installed before nix-darwin; the stable cask conflicts.
+      "1password@beta"
+      "tunnelblick" # VPN client
+    ];
+  };
 
   environment = {
     shells = with pkgs; [
