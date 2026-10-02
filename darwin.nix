@@ -92,6 +92,7 @@ in
       "font-jetbrains-mono-nerd-font"
       "ghostty" # best terminal atm
       "homerow" # everywhere-navigation
+      "mos" # smooth scrolling for regular mice
       "thaw"
       "raycast" # spotlight go away
       "sensiblesidebuttons" # handle mouse prev/next buttons in Safari
