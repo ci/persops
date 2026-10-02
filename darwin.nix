@@ -89,6 +89,7 @@ in
       "nikitabobko/tap/aerospace"
       "claude" # claudedesktop goes brrr
       "cleanshot"
+      "flux-app" # warmer screen colours at night
       "font-jetbrains-mono-nerd-font"
       "ghostty" # best terminal atm
       "homerow" # everywhere-navigation
