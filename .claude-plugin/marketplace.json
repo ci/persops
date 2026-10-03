@@ -33,7 +33,7 @@
             "hooks": [
               {
                 "type": "command",
-                "command": "[ -e \"$HOME/.claude/CLAUDE.md\" ] || cat \"${CLAUDE_PLUGIN_ROOT}/modules/ai/AGENTS.md\""
+                "command": "core=\"${CLAUDE_PLUGIN_ROOT}/modules/ai/AGENTS.md\"; head -c \"$(wc -c < \"$core\")\" \"$HOME/.claude/CLAUDE.md\" 2>/dev/null | cmp -s - \"$core\" || cat \"$core\""
               }
             ]
           }
