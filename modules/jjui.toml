@@ -1,5 +1,18 @@
-[custom_commands]
-"workspace update-stale" = { key_sequence = ["w", "u"], desc = "workspace update-stale", args = ["workspace", "update-stale"] }
+[[actions]]
+name = "workspace-update-stale"
+lua = '''
+local _, err = jj("workspace", "update-stale")
+if err then
+  error(err)
+end
+revisions.refresh()
+'''
+
+[[bindings]]
+action = "workspace-update-stale"
+seq = ["w", "u"]
+scope = "revisions"
+desc = "workspace update-stale"
 
 [ui]
 theme = "base16-catppuccin-mocha"
