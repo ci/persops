@@ -1,7 +1,7 @@
 { pkgs, lib, ... }:
 
 let
-  inherit (pkgs.stdenv) isDarwin;
+  inherit (pkgs.stdenv.hostPlatform) isDarwin;
 in
 {
   imports =

@@ -50,7 +50,7 @@ let
     mainProgram = "summarize";
   };
 in
-if stdenv.isLinux then
+if stdenv.hostPlatform.isLinux then
   stdenv.mkDerivation {
     inherit
       pname

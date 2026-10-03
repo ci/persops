@@ -15,8 +15,8 @@ let
   discoveryRoot = "${home}/p";
   workingDirectory = "${discoveryRoot}/persops";
   path = lib.concatStringsSep ":" (
-    lib.optionals pkgs.stdenv.isDarwin [ "/bin" ]
-    ++ lib.optionals pkgs.stdenv.isLinux [ "/run/wrappers/bin" ]
+    lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ "/bin" ]
+    ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [ "/run/wrappers/bin" ]
     ++ [
       "${home}/.local/bin"
       "${config.home.profileDirectory}/bin"
@@ -41,7 +41,7 @@ let
   ];
 in
 {
-  launchd.agents.amp-runner = lib.mkIf (enabled && pkgs.stdenv.isDarwin) {
+  launchd.agents.amp-runner = lib.mkIf (enabled && pkgs.stdenv.hostPlatform.isDarwin) {
     enable = true;
     config = {
       ProgramArguments = arguments;
@@ -58,7 +58,7 @@ in
     };
   };
 
-  systemd.user.services.amp-runner = lib.mkIf (enabled && pkgs.stdenv.isLinux) {
+  systemd.user.services.amp-runner = lib.mkIf (enabled && pkgs.stdenv.hostPlatform.isLinux) {
     Unit = {
       Description = "Amp remote thread runner";
       # A deployment may update this unit; keep its controller alive through activation.

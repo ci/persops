@@ -93,7 +93,7 @@ let
     zoom-us
   ];
 
-  darwinPackages = lib.optionals pkgs.stdenv.isDarwin [
+  darwinPackages = lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
     pkgs.docker-credential-helpers
     pkgs.hexfiend
     pkgs.numi

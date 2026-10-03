@@ -31,7 +31,7 @@ stdenv.mkDerivation (finalAttrs: {
           git
           jujutsu
         ]
-        ++ lib.optionals stdenv.isLinux [ xdg-utils ]
+        ++ lib.optionals stdenv.hostPlatform.isLinux [ xdg-utils ]
       );
     in
     ''

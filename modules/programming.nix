@@ -123,7 +123,7 @@ in
 
           cabal-install
         ]
-        ++ lib.optionals pkgs.stdenv.isDarwin [
+        ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
           # Keep generic compiler names on macOS pointed at Apple's SDK-aware
           # toolchain. GNU GCC remains available explicitly as `gnu-gcc`/`gnu-g++`.
           appleToolchainShims

@@ -26,7 +26,7 @@ let
   ];
 in
 {
-  launchd.agents.claude-remote-control = lib.mkIf (enabled && pkgs.stdenv.isDarwin) {
+  launchd.agents.claude-remote-control = lib.mkIf (enabled && pkgs.stdenv.hostPlatform.isDarwin) {
     enable = true;
     config = {
       ProgramArguments = [

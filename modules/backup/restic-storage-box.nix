@@ -7,7 +7,7 @@
 }:
 
 let
-  inherit (pkgs.stdenv) isDarwin;
+  inherit (pkgs.stdenv.hostPlatform) isDarwin;
 
   settings = import ./restic-storage-box-settings.nix;
   inherit (settings)

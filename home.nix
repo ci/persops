@@ -9,7 +9,7 @@
 let
   isPersonal = currentSystemProfile == "personal";
   # Backups (and their wrappers) live on personal Macs only.
-  installResticWrappers = pkgs.stdenv.isDarwin && isPersonal;
+  installResticWrappers = pkgs.stdenv.hostPlatform.isDarwin && isPersonal;
   resticWrapperSrc = ./modules/backup/restic-wrapper.c;
   resticWrapperBin = pkgs.runCommand "restic-wrapper" { nativeBuildInputs = [ pkgs.stdenv.cc ]; } ''
     ${pkgs.stdenv.cc}/bin/cc -std=c11 -O2 -Wall -Wextra ${resticWrapperSrc} -o $out

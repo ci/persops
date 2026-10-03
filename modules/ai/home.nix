@@ -42,7 +42,7 @@ let
       pkgs.callPackage ./sherpa-onnx-offline.nix {
         cudaPackages = cudaPkgs;
       };
-  isLinux = pkgs.stdenv.isLinux;
+  isLinux = pkgs.stdenv.hostPlatform.isLinux;
   skillBaseProfiles = {
     all = [
       ".claude/skills"
