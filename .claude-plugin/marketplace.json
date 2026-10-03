@@ -21,7 +21,8 @@
         "./modules/ai/skills/explain-diff",
         "./modules/ai/skills/github-deep-review",
         "./modules/ai/skills/review-branch",
-        "./modules/ai/skills/snag"
+        "./modules/ai/skills/snag",
+        "./modules/ai/skills/autoreview"
       ]
     },
     {
