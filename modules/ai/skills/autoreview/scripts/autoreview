@@ -107,7 +107,11 @@ SCHEMA: dict[str, Any] = {
                         "additionalProperties": False,
                         "required": ["file_path", "line"],
                         "properties": {
-                            "file_path": {"type": "string", "minLength": 1},
+                            "file_path": {
+                                "type": "string",
+                                "minLength": 1,
+                                "description": "Path relative to the repository root, never absolute.",
+                            },
                             "line": {"type": "integer", "minimum": 1},
                         },
                     },
@@ -691,6 +695,7 @@ def build_prompt(repo: Path, target: str, target_ref: str | None, bundle: str, e
         - Include security findings: injection, secret leaks, authz/authn bypass, path traversal, unsafe deserialization, unsafe filesystem or shell use, privacy leaks, and credential handling.
         - Do not reject legitimate functionality merely because it touches shell, filesystem, network, auth, or sensitive data. Report a security finding only when the patch creates a concrete exploitable risk, removes an important safety check, or lacks validation at a trust boundary.
         - For each finding, use the smallest file/line location that demonstrates the issue.
+        - Report every code_location.file_path relative to the repository root, never absolute.
         - If there are no actionable findings, return an empty findings array and mark the patch correct.
 
         Review target: {target_line}
@@ -1344,8 +1349,16 @@ def validate_report(report: dict[str, Any], repo: Path, changed_paths: set[str],
         line = location.get("line")
         if not rel or not isinstance(line, int) or line < 1:
             raise SystemExit(f"finding {index} has invalid location: {location}")
-        if Path(rel).is_absolute() or ".." in Path(rel).parts:
+        path = Path(rel)
+        if ".." in path.parts:
             raise SystemExit(f"finding {index} uses invalid file path: {rel}")
+        if path.is_absolute():
+            try:
+                # Resolve root aliases (e.g. /tmp) without permitting symlink escapes.
+                rel = path.resolve().relative_to(repo.resolve()).as_posix()
+            except ValueError:
+                raise SystemExit(f"finding {index} uses invalid file path: {rel}")
+            location["file_path"] = rel
         if rel not in changed_paths:
             out_of_scope_findings.append((index, finding, rel, line))
             continue

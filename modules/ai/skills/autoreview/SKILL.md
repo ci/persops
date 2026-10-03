@@ -200,6 +200,8 @@ without a real thinking knob reject `--thinking`.
 
 Run the helper directly so target selection, engine choice, structured validation, and exit status all stay in one path. If output is noisy, summarize the completed helper output after it returns; do not ask another agent or reviewer to rerun the review.
 
+Do not treat a filtered pipeline's exit status as the review result: `autoreview | grep ... | tail ...` can report success when autoreview failed. Prefer direct invocation or redirect output to a log and capture the helper's status before displaying it. If a pipeline is necessary, enable `set -o pipefail` and inspect the output; filter failures can also make the pipeline nonzero.
+
 ## Helper
 
 Bundled helper:
@@ -238,6 +240,7 @@ The helper:
 - prints `review still running: <engine> elapsed=<seconds>s pid=<pid>` to stderr at long-running intervals while waiting for the selected review engine; `--stream-engine-output` streams live engine text instead
 - prints `autoreview clean: no accepted/actionable findings reported` when the selected review command exits 0
 - exits nonzero when accepted/actionable findings are present
+- requests repository-relative finding paths; normalizes absolute paths that resolve inside the reviewed repository, including root aliases; still rejects parent traversal, absolute paths resolving outside the repository, and findings outside the changed files
 
 ## Final Report
 

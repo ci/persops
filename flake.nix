@@ -176,6 +176,7 @@
                   pkgs.bash
                   pkgs.coreutils
                   pkgs.findutils
+                  pkgs.git
                   pkgs.gnumake
                   pkgs.gnugrep
                   pkgs.gnused
