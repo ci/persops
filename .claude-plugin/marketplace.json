@@ -9,6 +9,7 @@
       "name": "persops",
       "description": "General-purpose thinking, review and writing skills from persops.",
       "source": "./",
+      "strict": false,
       "skills": [
         "./modules/ai/skills/grilling",
         "./modules/ai/skills/humanizer",
@@ -31,6 +32,7 @@
       "name": "persops-web",
       "description": "TypeScript, React and TUI framework skills from persops.",
       "source": "./",
+      "strict": false,
       "skills": [
         "./modules/ai/skills/effect-ts",
         "./modules/ai/skills/opentui",
@@ -44,6 +46,7 @@
       "name": "persops-jj",
       "description": "Jujutsu (jj) workflow skills from persops. Needs jj on PATH.",
       "source": "./",
+      "strict": false,
       "skills": [
         "./modules/ai/skills/jj",
         "./modules/ai/skills/jjpr"
