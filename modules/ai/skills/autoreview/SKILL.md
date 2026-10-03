@@ -7,7 +7,7 @@ description: "Auto Review closeout for Git and Jujutsu changes. Uses Amp by defa
 
 Run the bundled structured review helper as a closeout check. This is code review, not Guardian `auto_review` approval routing.
 
-Amp is the default inside an Amp orb, detected by the documented `AMP_ORB=1` environment variable. Codex is the default elsewhere and usually delivers the best local review results. An explicit `--engine` always wins; `AUTOREVIEW_ENGINE` overrides the environment-based default. Codex defaults to `gpt-6-astra` at `high` reasoning without a model fallback. Explicitly selecting Sol retries once with `gpt-5.6-terra` only when the account cannot access Sol; other Codex models keep the Codex CLI reasoning config. Astra accepts only `low`, `medium`, `high`, `xhigh`, or `max`. Claude defaults to `fable`, the claude CLI alias for the latest Fable. Amp defaults to `openai/gpt-6-astra` at `high` reasoning through a generated adapter plugin that reuses the existing `amp login`. Grok defaults to `grok-4.6`. Pi and opencode use the model their own CLI is configured for.
+Amp is the default inside an Amp orb, detected by the documented `AMP_ORB=1` environment variable. Codex is the default elsewhere and usually delivers the best local review results. An explicit `--engine` always wins; `AUTOREVIEW_ENGINE` overrides the environment-based default. Both use GPT-6.1 Sol at `xhigh` reasoning: `gpt-6.1-sol` for Codex, `openai/gpt-6.1-sol` for Amp through a generated adapter plugin that reuses the existing `amp login`. Neither default has a model fallback. Only explicitly selecting the older `gpt-5.6-sol` on Codex retains the `gpt-5.6-terra` account-access fallback. Explicit `gpt-6-astra` on Codex defaults to `high`; both GPT-6.1 Sol and Astra accept only `low`, `medium`, `high`, `xhigh`, or `max`. Other Codex models keep the Codex CLI reasoning config. Selecting Claude (for example `--engine claude` or `--reviewers claude`) defaults to pinned Opus 5.5 (`claude-opus-5-5`) at `high` effort; explicit model/effort overrides still win. Grok defaults to `grok-4.6`. Pi and opencode use the model their own CLI is configured for.
 
 Use when:
 
@@ -166,31 +166,32 @@ Run multiple reviewers against one frozen bundle:
 Set reviewer models and thinking/effort explicitly:
 
 ```bash
-<autoreview-helper> --reviewers codex,claude --model codex=gpt-5.6-sol --thinking codex=high --model claude=sonnet --thinking claude=max
+<autoreview-helper> --reviewers codex,claude --model codex=gpt-6.1-sol --thinking codex=xhigh --model claude=claude-opus-5-5 --thinking claude=high
 ```
 
 Inline syntax is also supported:
 
 ```bash
-<autoreview-helper> --reviewers codex:gpt-5.6-sol:high,claude:sonnet:max
+<autoreview-helper> --reviewers codex:gpt-6.1-sol:xhigh,claude:claude-opus-5-5:high
 ```
 
 The same engine may appear more than once with different models, which is how
 an Amp orb runs the codex+grok panel through amp's model providers:
 
 ```bash
-<autoreview-helper> --reviewers amp:openai/gpt-5.6-sol:xhigh,amp:xai/grok-4.6:xhigh
+<autoreview-helper> --reviewers amp:openai/gpt-6.1-sol:xhigh,amp:xai/grok-4.6:xhigh
 ```
 
 `AUTOREVIEW_MODEL` and `AUTOREVIEW_THINKING` env vars accept the same keyed
-syntax (`codex=gpt-5.5,claude=sonnet` or a bare global value) and sit between
+syntax (`codex=gpt-6.1-sol,claude=claude-opus-5-5` or a bare global value) and sit between
 CLI flags and built-in defaults.
 
 Thinking per engine: Codex maps to `model_reasoning_effort` (`none`-`max`),
-except GPT-6 Astra rejects `none` and `minimal` and defaults to `high`.
-Claude maps to `--effort` (`low`-`max`). Amp maps to the adapter plugin's
-`reasoningEffort` (`none`-`max`, default `high`) and its model must be a
-`provider/model` id (default `openai/gpt-6-astra`). Grok maps to `--effort`
+except GPT-6.1 Sol and GPT-6 Astra reject `none` and `minimal` and default to
+`xhigh` and `high` respectively. Claude maps to `--effort` (`low`-`max`, default
+`high`). Amp maps to the adapter plugin's `reasoningEffort` (`none`-`max`, default
+`xhigh`) and its model must be a `provider/model` id (default
+`openai/gpt-6.1-sol`). Grok maps to `--effort`
 (`low`-`xhigh`). Pi maps to `--thinking`
 (`off`-`max`). OpenCode maps to `--variant` (`minimal`-`max`). Engines
 without a real thinking knob reject `--thinking`.

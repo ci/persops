@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import runpy
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -84,18 +85,18 @@ class EngineRoutingTests(unittest.TestCase):
             args = AUTOREVIEW["parse_args"]()
             return AUTOREVIEW["reviewer_args"](args)[0]
 
-    def test_orb_selects_amp_astra_high(self) -> None:
+    def test_orb_selects_amp_sol_6_1_xhigh(self) -> None:
         reviewer = self.reviewer(env={"AMP_ORB": "1"})
         self.assertEqual(reviewer.engine, "amp")
-        self.assertEqual(reviewer.model, "openai/gpt-6-astra")
-        self.assertEqual(reviewer.thinking, "high")
+        self.assertEqual(reviewer.model, "openai/gpt-6.1-sol")
+        self.assertEqual(reviewer.thinking, "xhigh")
         self.assertIsNone(reviewer.fallback_model)
 
-    def test_outside_orb_selects_codex_astra_high_without_fallback(self) -> None:
+    def test_outside_orb_selects_codex_sol_6_1_xhigh_without_fallback(self) -> None:
         reviewer = self.reviewer()
         self.assertEqual(reviewer.engine, "codex")
-        self.assertEqual(reviewer.model, "gpt-6-astra")
-        self.assertEqual(reviewer.thinking, "high")
+        self.assertEqual(reviewer.model, "gpt-6.1-sol")
+        self.assertEqual(reviewer.thinking, "xhigh")
         self.assertIsNone(reviewer.fallback_model)
 
     def test_explicit_sol_keeps_access_fallback_and_config_effort(self) -> None:
@@ -113,10 +114,49 @@ class EngineRoutingTests(unittest.TestCase):
         reviewer = self.reviewer(
             "--thinking", "xhigh", env={"AUTOREVIEW_THINKING": "medium"}
         )
-        self.assertEqual(reviewer.model, "gpt-6-astra")
+        self.assertEqual(reviewer.model, "gpt-6.1-sol")
         self.assertEqual(reviewer.thinking, "xhigh")
         reviewer = self.reviewer(env={"AUTOREVIEW_THINKING": "medium"})
         self.assertEqual(reviewer.thinking, "medium")
+
+    def test_sol_6_1_accepts_supported_efforts_and_rejects_unsupported(self) -> None:
+        for effort in ("low", "medium", "high", "xhigh", "max"):
+            with self.subTest(effort=effort):
+                self.assertEqual(self.reviewer("--thinking", effort).thinking, effort)
+        for effort in ("none", "minimal", "ultra"):
+            with self.subTest(effort=effort):
+                with self.assertRaisesRegex(SystemExit, f"invalid thinking level for codex model gpt-6.1-sol: {effort}"):
+                    self.reviewer(env={"AUTOREVIEW_THINKING": effort})
+
+    def test_claude_selection_defaults_to_opus_5_5_high(self) -> None:
+        for arguments, env in (
+            (("--engine", "claude"), {}),
+            ((), {"AUTOREVIEW_ENGINE": "claude"}),
+            (("--reviewers", "claude"), {"AMP_ORB": "1"}),
+        ):
+            with self.subTest(arguments=arguments, env=env):
+                reviewer = self.reviewer(*arguments, env=env)
+                self.assertEqual(reviewer.engine, "claude")
+                self.assertEqual(reviewer.model, "claude-opus-5-5")
+                self.assertEqual(reviewer.thinking, "high")
+
+    def test_claude_explicit_model_and_effort_override_defaults(self) -> None:
+        reviewer = self.reviewer(
+            "--engine", "claude", "--model", "claude=sonnet", "--thinking", "claude=max",
+            env={"AUTOREVIEW_MODEL": "claude=fable", "AUTOREVIEW_THINKING": "claude=low"},
+        )
+        self.assertEqual(reviewer.model, "sonnet")
+        self.assertEqual(reviewer.thinking, "max")
+
+    def test_claude_passes_opus_5_5_and_high_to_cli(self) -> None:
+        reviewer = self.reviewer("--reviewers", "claude:claude-opus-5-5:high")
+        run = AUTOREVIEW["run_claude"]
+        heartbeat = mock.Mock(return_value=subprocess.CompletedProcess([], 0, stdout="{}"))
+        with mock.patch.dict(run.__globals__, {"run_with_heartbeat": heartbeat}):
+            self.assertEqual(run(reviewer, Path.cwd(), "review fixture"), "{}")
+        command = heartbeat.call_args.args[0]
+        self.assertEqual(command[command.index("--model") + 1], "claude-opus-5-5")
+        self.assertEqual(command[command.index("--effort") + 1], "high")
 
     def test_explicit_engine_wins_over_orb_and_environment(self) -> None:
         reviewer = self.reviewer(
