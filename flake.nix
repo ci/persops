@@ -79,6 +79,9 @@
           in
           {
             inherit (master) gh gh-stack;
+            # HACK: pnpm 12.3.4 deletes the pinned engine in hoisted workspaces (#14595).
+            # TODO: remove this override once nixpkgs-unstable includes the fix (#14643).
+            inherit (master) pnpm;
           }
         )
         inputs."claude-code-nix".overlays.default
