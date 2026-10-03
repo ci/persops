@@ -1,0 +1,53 @@
+{
+  "name": "persops",
+  "description": "Agent skills from ci/persops, packaged as Claude Code plugins.",
+  "owner": {
+    "name": "Catalin"
+  },
+  "plugins": [
+    {
+      "name": "persops",
+      "description": "General-purpose thinking, review and writing skills from persops.",
+      "source": "./",
+      "skills": [
+        "./modules/ai/skills/grilling",
+        "./modules/ai/skills/humanizer",
+        "./modules/ai/skills/propose",
+        "./modules/ai/skills/thoughts",
+        "./modules/ai/skills/prototype",
+        "./modules/ai/skills/teach",
+        "./modules/ai/skills/domain-modeling",
+        "./modules/ai/skills/improve-codebase-architecture",
+        "./modules/ai/skills/explain-diff",
+        "./modules/ai/skills/github-deep-review",
+        "./modules/ai/skills/review-branch",
+        "./modules/ai/skills/snag",
+        "./modules/ai/skills/autoreview",
+        "./modules/ai/skills/land",
+        "./modules/ai/skills/pr-closeout"
+      ]
+    },
+    {
+      "name": "persops-web",
+      "description": "TypeScript, React and TUI framework skills from persops.",
+      "source": "./",
+      "skills": [
+        "./modules/ai/skills/effect-ts",
+        "./modules/ai/skills/opentui",
+        "./modules/ai/skills/shadcn",
+        "./modules/ai/skills/vercel-composition-patterns",
+        "./modules/ai/skills/vercel-react-best-practices",
+        "./modules/ai/skills/install-anti-slop"
+      ]
+    },
+    {
+      "name": "persops-jj",
+      "description": "Jujutsu (jj) workflow skills from persops. Needs jj on PATH.",
+      "source": "./",
+      "skills": [
+        "./modules/ai/skills/jj",
+        "./modules/ai/skills/jjpr"
+      ]
+    }
+  ]
+}
