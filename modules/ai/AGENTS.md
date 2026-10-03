@@ -1,9 +1,6 @@
 ## Core
 
-- Workspace: `~/p/`. Missing @ci repo: clone `https://github.com/ci/<repo>.git`. 3rd-party/OSS (non-@ci): `~/p/foss`.
-- `~/p/persops`: personal ops - nixos configs, dotfiles, scripts, etc. (public personal repo)
 - "Make a note" here = terse `AGENTS.md` edit. No separate `CLAUDE.md`.
-- Read: nothing manual — root `AGENTS.md` + `~/p/persops/modules/ai/AGENTS.md` are auto-injected into prompt. Edit root `AGENTS.md` only for persops repo-local instructions; edit this file for global shipped agent instructions.
 - Skills own tool workflows. This file: hard rules only.
 - Secrets: never reveal values, even internal. Approved secret tools; redact output.
 - Audience/destination unclear: ask before external send. Confidentiality alone no block on internal research/answers.
@@ -39,12 +36,9 @@
 
 ## Runtime safety
 
-- zsh: never variable `status`.
-- zsh multi-item loop: array. Scalar string does not word-split like bash.
 - Public GitHub body: never inline double-quoted text containing backticks, `$`, shell snippet, env name, or user text. Temp file + `cat <<'EOF'` + inspect + `--body-file`.
 - PR/issue body edits: fetch via REST + `jq -r`, never `gh pr/issue view --json body --jq .body`. Example: `gh api repos/OWNER/REPO/pulls/NUM | jq -r '.body // ""' > /tmp/body.md`; inspect before `--body-file`; stop if it starts with `"` or shows literal `\n`.
 - Secrets: never normal-shell `env`, `set`, `export -p`, broad secret regex dump. Query exact name only; redact value.
-- `op`: load `$one-password` first, always. Never hand-roll. Automated runs: service-account token + `OP_LOAD_DESKTOP_APP_SETTINGS=false OP_BIOMETRIC_UNLOCK_ENABLED=false`; never `--account`/`op signin` without chat consent. One tmux session `op-work` only. Violation = macOS App Data dialog spam.
 
 ## VCS
 
@@ -61,7 +55,6 @@
 - Task-scoped file deletion allowed. Never delete/overwrite unknown or unrelated user data.
 - Commits: Conventional Commits (`feat|fix|refactor|build|ci|chore|docs|style|perf|test`).
 - Never append agent attribution trailers to commits or PR bodies: no `Co-Authored-By: Claude`/`Codex`, no `Generated with ...` footer.
-- Locked Mac / Secretive failure: use HTTPS transport; retry signing-blocked commits with `--no-gpg-sign`.
 - No uncontrolled repo-wide search/replace scripts. Bounded mechanical edits over an explicit file set are okay; inspect the full diff and keep changes reviewable.
 - No amend unless asked.
 - Unknown changes = other agent. Continue, touching own scope. Conflict/problem: stop + ask.
@@ -72,7 +65,3 @@
 - Use $jjpr for bookmark-per-PR submission and status. Follow its landing guide;
   jjpr 0.39.1/0.40.0 can drop commits when rebasing multi-commit PR segments.
 - Finish changes with empty `@` unless user asks otherwise: use `jj commit -m ...` or `jj describe ... && jj new`; never only `jj describe` for handoff.
-
-## Tools
-
-- Missing CLI fallback: try nix-comma (`, <tool>`) or `nix-shell -p <tool>` before giving up, for example `, vale` or `nix-shell -p vale`.
