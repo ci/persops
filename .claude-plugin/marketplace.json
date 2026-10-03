@@ -22,7 +22,9 @@
         "./modules/ai/skills/github-deep-review",
         "./modules/ai/skills/review-branch",
         "./modules/ai/skills/snag",
-        "./modules/ai/skills/autoreview"
+        "./modules/ai/skills/autoreview",
+        "./modules/ai/skills/land",
+        "./modules/ai/skills/pr-closeout"
       ]
     },
     {
@@ -44,9 +46,7 @@
       "source": "./",
       "skills": [
         "./modules/ai/skills/jj",
-        "./modules/ai/skills/jjpr",
-        "./modules/ai/skills/land",
-        "./modules/ai/skills/pr-closeout"
+        "./modules/ai/skills/jjpr"
       ]
     }
   ]
