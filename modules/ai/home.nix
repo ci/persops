@@ -81,7 +81,9 @@ let
           throw "Unknown AI skill profile '${profile}' for ${name}";
     };
   localSkillTargets = map mkLocalSkill (builtins.attrNames localSkillDirs);
-  agentsText = builtins.readFile ./AGENTS.md;
+  # AGENTS.md is the portable core (also injected into cloud sessions by the
+  # persops plugin); AGENTS.local.md only makes sense on these hosts.
+  agentsText = builtins.readFile ./AGENTS.md + "\n" + builtins.readFile ./AGENTS.local.md;
   agentsFile = pkgs.writeText "AGENTS.md" agentsText;
   piAgentsFile = pkgs.writeText "pi-AGENTS.md" (
     agentsText + "\n\n" + (builtins.readFile ./pi/AGENTS.extra.md)

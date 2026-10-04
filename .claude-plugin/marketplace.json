@@ -26,7 +26,19 @@
         "./modules/ai/skills/autoreview",
         "./modules/ai/skills/land",
         "./modules/ai/skills/pr-closeout"
-      ]
+      ],
+      "hooks": {
+        "SessionStart": [
+          {
+            "hooks": [
+              {
+                "type": "command",
+                "command": "core=\"${CLAUDE_PLUGIN_ROOT}/modules/ai/AGENTS.md\"; head -c \"$(wc -c < \"$core\")\" \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/CLAUDE.md\" 2>/dev/null | cmp -s - \"$core\" || cat \"$core\""
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "name": "persops-web",
