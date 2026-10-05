@@ -76,6 +76,30 @@
     ];
   };
 
+  # ISO keyboard: swap § ± (above Tab) with ` ~ (next to left Shift). Not
+  # system.keyboard: macOS ignores hidutil remaps from processes without Input
+  # Monitoring, so grant it to /usr/bin/hidutil and set the mapping at login.
+  launchd.user.agents.iso-key-swap.serviceConfig = {
+    ProgramArguments = [
+      "/usr/bin/hidutil"
+      "property"
+      "--set"
+      (builtins.toJSON {
+        UserKeyMapping = [
+          {
+            HIDKeyboardModifierMappingSrc = 30064771172; # 0x700000064
+            HIDKeyboardModifierMappingDst = 30064771125; # 0x700000035
+          }
+          {
+            HIDKeyboardModifierMappingSrc = 30064771125;
+            HIDKeyboardModifierMappingDst = 30064771172;
+          }
+        ];
+      })
+    ];
+    RunAtLoad = true;
+  };
+
   environment = {
     shells = with pkgs; [
       bashInteractive
