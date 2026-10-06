@@ -76,10 +76,12 @@
     ];
   };
 
-  # ISO keyboard: swap § ± (above Tab) with ` ~ (next to left Shift). Not
-  # system.keyboard: macOS ignores hidutil remaps from processes without Input
-  # Monitoring, so grant it to /usr/bin/hidutil and set the mapping at login.
-  launchd.user.agents.iso-key-swap.serviceConfig = {
+  # ISO keyboard: make § ± (above Tab) type ` ~. One-way, not a swap: the
+  # mapping applies to every keyboard, and a swap would turn ` into § on ANSI
+  # ones. Not system.keyboard: macOS ignores hidutil remaps from processes
+  # without Input Monitoring, so grant it to /usr/bin/hidutil and set the
+  # mapping at login.
+  launchd.user.agents.section-to-backtick.serviceConfig = {
     ProgramArguments = [
       "/usr/bin/hidutil"
       "property"
@@ -89,10 +91,6 @@
           {
             HIDKeyboardModifierMappingSrc = 30064771172; # 0x700000064
             HIDKeyboardModifierMappingDst = 30064771125; # 0x700000035
-          }
-          {
-            HIDKeyboardModifierMappingSrc = 30064771125;
-            HIDKeyboardModifierMappingDst = 30064771172;
           }
         ];
       })
