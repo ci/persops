@@ -458,16 +458,16 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1790708764,
-        "narHash": "sha256-uu452Xe23pSvFk7w7fKPjiaqY5QenUIljao2SFAxpc0=",
-        "owner": "herdrdev",
+        "lastModified": 1791332716,
+        "narHash": "sha256-Us+dYre6sBzZIbd/w4chO0AQ4sV7EobkZ6dYNoGp+pU=",
+        "owner": "ci",
         "repo": "herdr",
-        "rev": "7b116c05bfda646af39d2524c54e70c751f57ee8",
+        "rev": "0cced94c83b6d89b37146ee7c9c9e959bb24d14e",
         "type": "github"
       },
       "original": {
-        "owner": "herdrdev",
-        "ref": "v0.9.3",
+        "owner": "ci",
+        "ref": "feat/copy-mode-find-char",
         "repo": "herdr",
         "type": "github"
       }
@@ -858,11 +858,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1791013993,
-        "narHash": "sha256-BiFPwFsbFnZH5GfWbQFKYuQNg+67aNQCoRSRNTeJFQc=",
+        "lastModified": 1783577481,
+        "narHash": "sha256-EWMxOWrJ031f8f/lrcEmhTRs4npw1/5N3Hcjin846c8=",
         "owner": "oxalica",
         "repo": "rust-overlay",
-        "rev": "7470661ba2b51156048af08464b82020223dc942",
+        "rev": "4cdea398dc491b082dccdce0fad1ed0b75fa3394",
         "type": "github"
       },
       "original": {
