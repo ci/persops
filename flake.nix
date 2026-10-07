@@ -38,9 +38,9 @@
     llm-agents = {
       url = "github:numtide/llm-agents.nix";
     };
-    # Fork of v0.9.3 adding copy-mode f/F/t/T, ;/, and % jumps (not upstreamable).
+    # Fork of v0.9.3: `dev` merges the copy-mode feature branches (not upstreamable).
     herdr = {
-      url = "github:ci/herdr/feat/copy-mode-find-char";
+      url = "github:ci/herdr/dev";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     jj-starship = {
