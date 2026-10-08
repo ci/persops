@@ -56,6 +56,7 @@ in
     ./modules/yazi.nix
     ./modules/ai/home.nix
     ./modules/ops-status.nix
+    ./modules/rfd
     ./modules/secrets/home.nix
   ];
 
