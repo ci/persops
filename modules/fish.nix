@@ -136,6 +136,8 @@ in
     ''
     + lib.optionalString isDarwin ''
       set -gx PATH $PATH /opt/homebrew/bin
+      # Nix fish skips Homebrew's vendor dir (e.g. oxide-cli completions)
+      set -a fish_complete_path /opt/homebrew/share/fish/vendor_completions.d
     '';
   };
   xdg.configFile."fish/themes/Catppuccin Mocha.theme".source =
