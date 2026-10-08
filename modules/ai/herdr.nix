@@ -44,6 +44,32 @@ let
       fi
     '';
   };
+  herdrScript =
+    name: file: runtimeInputs:
+    pkgs.writeShellApplication {
+      inherit name runtimeInputs;
+      text = builtins.readFile file;
+    };
+  projectPicker = herdrScript "herdr-project-picker" ./herdr/project-picker.sh [
+    herdrPackage
+    pkgs.coreutils
+    pkgs.fd
+    pkgs.fzf
+    pkgs.gawk
+    pkgs.jq
+  ];
+  hints = herdrScript "herdr-hints" ./herdr/hints.sh [
+    herdrPackage
+    pkgs.coreutils
+    pkgs.fzf
+    pkgs.gawk
+    pkgs.gnused
+    pkgs.ripgrep
+  ];
+  status = herdrScript "herdr-status" ./herdr/status.sh [
+    pkgs.coreutils
+    pkgs.gawk
+  ];
   navCommand = key: direction: {
     inherit key;
     type = "shell";
@@ -124,10 +150,46 @@ let
         (navCommand "ctrl+j" "down")
         (navCommand "ctrl+k" "up")
         (navCommand "ctrl+l" "right")
+        {
+          key = "prefix+f";
+          type = "popup";
+          command = lib.getExe projectPicker;
+          description = "open or focus a project workspace";
+          width = "80%";
+          height = "70%";
+        }
+        {
+          key = "prefix+y";
+          type = "popup";
+          command = lib.getExe hints;
+          description = "copy or type a hint from the pane";
+          width = "70%";
+          height = "60%";
+        }
       ];
     };
 
     ui = {
+      tab_bar_right = [
+        { type = "zoom"; }
+        {
+          type = "command";
+          command = "${lib.getExe status} load";
+          interval_seconds = 10;
+          timeout_seconds = 2;
+        }
+        {
+          type = "command";
+          command = "${lib.getExe status} battery";
+          interval_seconds = 60;
+          timeout_seconds = 2;
+        }
+        {
+          type = "datetime";
+          format = "%H:%M";
+        }
+      ];
+      tab_bar_right_separator = " · ";
       show_agent_labels_on_pane_borders = true;
       toast.delivery = "system";
     };
