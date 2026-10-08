@@ -51,6 +51,7 @@ let
     statix
     tree-sitter
     wget
+    zstd
   ];
 
   opsPackages = with pkgs; [
