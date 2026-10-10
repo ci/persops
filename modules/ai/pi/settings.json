@@ -20,7 +20,7 @@
     "git:github.com/davebcn87/pi-autoresearch",
     "npm:@victor-software-house/pi-curated-themes"
   ],
-  "lastChangelogVersion": "1.0.0",
+  "lastChangelogVersion": "1.1.0",
   "theme": "catppuccin-mocha",
   "defaultProvider": "opencode-go",
   "defaultModel": "kimi-k3",
