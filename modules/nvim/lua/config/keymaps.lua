@@ -40,3 +40,13 @@ keymap("n", "<leader>fyN", '<cmd>let @+ = expand("%:t:r")<CR>', { desc = "copy f
 keymap("n", "<leader>gj", function()
   Snacks.terminal({ "jjui" }, { win = { style = "lazygit" } })
 end, { desc = "jjui" })
+
+keymap({ "n", "x" }, "<leader>gy", function()
+  Snacks.gitbrowse({
+    what = "file",
+    open = function(url)
+      vim.fn.setreg("+", url)
+    end,
+    notify = false,
+  })
+end, { desc = "Git Browse (copy branch link)" })
