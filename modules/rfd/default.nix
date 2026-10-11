@@ -22,7 +22,9 @@ let
 in
 {
   # Oxide RFDs; work Mac only.
-  home.packages = lib.optionals (currentSystemProfile == "work" && pkgs.stdenv.hostPlatform.isDarwin) [
-    rfd
-  ];
+  home.packages =
+    lib.optionals (currentSystemProfile == "work" && pkgs.stdenv.hostPlatform.isDarwin)
+      [
+        rfd
+      ];
 }
