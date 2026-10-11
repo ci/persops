@@ -1,10 +1,6 @@
 return {
   "snacks.nvim",
   opts = {
-    -- pin <leader>gB/gY links to a commit instead of the (moving) branch
-    gitbrowse = {
-      what = "permalink",
-    },
     dashboard = {
       preset = {
         header = [[]],

@@ -41,6 +41,43 @@ keymap("n", "<leader>gj", function()
   Snacks.terminal({ "jjui" }, { win = { style = "lazygit" } })
 end, { desc = "jjui" })
 
+-- Snacks' "permalink" uses the file's last-touching commit (can be years old).
+-- Pin to the newest pushed ancestor of HEAD instead: HEAD itself once pushed.
+local function git_browse(opts)
+  local file = vim.api.nvim_buf_get_name(0)
+  local cwd = vim.fn.filereadable(file) == 1 and vim.fn.fnamemodify(file, ":h") or vim.fn.getcwd()
+  local remotes = vim.fn.systemlist({ "git", "-C", cwd, "for-each-ref", "--format=%(objectname)", "refs/remotes" })
+  local commit = vim.fn.systemlist(vim.list_extend({ "git", "-C", cwd, "merge-base", "HEAD" }, remotes))[1]
+  if vim.v.shell_error ~= 0 then
+    commit = vim.fn.systemlist({ "git", "-C", cwd, "rev-parse", "HEAD" })[1]
+  end
+  if vim.v.shell_error ~= 0 then
+    commit = nil
+  elseif vim.fn.filereadable(file) == 1 then
+    vim.fn.system({ "git", "-C", cwd, "diff", "--quiet", commit, "--", file })
+    if vim.v.shell_error == 1 then
+      Snacks.notify.warn(
+        "File differs from " .. commit:sub(1, 10) .. "; line numbers may be off",
+        { title = "Git Browse" }
+      )
+    end
+  end
+  Snacks.gitbrowse(vim.tbl_extend("force", { what = "permalink", commit = commit }, opts or {}))
+end
+
+keymap({ "n", "x" }, "<leader>gB", function()
+  git_browse()
+end, { desc = "Git Browse (open)" })
+
+keymap({ "n", "x" }, "<leader>gY", function()
+  git_browse({
+    open = function(url)
+      vim.fn.setreg("+", url)
+    end,
+    notify = false,
+  })
+end, { desc = "Git Browse (copy)" })
+
 keymap({ "n", "x" }, "<leader>gy", function()
   Snacks.gitbrowse({
     what = "file",
