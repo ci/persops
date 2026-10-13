@@ -5,7 +5,7 @@ default_profile = "ca7ir"
 user_id = "@c:ca7.ir"
 
 [profiles.oxide]
-user_id = "@catalin:oxidecomputer.com"
+user_id = "@catalin:oxide.computer"
 
 [settings]
 # Show display names next to messages instead of full user IDs.
