@@ -46,6 +46,7 @@ enabled = true
 "<Space>f" = ":catchup refresh<Enter>"
 # Folding rooms in :catchup.
 "<Tab>" = ":catchup toggle<Enter>"
+"<S-Tab>" = ":catchup toggle-all<Enter>"
 "za" = ":catchup toggle<Enter>"
 "zM" = ":catchup collapse<Enter>"
 "zR" = ":catchup expand<Enter>"
