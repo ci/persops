@@ -30,6 +30,7 @@ enabled = true
 "<Space>gn" = ":nicks<Enter>"
 # The selected message.
 "<Space>r" = ":reply<Enter>i"
+"<Space>q" = ":cancel<Enter>"
 "<Space>e" = ":edit<Enter>"
 "<Space>p" = ":replied<Enter>"
 "<Space>i" = ":message<Enter>"
