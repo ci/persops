@@ -34,15 +34,13 @@ enabled = true
 "<Space>e" = ":edit<Enter>"
 "<Space>p" = ":replied<Enter>"
 "<Space>i" = ":message<Enter>"
+"<Space>o" = ":open<Enter>"
+"<Space>y" = ":copylink<Enter>"
 "<Space>w" = ":whois<Enter>"
 "<Space>b" = ":bookmark<Enter>"
 "<Space>B" = ":unbookmark<Enter>"
-# Catching up.
+# Catching up. Inside :catchup, x/X/dd mark read, u undoes, and ]]/[[ move between rooms.
 "<Space>c" = ":catchup<Enter>"
-"<Space>x" = ":catchup read<Enter>"
-"<Space>X" = ":catchup read above<Enter>"
-"<Space>R" = ":catchup read room<Enter>"
-"<Space>u" = ":catchup undo<Enter>"
 "<Space>f" = ":catchup refresh<Enter>"
 # Folding rooms in :catchup.
 "<Tab>" = ":catchup toggle<Enter>"
