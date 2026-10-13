@@ -44,3 +44,8 @@ enabled = true
 "<Space>R" = ":catchup read room<Enter>"
 "<Space>u" = ":catchup undo<Enter>"
 "<Space>f" = ":catchup refresh<Enter>"
+# Folding rooms in :catchup.
+"<Tab>" = ":catchup toggle<Enter>"
+"za" = ":catchup toggle<Enter>"
+"zM" = ":catchup collapse<Enter>"
+"zR" = ":catchup expand<Enter>"
