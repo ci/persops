@@ -43,6 +43,12 @@
       url = "github:ci/herdr/dev";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    # Fork of upstream main: `dev` merges the personal feature branches (:catchup, :bookmarks,
+    # :nicks, decrypting history from key backup).
+    iamb = {
+      url = "github:ci/iamb/dev";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     jj-starship = {
       url = "github:dmmulroy/jj-starship";
       inputs.nixpkgs.follows = "nixpkgs";
