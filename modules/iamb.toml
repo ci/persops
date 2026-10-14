@@ -36,6 +36,9 @@ enabled = true
 "<Space>i" = ":message<Enter>"
 "<Space>o" = ":open<Enter>"
 "<Space>y" = ":copylink<Enter>"
+# React, completing the emoji with <Tab> before pressing <Enter>.
+"<Space>a" = ":react "
+"<Space>A" = ":unreact "
 "<Space>w" = ":whois<Enter>"
 "<Space>b" = ":bookmark<Enter>"
 "<Space>B" = ":unbookmark<Enter>"
