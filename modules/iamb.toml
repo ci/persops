@@ -38,6 +38,7 @@ enabled = true
 "<Space>i" = ":message<Enter>"
 "<Space>o" = ":open<Enter>"
 "<Space>y" = ":copylink<Enter>"
+"<Space>Y" = ":permalink<Enter>"
 # React, completing the emoji with <Tab> before pressing <Enter>.
 "<Space>a" = ":react "
 "<Space>A" = ":unreact "
