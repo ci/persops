@@ -126,7 +126,6 @@ in
       [
         codex
         claude-code
-        llmAgents.claude-plugins
         # llmAgents.copilot-cli
         llmAgents.cursor-agent
         # llmAgents.gemini-cli # disabled: stale vs Homebrew package
