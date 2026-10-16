@@ -61,3 +61,38 @@ The observer uses a dedicated unprivileged system account: Amalthea's system
 D-Bus rejects transient `DynamicUser` identities. The fixed account can read
 unit properties without permission to start or change units. Filesystem and
 credential isolation remain enabled.
+
+## Archive disk availability and recovery
+
+`Archive disk health` is independent of the daily backup deadline. A root-owned,
+read-only `sea16-health.service` runs every two minutes (20-second timeout). It
+checks the XFS UUID and mount roots at `/srv/sea16` and `/archive`, then reads
+directory metadata and entries there and in the Time Machine directory. An
+unmounted disk, wrong filesystem/bind mount, or XFS shutdown fails the probe.
+The unprivileged checker above reports the result to Kuma every five minutes,
+with a ten-minute success-age limit. That margin avoids false alarms when a poll
+overlaps a running probe and must use its previous observation; failed probes
+still report down on the next poll. This is not a SMART check, data checksum
+verification, or a substitute for a UPS. The 15-minute missing-push deadline
+still detects a broken checker/delivery path.
+
+Amalthea's `sea16-lifecycle.nix` binds disk consumers to the mount/encryption
+lifecycle: disk disappearance stops SMB and active archive jobs before unmounting
+and closing LUKS. Arrival of the configured LUKS UUID requests `sea16-online`,
+which opens LUKS, mounts the disk and archive bind, initializes quotas, and starts
+SMB in dependency order, then queues a catch-up archive backup. It makes at most
+four attempts within five minutes, 15 seconds apart; it never force-unmounts,
+kills unrelated processes, or invokes filesystem repair. Normal XFS journal
+replay on mount is allowed. Cryptsetup is headless: a bad/missing key fails
+instead of falling back to an unattended password prompt. If another process
+pins a mount or recovery fails,
+the health monitor stays down; investigate rather than forcing recovery. After
+resolving the cause, reset the failed units (including `sea16-online.service`)
+and start `sea16-online.service` to retry.
+
+Rollout: apply the OpenTofu monitor definition and republish job tokens as above
+before deploying the Nix configuration. The deployment need not unplug the live
+disk; a future device arrival activates automatic recovery. To exercise the new
+ordering immediately, use a planned maintenance window for a controlled stop
+and start, not a physical power pull. A UPS should power **both** Amalthea and
+the HDD power adapter, with graceful host shutdown on low battery.
