@@ -18,6 +18,8 @@ enabled = true
 
 # <Space> is the leader key in normal mode.
 [macros.normal]
+# Jump anywhere by typing part of its name; <C-n>/<C-p> pick, <Enter> opens.
+"<Space>k" = ":goto<Enter>i"
 # Go to a list.
 "<Space>gc" = ":chats<Enter>"
 "<Space>gd" = ":dms<Enter>"
