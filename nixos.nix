@@ -84,6 +84,9 @@ in
     nix-ld.libraries = with pkgs; [
       # additional libraries to be linked, not through environment.systemPackages
       stdenv.cc.cc.lib
+      # waymote-streamd, downloaded by `amp --desktop` runners
+      wayland
+      libxkbcommon
     ];
 
     # Since we're using fish as our shell

@@ -16,7 +16,19 @@ let
   workingDirectory = "${discoveryRoot}/persops";
   path = lib.concatStringsSep ":" (
     lib.optionals pkgs.stdenv.hostPlatform.isDarwin [ "/bin" ]
-    ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [ "/run/wrappers/bin" ]
+    ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+      "/run/wrappers/bin"
+      # Programs for the runner's --desktop virtual desktop; pulseaudio adds audio.
+      (lib.makeBinPath (
+        with pkgs;
+        [
+          labwc
+          wlr-randr
+          ffmpeg
+          pulseaudio
+        ]
+      ))
+    ]
     ++ [
       "${home}/.local/bin"
       "${config.home.profileDirectory}/bin"
@@ -38,7 +50,9 @@ let
     "--discover-dirs=${discoveryRoot}"
     "--discover-exclude"
     "foss"
-  ];
+  ]
+  # Linux gets a private virtual desktop; on macOS this would share the real display.
+  ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [ "--desktop" ];
 in
 {
   launchd.agents.amp-runner = lib.mkIf (enabled && pkgs.stdenv.hostPlatform.isDarwin) {
