@@ -25,6 +25,7 @@ Personal configuration managing macOS (darwin) and NixOS systems via Nix flakes.
 - Fish PATH + mise: `mise activate fish` resets `PATH`; append custom dirs after mise hooks in `modules/mise.nix`. Keep `home.sessionPath` for non-fish sessions.
 - Full flake updates: re-check temporary upstream workarounds in `flake.nix` and `machines/amalthea.nix` (`python312` out-only) and remove if upstream fixed.
 - AI input updates: if `pi --version 2>&1` changes, bump `modules/ai/pi/settings.json` `lastChangelogVersion` to the new version and summarize installed Pi `CHANGELOG.md` entries from old->new in the handoff. This suppresses repeat startup changelog prompts while still showing the user Pi news once.
+- Rex Beta (aglaea, ergane): the app is installed by hand (dmg + Sparkle). `modules/rex.nix` puts the bundled `rex` CLI on PATH, links `modules/rex/init.lua` (keymap only; theme and other settings live in the app) and adds the Rex SessionStart hook to Claude/Codex; the `rex` skill is darwin-only and stays out of the marketplace.
 - Skills marketplace: when adding, removing or renaming a skill under `modules/ai/skills`, update `.claude-plugin/marketplace.json` to match. Put it in the right plugin (`persops` general, `persops-web` TS/React/TUI, `persops-jj` jj); leave machine-only skills (herdr, one-password, share-page, etc.) out; keep `"strict": false` on every entry (claude.ai sync rejects entries without it, since there is no plugin.json).
 
 ## Repository Structure
