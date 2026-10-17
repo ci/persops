@@ -78,6 +78,7 @@ deadnix --fail .
 
 section "stylua"
 stylua --check modules/nvim/lua
+stylua --check --config-path modules/nvim/stylua.toml modules/rex
 
 if [ -d .github/workflows ]; then
 	section "actionlint"

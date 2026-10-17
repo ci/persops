@@ -1,0 +1,6 @@
+source = Rex Beta.app (com.superlogical.rex) 0.1.0 build 1173, CLI 0.0.1792088193-g7a93ec
+source_type = app
+profile = all
+installed_at = 2026-10-17T15:40:00Z
+via = manual vendor of the stub `rex skill setup` writes, without its "Installed by" comment; the stub loads the guide from the installed CLI
+sha256 = 60f9e4046c2c14803d5059bf29f512d3af5497d83532c207faaa473dd9650989

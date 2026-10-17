@@ -1,0 +1,100 @@
+-- Rex keymap, kept close to modules/ai/herdr.nix: ctrl+space prefix, plus
+-- ctrl+hjkl that moves through nvim splits and Rex panes as one grid.
+local TERM = "com.superlogical.terminal"
+local P = "ctrl+space>"
+
+local DIRS = { h = "left", j = "down", k = "up", l = "right" }
+
+-- nix-wrapped programs can show up as ".nvim-wrapped"
+local function base_name(s)
+  local name = ((s or ""):match("[^/]*$") or ""):gsub("^%.", ""):gsub("%-wrapped_?$", "")
+  return name
+end
+
+local VIM = { vim = true, nvim = true }
+
+local function pane_is_vim(ctx)
+  local p = rex.block.call(TERM, "process", { block_id = ctx.block_id })
+  if p == nil then
+    -- Unknown pane: hand the key over so nvim splits keep working.
+    return true
+  end
+  local fg = p.foreground
+  return fg ~= nil and (VIM[base_name(fg.name)] or VIM[base_name(fg.argv0)]) == true
+end
+
+for key, dir in pairs(DIRS) do
+  -- Returning false hands the key to the terminal, so nvim (smart-splits)
+  -- moves between its splits and calls `rex focus` at its edge.
+  rex.bind("ctrl+" .. key, function(ctx)
+    if pane_is_vim(ctx) then
+      return false
+    end
+    rex.session.focus_direction({ direction = dir })
+    return true
+  end)
+
+  rex.bind(P .. key, "pane.focus", { direction = dir })
+  rex.bind("ctrl+alt+" .. key, "pane.focus", { direction = dir })
+end
+
+-- Press the prefix twice to send it to the terminal.
+rex.bind(P .. "ctrl+space", "pane.send_key", { key = "ctrl+space" })
+
+-- Panes
+rex.bind(P .. "v", "pane.split", { direction = "right" })
+rex.bind(P .. "shift+\\", "pane.split", { direction = "right" }) -- |
+rex.bind(P .. "-", "pane.split", { direction = "down" })
+rex.bind(P .. "z", "pane.zoom")
+rex.bind(P .. "x", "pane.close")
+rex.bind(P .. "=", "pane.balance")
+
+-- Tabs
+rex.bind(P .. "c", "client.tab.new")
+rex.bind(P .. "n", "client.tab.next")
+rex.bind(P .. "shift+l", "client.tab.next")
+rex.bind(P .. "p", "client.tab.previous")
+rex.bind(P .. "shift+h", "client.tab.previous")
+rex.bind(P .. ",", "client.tab.rename")
+rex.bind(P .. "shift+t", "client.tab.rename")
+
+-- Sessions (herdr workspaces)
+rex.bind(P .. "s", "session.switch")
+rex.bind(P .. "w", "session.switch")
+rex.bind(P .. "shift+n", "session.new")
+
+rex.action({
+  name = "goto_session",
+  title = "Go to Session by Number",
+  args = { index = "integer" },
+  run = function(_, args)
+    local list, err = rex.call("session.list")
+    if err ~= nil then
+      error(err, 0)
+    end
+    local s = list.sessions[args.index]
+    if s then
+      rex.client.queue("session.select", { session_id = s.session_id })
+    end
+  end,
+})
+
+for i = 1, 9 do
+  rex.bind(P .. i, "goto_session", { index = i })
+end
+
+-- Resize mode, like nvim's <leader>wr submode
+rex.mode("resize", { exclusive = true })
+rex.bind(P .. "shift+r", "client.mode.enter", { name = "resize" })
+for key, dir in pairs(DIRS) do
+  rex.bind("resize/" .. key, "pane.resize", { direction = dir })
+  rex.bind("resize/shift+" .. key, "pane.resize", { direction = dir, amount = 15 })
+end
+rex.bind("resize/=", "pane.balance")
+rex.bind("resize/q", "client.mode.exit")
+rex.bind("resize/enter", "client.mode.exit")
+
+-- App
+rex.bind(P .. "r", "client.config.reload")
+rex.bind(P .. "shift+s", "client.settings")
+rex.bind(P .. "shift+;", "client.palette.toggle") -- :

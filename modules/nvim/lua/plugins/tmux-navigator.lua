@@ -81,6 +81,8 @@ return {
               { "herdr", "pane", "focus", "--direction", herdr_direction, "--current" },
               { detach = true }
             )
+          elseif vim.env.REX_SESSION and herdr_direction then
+            vim.fn.jobstart({ "rex", "focus", herdr_direction, "-s", vim.env.REX_SESSION }, { detach = true })
           else
             ctx.wrap()
           end
