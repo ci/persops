@@ -12,8 +12,10 @@ let
     src = pkgs.fetchFromGitHub {
       owner = "michaeldhopkins";
       repo = "jjpr";
-      rev = "v${version}";
-      hash = "sha256-kATGe+ygH5fGXmbm/odT+GRj33u6gXxs6YECXGfrN9g=";
+      # v0.39.1 after upstream's history rewrite (names scrubbed from comments);
+      # pinned by commit so a future retag can't change the source again.
+      rev = "7bddb4ec0370cd6a9d482fe2700a371a2ae2b657";
+      hash = "sha256-CShFT8/Mzdpcdu7A5MPyO6ycJnqXj8jw5w0+gXR2SeI=";
     };
 
     cargoHash = "sha256-yFcqPuZdFe128/X9spSosM3alkBz/uU/oteTu8kDNBY=";
