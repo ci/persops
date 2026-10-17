@@ -61,14 +61,9 @@
       url = "github:lordkekz/nix-yazi-plugins";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    jujutsu.url = "github:jj-vcs/jj";
-    zig.url = "github:mitchellh/zig-overlay";
     opnix = {
       url = "github:brizzbuzz/opnix/v0.11.0";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-    flox = {
-      url = "github:flox/flox/latest";
     };
   };
 
@@ -76,8 +71,6 @@
     { self, nixpkgs, ... }@inputs:
     let
       overlays = [
-        inputs.jujutsu.overlays.default
-        inputs.zig.overlays.default
         inputs."codex-cli-nix".overlays.default
         (
           _: prev:
@@ -163,7 +156,7 @@
               checkToolPackages pkgs
               ++ workflowToolPackages pkgs
               ++ [
-                nixpkgs.legacyPackages.${system}.jujutsu
+                pkgs.jujutsu
                 pythonForChecks
               ];
           };
