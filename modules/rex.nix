@@ -6,14 +6,24 @@
 let
   inherit (pkgs.stdenv) isDarwin;
   # Rex Beta is installed by hand (dmg + Sparkle); no cask or nix package for macOS yet.
-  # Its CLI lives in the bundle and is only on PATH inside Rex terminals.
-  rexBin = "/Applications/Rex Beta.app/Contents/Helpers/Rex Server.app/Contents/MacOS/rex";
+  # Its CLI lives in the bundle and is only on PATH inside Rex terminals. The helper
+  # bundle's name changes between builds ("Rex Server.app", "Rex Server.rex"), so glob it.
+  findRex = ''
+    rex_bin=""
+    for candidate in "/Applications/Rex Beta.app/Contents/Helpers/"*/Contents/MacOS/rex; do
+      if [ -x "$candidate" ]; then
+        rex_bin="$candidate"
+        break
+      fi
+    done
+  '';
   rex = pkgs.writeShellScriptBin "rex" ''
-    if [ ! -x "${rexBin}" ]; then
+    ${findRex}
+    if [ -z "$rex_bin" ]; then
       echo "rex: Rex Beta.app is not installed in /Applications" >&2
       exit 127
     fi
-    exec "${rexBin}" "$@"
+    exec "$rex_bin" "$@"
   '';
   hookCommand =
     agent: "/bin/sh -c 'rex __internal session-start --agent ${agent} 2>/dev/null || true'";
@@ -52,8 +62,9 @@ lib.mkIf isDarwin {
 
     # Rex reads init.lua only on `rex config reload`; skip quietly when no server runs.
     activation.rexConfigReload = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-      if [ -x "${rexBin}" ]; then
-        run "${rexBin}" --autostart=false config reload >/dev/null 2>&1 || true
+      ${findRex}
+      if [ -n "$rex_bin" ]; then
+        run "$rex_bin" --autostart=false config reload >/dev/null 2>&1 || true
       fi
     '';
   };

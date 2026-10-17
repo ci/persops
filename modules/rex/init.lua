@@ -52,9 +52,9 @@ rex.bind(P .. "=", "pane.balance")
 -- Tabs
 rex.bind(P .. "c", "client.tab.new")
 rex.bind(P .. "n", "client.tab.next")
-rex.bind(P .. "shift+l", "client.tab.next")
+rex.bind(P .. "shift+j", "client.tab.next") -- tabs sit vertically in the sidebar
 rex.bind(P .. "p", "client.tab.previous")
-rex.bind(P .. "shift+h", "client.tab.previous")
+rex.bind(P .. "shift+k", "client.tab.previous")
 rex.bind(P .. ",", "client.tab.rename")
 rex.bind(P .. "shift+t", "client.tab.rename")
 
