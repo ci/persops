@@ -208,7 +208,7 @@ in
 
         serviceConfig = {
           Type = "simple";
-          WorkingDirectory = "%h";
+          WorkingDirectory = "%h/p";
           ExecStart = "${lib.getExe pkgs.claude-code} rc";
           Restart = "always";
           RestartSec = 5;
