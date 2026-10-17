@@ -48,7 +48,8 @@ list_projects() {
 }
 
 # dir \t label \t workspace or session ID, one row per terminal
-open_rows="$(open_terminals | sort -u)"
+# If listing fails, still pick from the projects, just without the ● marks.
+open_rows="$(open_terminals | sort -u || true)"
 # Directory -> label of the workspace that already has a pane there.
 open_dirs="$(cut -f1,2 <<<"$open_rows")"
 
