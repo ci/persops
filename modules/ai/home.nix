@@ -61,8 +61,13 @@ let
   localSkillOverrides = builtins.fromJSON (builtins.readFile ./skill-overrides.json);
   # share-page publishes to the personal share domain with a Private-vault token.
   personalOnlySkills = [ "share-page" ];
+  # The Rex app (and its CLI) only exists on the Macs.
+  darwinOnlySkills = [ "rex" ];
   localSkillDirs = lib.filterAttrs (
-    name: type: type == "directory" && (isPersonal || !builtins.elem name personalOnlySkills)
+    name: type:
+    type == "directory"
+    && (isPersonal || !builtins.elem name personalOnlySkills)
+    && (pkgs.stdenv.hostPlatform.isDarwin || !builtins.elem name darwinOnlySkills)
   ) (builtins.readDir ./skills);
   mkLocalSkill =
     name:

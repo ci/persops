@@ -47,6 +47,7 @@ in
     ./modules/aerospace/aerospace.nix
     # ./modules/emacs/home.nix # unused for now
     ./modules/ghostty.nix
+    ./modules/rex.nix
     ./modules/iamb.nix
     ./modules/starship.nix
     ./modules/mise.nix
