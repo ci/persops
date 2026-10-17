@@ -1,6 +1,31 @@
 # Pick a project (a directory holding .git or .jj) and focus the herdr workspace already
 # open there, or create one. A herdr take on `tms`: same search roots and exclusions.
-herdr="${HERDR_BIN_PATH:-herdr}"
+# modules/rex.nix builds a Rex copy that sets REX_SESSIONS_LUA and uses Rex sessions instead.
+if [ -n "${REX_SESSIONS_LUA:-}" ]; then
+  # dir, label and session ID for every terminal in every Rex session; pwd is a file://host/ URL
+  open_terminals() {
+    rex "do" "$REX_SESSIONS_LUA" --json |
+      jq -r '.[] | .pwds[]? as $pwd | [($pwd | sub("^file://[^/]*"; "")), .label, .session_id] | @tsv'
+  }
+  focus() { rex "do" session.select "session_id=$1" >/dev/null; }
+  create() {
+    # The app stays on its current session after `rex new`, so select the new one.
+    focus "$(rex new "$(basename "$1")" --cwd "$1" --json | jq -r .session_id)"
+  }
+else
+  herdr="${HERDR_BIN_PATH:-herdr}"
+  open_terminals() {
+    "$herdr" pane list | jq -r --argjson ws "$("$herdr" workspace list)" '
+      ($ws.result.workspaces | map({key: .workspace_id, value: .label}) | from_entries) as $label
+      | .result.panes[]
+      | ([.foreground_cwd // .cwd, .cwd] | unique[] | select(. != null)) as $dir
+      | [$dir, $label[.workspace_id], .workspace_id]
+      | @tsv
+    '
+  }
+  focus() { "$herdr" workspace focus "$1" >/dev/null; }
+  create() { "$herdr" workspace create --cwd "$1" --label "$(basename "$1")" --focus >/dev/null; }
+fi
 
 excludes=(
   node_modules .venv target .elixir_ls _build deps dist assets public vendor .sass-cache
@@ -22,18 +47,10 @@ list_projects() {
   fi
 }
 
-panes="$("$herdr" pane list)"
-labels="$("$herdr" workspace list)"
-
+# dir \t label \t workspace or session ID, one row per terminal
+open_rows="$(open_terminals | sort -u)"
 # Directory -> label of the workspace that already has a pane there.
-open_dirs="$(
-  jq -r --argjson ws "$labels" '
-    ($ws.result.workspaces | map({key: .workspace_id, value: .label}) | from_entries) as $label
-    | .result.panes[]
-    | [(.foreground_cwd // .cwd), $label[.workspace_id]]
-    | @tsv
-  ' <<<"$panes" | sort -u
-)"
+open_dirs="$(cut -f1,2 <<<"$open_rows")"
 
 selection="$(
   list_projects | sort -u | awk -F'\t' -v home="$HOME" -v open="$open_dirs" '
@@ -53,13 +70,9 @@ selection="$(
 )" || exit 0
 
 dir="${selection%%$'\t'*}"
-workspace_id="$(
-  jq -r --arg dir "$dir" '
-    [.result.panes[] | select((.foreground_cwd // .cwd) == $dir or .cwd == $dir)][0].workspace_id // empty
-  ' <<<"$panes"
-)"
-if [ -n "$workspace_id" ]; then
-  "$herdr" workspace focus "$workspace_id" >/dev/null
+id="$(awk -F'\t' -v dir="$dir" '$1 == dir { print $3; exit }' <<<"$open_rows")"
+if [ -n "$id" ]; then
+  focus "$id"
 else
-  "$herdr" workspace create --cwd "$dir" --label "$(basename "$dir")" --focus >/dev/null
+  create "$dir"
 fi

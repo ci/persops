@@ -38,6 +38,22 @@ let
     ];
     text = builtins.readFile ./ai/herdr/hints.sh;
   };
+  # herdr's prefix+f project picker, with Rex sessions in place of herdr workspaces.
+  rexProjectPicker = pkgs.writeShellApplication {
+    name = "rex-project-picker";
+    runtimeInputs = [
+      rex
+      pkgs.coreutils
+      pkgs.fd
+      pkgs.fzf
+      pkgs.gawk
+      pkgs.jq
+    ];
+    text = ''
+      REX_SESSIONS_LUA=${./rex/sessions.lua}
+    ''
+    + builtins.readFile ./ai/herdr/project-picker.sh;
+  };
   hookCommand =
     agent: "/bin/sh -c 'rex __internal session-start --agent ${agent} 2>/dev/null || true'";
   # Same SessionStart hook `rex skill setup` writes; the skill itself is vendored in modules/ai/skills/rex.
@@ -52,6 +68,7 @@ lib.mkIf isDarwin {
     packages = [
       rex
       rexHints
+      rexProjectPicker
     ];
 
     activation.rexAgentHooks = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
