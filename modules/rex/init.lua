@@ -86,14 +86,19 @@ for i = 1, 9 do
   rex.bind(P .. i, "goto_session", { index = i })
 end
 
--- herdr's prefix+y: pick a URL, path or hash from the pane in a floating layer,
--- then enter copies it and tab types it into the pane (rex-hints from modules/rex.nix)
+-- herdr's prefix+y: pick a URL, path or hash from the pane in a split below it,
+-- then enter copies it and tab types it into the pane (rex-hints from modules/rex.nix).
+-- Not a floating layer: Rex draws a layer's unpainted cells see-through, so fzf
+-- would sit on top of the pane's text. The split closes when fzf exits.
 rex.action({
   name = "hints",
   title = "Copy or Type a Hint from the Pane",
   run = function(ctx)
-    local _, err = rex.session.new_layer({
-      bounds = { x = 0.15, y = 0.2, w = 0.7, h = 0.6 },
+    local _, err = rex.session.new_split({
+      anchor_block_id = ctx.block_id,
+      direction = "vertical",
+      side = "after",
+      ratio = 0.6,
       focus = true,
       layout = rex.layout.block({
         flavor = "com.superlogical.terminal.shell",
