@@ -25,6 +25,19 @@ let
     fi
     exec "$rex_bin" "$@"
   '';
+  # herdr's prefix+y hints picker, reading and typing through `rex` instead.
+  rexHints = pkgs.writeShellApplication {
+    name = "rex-hints";
+    runtimeInputs = [
+      rex
+      pkgs.coreutils
+      pkgs.fzf
+      pkgs.gawk
+      pkgs.gnused
+      pkgs.ripgrep
+    ];
+    text = builtins.readFile ./ai/herdr/hints.sh;
+  };
   hookCommand =
     agent: "/bin/sh -c 'rex __internal session-start --agent ${agent} 2>/dev/null || true'";
   # Same SessionStart hook `rex skill setup` writes; the skill itself is vendored in modules/ai/skills/rex.
@@ -36,7 +49,10 @@ lib.mkIf isDarwin {
   xdg.configFile."rex/init.lua".source = ./rex/init.lua;
 
   home = {
-    packages = [ rex ];
+    packages = [
+      rex
+      rexHints
+    ];
 
     activation.rexAgentHooks = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
       rex_add_hook() {
