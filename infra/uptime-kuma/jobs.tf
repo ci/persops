@@ -6,7 +6,7 @@ resource "uptimekuma_monitor_push" "jobs" {
   for_each = local.jobs
 
   name             = each.value.name
-  description      = "Read-only systemd health: latest run successful, enabled timer, success within 26 hours. Checker reports every 5 minutes."
+  description      = "Read-only systemd health: latest run successful, enabled timer, success within ${each.value.max_age} seconds. Checker reports every 5 minutes."
   interval         = 900
   max_retries      = 0
   retry_interval   = 60

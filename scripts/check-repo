@@ -20,6 +20,7 @@ shell_scripts=(
 	scripts/pheme-watch-install
 	scripts/remote-preflight
 	scripts/remote-verify
+	modules/backup/sea16-health.sh
 	modules/ai/scripts/add-skill.sh
 	modules/ai/scripts/retire-pi-compound-engineering.sh
 )

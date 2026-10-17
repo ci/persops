@@ -195,6 +195,9 @@
                 touch $out
               '';
         }
+        // nixpkgs.lib.optionalAttrs (system == "x86_64-linux") {
+          sea16 = import ./tests/sea16.nix { inherit pkgs; };
+        }
       );
 
       deploy.nodes.amalthea = {

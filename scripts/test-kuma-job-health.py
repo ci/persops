@@ -44,6 +44,16 @@ class JobHealthTests(unittest.TestCase):
         self.assertEqual(self.assess()[0], "down")
         self.assertEqual(self.assess({"last_success": 900})[2]["last_success"], 900)
 
+    def test_disk_probe_freshness_allows_poll_overlap_but_not_stall(self):
+        # A poll can overlap a new probe, hiding the intervening completions.
+        # Its previous observation may be a full poll + probe interval old.
+        jobs = json.loads((Path(__file__).resolve().parents[1] / "infra/uptime-kuma/jobs.json").read_text())
+        self.service.update(ActiveState="activating", exit_epoch=0)
+        max_age = jobs["sea16-health"]["max_age"]
+        previous = {"last_success": 1000}
+        self.assertEqual(health.assess(self.service, self.timer, previous, 1420, max_age)[0], "up")
+        self.assertEqual(health.assess(self.service, self.timer, previous, 1660, max_age)[0], "down")
+
     def test_recovery_clears_failure(self):
         self.assertEqual(self.assess({"last_success": 900, "failed": True})[0], "up")
 
