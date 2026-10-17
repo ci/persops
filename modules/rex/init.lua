@@ -51,9 +51,7 @@ rex.bind(P .. "=", "pane.balance")
 
 -- Tabs
 rex.bind(P .. "c", "client.tab.new")
-rex.bind(P .. "n", "client.tab.next")
 rex.bind(P .. "shift+j", "client.tab.next") -- tabs sit vertically in the sidebar
-rex.bind(P .. "p", "client.tab.previous")
 rex.bind(P .. "shift+k", "client.tab.previous")
 rex.bind(P .. ",", "client.tab.rename")
 rex.bind(P .. "shift+t", "client.tab.rename")
@@ -62,6 +60,11 @@ rex.bind(P .. "shift+t", "client.tab.rename")
 rex.bind(P .. "s", "session.switch")
 rex.bind(P .. "w", "session.switch")
 rex.bind(P .. "shift+n", "session.new")
+rex.bind(P .. "n", "session.next")
+rex.bind(P .. "p", "session.previous")
+rex.bind(P .. "shift+9", "session.previous") -- ( and ) as in tmux
+rex.bind(P .. "shift+0", "session.next")
+rex.bind(P .. "shift+4", "session.rename") -- $ as in tmux
 
 rex.action({
   name = "goto_session",
