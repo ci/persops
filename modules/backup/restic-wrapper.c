@@ -267,7 +267,14 @@ int main(int argc, char **argv) {
   add_arg(args, &idx, "--password-file");
   add_arg(args, &idx, password_path);
 #ifdef __APPLE__
-  add_arg(args, &idx, "--no-cache");
+  // Keep the cache out of ~/Library; without one, prune re-downloads every tree.
+  char *cache_dir = join_path(home, ".cache/restic");
+  if (!cache_dir) {
+    free(repo);
+    return 1;
+  }
+  add_arg(args, &idx, "--cache-dir");
+  add_arg(args, &idx, cache_dir);
 #endif
 
   if (mode == MODE_BACKUP) {
