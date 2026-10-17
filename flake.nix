@@ -67,9 +67,6 @@
       url = "github:brizzbuzz/opnix/v0.11.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    flox = {
-      url = "github:flox/flox/latest";
-    };
   };
 
   outputs =
