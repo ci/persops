@@ -48,7 +48,7 @@ lib.mkIf isDarwin {
   # Rex reads init.lua only on `rex config reload`; skip quietly when no server runs.
   home.activation.rexConfigReload = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
     if [ -x "${rexBin}" ]; then
-      run "${rexBin}" config reload --autostart=false >/dev/null 2>&1 || true
+      run "${rexBin}" --autostart=false config reload >/dev/null 2>&1 || true
     fi
   '';
 }

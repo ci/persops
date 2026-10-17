@@ -15,7 +15,11 @@ local VIM = { vim = true, nvim = true }
 
 local function pane_is_vim(ctx)
   local p = rex.block.call(TERM, "process", { block_id = ctx.block_id })
-  local fg = p and p.foreground
+  if p == nil then
+    -- Unknown pane: hand the key over so nvim splits keep working.
+    return true
+  end
+  local fg = p.foreground
   return fg ~= nil and (VIM[base_name(fg.name)] or VIM[base_name(fg.argv0)]) == true
 end
 
