@@ -14,7 +14,6 @@ let
     aglaea = {
       identities = "catalin.irimie@gmail.com,6650666+ci@users.noreply.github.com,ci@users.noreply.github.com,4375373-cat@users.noreply.gitlab.com";
       key = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBC5hHouSghgUsKasZMfCkMiuOCU0kU4KwMyN6tCelex+LHxp++ZsMQCtdZJN6q0tyxN31wQ7D3F8DjSM/F412L4= ci-ghgl-signing@secretive.aglaea.local";
-      path = "/Users/${currentSystemUser}/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/PublicKeys/a9cbb4c069d69eec1b485cf51b58aec1.pub";
     };
     ergane = {
       identities = "catalin@oxidecomputer.com,6650666+ci@users.noreply.github.com";
@@ -28,11 +27,9 @@ let
       null;
   secretiveSocket = "/Users/${currentSystemUser}/Library/Containers/com.maxgoedjen.Secretive.SecretAgent/Data/socket.ssh";
   useSecretiveSigning = isDarwin && secretiveSigningConfig != null;
-  # Without `path`, the key is written out below: Secretive's PublicKeys folder
-  # is privacy-protected, and git/jj only take inline keys starting with `ssh-`.
-  writeSecretivePublicKey = useSecretiveSigning && !(secretiveSigningConfig ? path);
-  secretivePublicKeyPath =
-    secretiveSigningConfig.path or "/Users/${currentSystemUser}/.config/git/secretive-signing.pub";
+  # Written out below: ssh-keygen can't read Secretive's privacy-protected
+  # PublicKeys folder, and git/jj only take inline keys starting with `ssh-`.
+  secretivePublicKeyPath = "/Users/${currentSystemUser}/.config/git/secretive-signing.pub";
 in
 {
   home.file = {
@@ -103,8 +100,6 @@ in
       '';
       force = true;
     };
-  }
-  // lib.optionalAttrs writeSecretivePublicKey {
     "git/secretive-signing.pub".text = ''
       ${secretiveSigningConfig.key}
     '';
