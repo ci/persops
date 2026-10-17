@@ -246,6 +246,10 @@ in
     ../modules/backup/restic-nixos.nix
     ../modules/backup/restic-storage-box-nixos.nix
     ../modules/backup/pheme-matrix-archive.nix
+    (import ../modules/backup/sea16-lifecycle.nix {
+      luksUuid = sea16LuksUuid;
+      filesystemUuid = "2fdec40d-417b-4859-876f-587632239597";
+    })
     ../modules/actual-bank-sync.nix
     ../modules/kuma-job-health.nix
     ../modules/cliproxyapi-nixos.nix
@@ -392,7 +396,7 @@ in
   environment = {
     etc = {
       "crypttab".text = ''
-        sea16 UUID=${sea16LuksUuid} /etc/secrets/sea16/luks.key luks,nofail
+        sea16 UUID=${sea16LuksUuid} /etc/secrets/sea16/luks.key luks,nofail,headless,tries=1
       '';
 
       "projects".text = ''
