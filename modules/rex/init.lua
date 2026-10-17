@@ -86,31 +86,45 @@ for i = 1, 9 do
   rex.bind(P .. i, "goto_session", { index = i })
 end
 
--- herdr's prefix+y: pick a URL, path or hash from the pane in a split below it,
--- then enter copies it and tab types it into the pane (rex-hints from modules/rex.nix).
--- Not a floating layer: Rex draws a layer's unpainted cells see-through, so fzf
--- would sit on top of the pane's text. The split closes when fzf exits.
+-- herdr's popups (prefix+y, prefix+f) run in a split below the pane, not a floating
+-- layer: Rex draws a layer's unpainted cells see-through, so fzf would sit on top of
+-- the pane's text. The split closes when the command exits.
+local function split_below(ctx, command)
+  local _, err = rex.session.new_split({
+    anchor_block_id = ctx.block_id,
+    direction = "vertical",
+    side = "after",
+    ratio = 0.6,
+    focus = true,
+    layout = rex.layout.block({
+      flavor = "com.superlogical.terminal.shell",
+      options = { command = command },
+    }),
+  })
+  if err ~= nil then
+    error(err, 0)
+  end
+end
+
+-- Pick a URL, path or hash from the pane: enter copies it, tab types it into the pane
 rex.action({
   name = "hints",
   title = "Copy or Type a Hint from the Pane",
   run = function(ctx)
-    local _, err = rex.session.new_split({
-      anchor_block_id = ctx.block_id,
-      direction = "vertical",
-      side = "after",
-      ratio = 0.6,
-      focus = true,
-      layout = rex.layout.block({
-        flavor = "com.superlogical.terminal.shell",
-        options = { command = { "rex-hints", ctx.block_id } },
-      }),
-    })
-    if err ~= nil then
-      error(err, 0)
-    end
+    split_below(ctx, { "rex-hints", ctx.block_id })
   end,
 })
 rex.bind(P .. "y", "hints")
+
+-- Pick a project under ~/p: switch to the session already open there, or start one
+rex.action({
+  name = "projects",
+  title = "Open or Switch to a Project Session",
+  run = function(ctx)
+    split_below(ctx, { "rex-project-picker" })
+  end,
+})
+rex.bind(P .. "f", "projects")
 
 -- Resize mode, like nvim's <leader>wr submode
 rex.mode("resize", { exclusive = true })
