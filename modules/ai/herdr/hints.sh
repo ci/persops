@@ -3,8 +3,17 @@
 #   enter   copy to the clipboard
 #   tab     type it into the pane (like thumbs' uppercase hint)
 #   ctrl-o  open it (URL or path)
-herdr="${HERDR_BIN_PATH:-herdr}"
-pane="${HERDR_ACTIVE_PANE_ID:?herdr did not pass HERDR_ACTIVE_PANE_ID}"
+# herdr passes the pane in HERDR_ACTIVE_PANE_ID; Rex's `hints` action passes the block as $1.
+if [ -n "${1:-}" ]; then
+  read_pane() { rex capture -b "$1"; }
+  send_pane() { rex send -b "$1" "$2"; }
+  pane="$1"
+else
+  herdr="${HERDR_BIN_PATH:-herdr}"
+  read_pane() { "$herdr" pane read "$1" --source visible --format text; }
+  send_pane() { "$herdr" pane send-text "$1" "$2"; }
+  pane="${HERDR_ACTIVE_PANE_ID:?herdr did not pass HERDR_ACTIVE_PANE_ID}"
+fi
 
 # Earlier patterns win where matches overlap, so keep the most specific first.
 patterns=(
@@ -19,7 +28,7 @@ patterns=(
 )
 
 tokens="$(
-  "$herdr" pane read "$pane" --source visible --format text |
+  read_pane "$pane" |
     rg --only-matching --no-line-number "${patterns[@]}" |
     sed -E 's/[.,;:]+$//' |
     awk 'length($0) > 3 { lines[NR] = $0 } END { for (i = NR; i > 0; i--) if (i in lines && !seen[lines[i]]++) print lines[i] }'
@@ -33,7 +42,7 @@ choice="$(sed -n 2p <<<"$result")"
 [ -n "$choice" ] || exit 0
 
 case "$key" in
-  tab) "$herdr" pane send-text "$pane" "$choice" >/dev/null ;;
+  tab) send_pane "$pane" "$choice" >/dev/null ;;
   ctrl-o)
     if command -v open >/dev/null; then open "${choice/#\~/$HOME}"; else xdg-open "${choice/#\~/$HOME}"; fi
     ;;
