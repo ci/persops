@@ -1,0 +1,10 @@
+source = cursor/plugins
+source_type = github
+profile = all
+installed_at = 2026-10-18T22:44:32Z
+requested_source = https://github.com/cursor/plugins/tree/main/pstack/skills/why
+requested_ref = main
+revision = 8ad8a41fe418f7c948540641cf1d8649fba99db7
+subpath = pstack/skills/why
+via = bunx --bun skills add https://github.com/cursor/plugins/tree/8ad8a41fe418f7c948540641cf1d8649fba99db7/pstack/skills/why --agent \* --yes --copy --skill why
+computed_hash = 250259b852c857557dd0fdd5ee26cf9d9c802ca77a28753f9a1b9f66ac4e9297

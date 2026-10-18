@@ -1,0 +1,10 @@
+source = cursor/plugins
+source_type = github
+profile = all
+installed_at = 2026-10-18T22:44:24Z
+requested_source = https://github.com/cursor/plugins/tree/main/pstack/skills/bro
+requested_ref = main
+revision = 8ad8a41fe418f7c948540641cf1d8649fba99db7
+subpath = pstack/skills/bro
+via = bunx --bun skills add https://github.com/cursor/plugins/tree/8ad8a41fe418f7c948540641cf1d8649fba99db7/pstack/skills/bro --agent \* --yes --copy --skill bro
+computed_hash = b651827a1c11465d79500780e53414fdccffd12ce3b640138dee2d04133a9a33
