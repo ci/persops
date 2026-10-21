@@ -28,6 +28,8 @@ in
   programs.ssh = {
     enable = true;
     enableDefaultConfig = false;
+    # Apple's ssh is built without FIDO support; nixpkgs' handles sk-* keys.
+    package = lib.mkIf isDarwin pkgs.openssh;
 
     # Load private host entries / overrides if present.
     includes = [ "~/.ssh/config.local" ];
