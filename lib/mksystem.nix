@@ -51,6 +51,14 @@ systemFunc rec {
     # Allow unfree packages.
     { nixpkgs.config.allowUnfree = true; }
 
+    # Distrusted roots, dropped from the Mozilla bundle on every host.
+    {
+      security.pki.caCertificateBlacklist = [
+        "Comodo AAA Services root"
+        "emSign ECC Root CA - G3"
+      ];
+    }
+
     # Snapd on Linux
     (if isLinux then inputs.nix-snapd.nixosModules.default else { })
 
