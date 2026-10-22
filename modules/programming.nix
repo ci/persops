@@ -91,7 +91,10 @@ in
           # nvim :Mason deps / language toolchains
           (lib.hiPrio rust-analyzer)
           rustup
+          cargo-nextest # omicron and friends only support `cargo nextest run`
           unzip
+
+          cscope # C cross-reference for illumos-gate (cscope_maps.nvim)
 
           zig_0_14
         ]
@@ -130,4 +133,9 @@ in
         ]
       );
 
+  # pq-sys (omicron) checks PQ_LIB_DIR before pkg-config/pg_config; brew's
+  # libpq is keg-only (machines/ergane.nix), so neither of those finds it.
+  home.sessionVariables = lib.mkIf (currentSystemName == "ergane") {
+    PQ_LIB_DIR = "/opt/homebrew/opt/libpq/lib";
+  };
 }

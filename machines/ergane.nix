@@ -68,6 +68,12 @@
     ];
     brews = [
       "oxidecomputer/tap/oxide-cli"
+      # Native libs for omicron's build scripts (pq-sys, samael). Brew, not nix:
+      # cargo builds with Apple's cc, and brew's pkg-config already knows the
+      # brew and macOS SDK .pc files. Matches omicron's macOS prerequisites.
+      "libpq" # keg-only; found through PQ_LIB_DIR (modules/programming.nix)
+      "libxmlsec1"
+      "pkg-config"
     ];
     casks = [
       # 1Password beta was installed before nix-darwin; the stable cask conflicts.

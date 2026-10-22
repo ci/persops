@@ -1,3 +1,8 @@
 # Global Git excludes managed by Home Manager.
 **/.claude/settings.local.json
 .pi-lens/
+# cscope databases built at a repo root (cscope_maps.nvim names them
+# cscope.out{,.in,.po}; plain `cscope -q` uses cscope.{in,po}.out)
+cscope.out*
+cscope.in.out
+cscope.po.out
