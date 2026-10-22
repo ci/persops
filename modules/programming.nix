@@ -133,9 +133,15 @@ in
         ]
       );
 
-  # pq-sys (omicron) checks PQ_LIB_DIR before pkg-config/pg_config; brew's
-  # libpq is keg-only (machines/ergane.nix), so neither of those finds it.
+  # Brew native libs for omicron (machines/ergane.nix):
+  # - pq-sys checks PQ_LIB_DIR before pkg-config/pg_config; brew's libpq is
+  #   keg-only, so neither of those finds it.
+  # - brew's xmlsec1 links brew's libxml2, but Homebrew's macOS shim .pc files
+  #   resolve libxml-2.0/libxslt to /usr/lib. samael then links the system
+  #   libxml2 and segfaults verifying signatures, so point pkg-config at the
+  #   keg-only brew copies.
   home.sessionVariables = lib.mkIf (currentSystemName == "ergane") {
     PQ_LIB_DIR = "/opt/homebrew/opt/libpq/lib";
+    PKG_CONFIG_PATH = "/opt/homebrew/opt/libxml2/lib/pkgconfig:/opt/homebrew/opt/libxslt/lib/pkgconfig";
   };
 }

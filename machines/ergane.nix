@@ -73,6 +73,8 @@
       # brew and macOS SDK .pc files. Matches omicron's macOS prerequisites.
       "libpq" # keg-only; found through PQ_LIB_DIR (modules/programming.nix)
       "libxmlsec1"
+      # keg-only; on PKG_CONFIG_PATH so xmlsec1.pc doesn't add -L/usr/lib
+      "libxslt"
       "pkg-config"
     ];
     casks = [
