@@ -126,6 +126,9 @@ rex.action({
 })
 rex.bind(P .. "f", "projects")
 
+-- Browse the pane's host and insert a shell-escaped path (Rex's own ctrl+cmd+i)
+rex.bind(P .. "i", "pane.insert_path")
+
 -- Resize mode, like nvim's <leader>wr submode
 rex.mode("resize", { exclusive = true })
 rex.bind(P .. "shift+r", "client.mode.enter", { name = "resize" })
