@@ -49,8 +49,10 @@ export async function saveRecoveryArtifact({
   await writeAtomic(path, data);
   await writeAtomic(`${path}.sha256`, `${digest}  ${fileName}\n`);
 
+  // Only this function's timestamped exports. Other files, including
+  // `actual-approved-*.zip`, are never counted or deleted.
   const oldExports = (await readdir(directory))
-    .filter(entry => /^actual-.*\.zip$/.test(entry))
+    .filter(entry => /^actual-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z\.zip$/.test(entry))
     .sort()
     .slice(0, -keep);
   for (const oldExport of oldExports) {

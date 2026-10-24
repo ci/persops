@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { saveRecoveryArtifact } from '../src/recovery.mjs';
@@ -31,6 +31,40 @@ test('writes a private hashed recovery export and retains the newest copies', as
     assert.match(
       await readFile(`${latest}.sha256`, 'utf8'),
       /^[a-f0-9]{64}  actual-2026-08-16T03-00-00\.000Z\.zip\n$/,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('retains daily exports without counting or deleting an approved backup', async () => {
+  const directory = await mkdtemp('/tmp/actual-recovery-test-');
+  try {
+    const approved = 'actual-approved-2026-08-01.zip';
+    await writeFile(`${directory}/${approved}`, zip);
+    await writeFile(`${directory}/${approved}.sha256`, `abc  ${approved}\n`);
+
+    for (const hour of [1, 2, 3]) {
+      await saveRecoveryArtifact({
+        data: zip,
+        directory,
+        keep: 2,
+        now: new Date(`2026-08-16T0${hour}:00:00Z`),
+      });
+    }
+
+    const files = (await readdir(directory)).sort();
+    assert.deepEqual(files, [
+      'actual-2026-08-16T02-00-00.000Z.zip',
+      'actual-2026-08-16T02-00-00.000Z.zip.sha256',
+      'actual-2026-08-16T03-00-00.000Z.zip',
+      'actual-2026-08-16T03-00-00.000Z.zip.sha256',
+      approved,
+      `${approved}.sha256`,
+    ]);
+    assert.equal(
+      await readFile(`${directory}/${approved}.sha256`, 'utf8'),
+      `abc  ${approved}\n`,
     );
   } finally {
     await rm(directory, { recursive: true, force: true });

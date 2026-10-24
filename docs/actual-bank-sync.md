@@ -10,7 +10,9 @@ hours. This covers the daily cadence, randomized delay, and DST while still
 blocking the next sync after a missed backup. Immediately before any bank sync
 or reconciliation it also writes a
 mode-`0600` Actual export plus SHA-256 sidecar under
-`/var/lib/actual-bank-sync/recovery`, retaining the newest seven exports.
+`/var/lib/actual-bank-sync/recovery`, retaining the newest seven timestamped
+exports. Other files in that directory, including manual pre-write backups, are
+not counted or deleted.
 
 Historical recovery exports and restore proofs under `/archive` retain their
 private permissions. The separate archive backup runs as root so it can include
