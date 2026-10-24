@@ -426,11 +426,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1792703784,
-        "narHash": "sha256-Fyi6sLYe36d8fk6Y63XDMaPEelgTjmgjDuCTBJwZQ3o=",
+        "lastModified": 1792884052,
+        "narHash": "sha256-nVNt2W6crrDfrQnRCYcILsfmsK7uI/UOp+ucChScU8c=",
         "owner": "ci",
         "repo": "iamb",
-        "rev": "8b123fadf5c8fb3a760b778bc7e6560a61d9c358",
+        "rev": "f5084081a86c39c75e0eadd50c8aa17ef92e2229",
         "type": "github"
       },
       "original": {
