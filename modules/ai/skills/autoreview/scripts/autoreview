@@ -670,43 +670,40 @@ def review_paths(repo: Path, target: str, target_ref: str | None, head_ref: str,
     return names
 
 
-def jj_first_parent(repo: Path, revset: str) -> str | None:
-    # A merge change has several parents and rule files must come from one tree: take the first.
-    out = jj(repo, "log", "-r", revset, "--no-graph", "-T", 'parents.map(|c| c.commit_id()).join("\\n")', check=False)
+def jj_commit_id(repo: Path, revset: str, template: str = 'commit_id ++ "\\n"') -> str | None:
+    out = jj(repo, "log", "-r", revset, "--no-graph", "-T", template, check=False)
     return next(iter(out.split()), None)
 
 
-def rules_base(repo: Path, target: str, target_ref: str | None, head_ref: str, commit_ref: str) -> str | None:
-    # Rules come from the pre-change revision, so a patch can't rewrite the rules it is judged by.
-    # jj revisions resolve to git commit ids, which repo_rules reads through jj's git store.
+def rules_revisions(
+    repo: Path, target: str, target_ref: str | None, head_ref: str, commit_ref: str
+) -> tuple[str | None, str | None]:
+    """Return (base, head) git commits for rule discovery; head None means the git working tree.
+
+    Rules come from base, the pre-change revision, so a patch can't rewrite the rules it is judged
+    by. jj revisions resolve to git commit ids, which repo_rules reads through jj's git store.
+    """
     if is_jj_repo(repo):
+        # A merge change has several parents and rule files must come from one tree: take the first.
+        first_parent = 'parents.map(|c| c.commit_id()).join("\\n")'
         if target == "local":
-            return jj_first_parent(repo, "@")
+            return jj_commit_id(repo, "@", first_parent), jj_commit_id(repo, "@")
         if target == "branch":
             assert target_ref
-            out = jj(repo, "log", "-r", jj_branch_base(target_ref, head_ref), "--no-graph", "-T", 'commit_id ++ "\\n"', check=False)
-            return next(iter(out.split()), None)
-        return jj_first_parent(repo, commit_ref)
+            return jj_commit_id(repo, jj_branch_base(target_ref, head_ref)), jj_commit_id(repo, head_ref)
+        return jj_commit_id(repo, commit_ref, first_parent), jj_commit_id(repo, commit_ref)
     if target == "local":
-        return "HEAD"
+        return "HEAD", None
     if target == "branch":
         assert target_ref
-        return git(repo, "merge-base", target_ref, head_ref, check=False).strip() or None
-    return git(repo, "rev-parse", "--verify", "--quiet", f"{commit_ref}^", check=False).strip() or None
-
-
-def unquote_git_path(path: str) -> str:
-    # `git diff --name-only` C-quotes non-ASCII names ("apps/caf\\303\\251.tsx"); undo it so ancestors resolve.
-    if len(path) < 2 or not (path.startswith('"') and path.endswith('"')):
-        return path
-    raw = path[1:-1].encode("latin-1", "backslashreplace").decode("unicode_escape").encode("latin-1")
-    return raw.decode("utf-8", "surrogateescape")
+        return git(repo, "merge-base", target_ref, head_ref, check=False).strip() or None, head_ref
+    return git(repo, "rev-parse", "--verify", "--quiet", f"{commit_ref}^", check=False).strip() or None, commit_ref
 
 
 def rule_dirs(changed_paths: set[str]) -> list[PurePosixPath]:
     dirs: set[PurePosixPath] = set()
     for path in changed_paths:
-        parent = PurePosixPath(unquote_git_path(path)).parent
+        parent = PurePosixPath(path).parent
         dirs.add(parent)
         dirs.update(parent.parents)
     return sorted(dirs, key=lambda d: (len(d.parts), str(d)))
@@ -729,15 +726,27 @@ def git_bytes(repo: Path, *args: str) -> bytes:
     return result.stdout if result.returncode == 0 else b""
 
 
-def repo_rules(repo: Path, rev: str | None, changed_paths: set[str]) -> tuple[str, list[str]]:
+def repo_rules(repo: Path, rev: str | None, head: str | None) -> tuple[str, list[str]]:
     if not rev:
         return "", []
     git_dir: list[str] = []
     if is_jj_repo(repo):
         root = jj(repo, "git", "root", check=False).strip()
-        if not root:
+        if not root or not head:
             return "", []
         git_dir = [f"--git-dir={root}"]
+
+    def names(*args: str) -> set[str]:
+        out = git_bytes(repo, *git_dir, *args)
+        return {name.decode("utf-8", "surrogateescape") for name in out.split(b"\0") if name}
+
+    # Own NUL-delimited listing: review_paths() output is C-quoted, and --no-renames keeps a
+    # moved file's source directory, whose rules govern the removal.
+    changed_paths = names("diff", "--name-only", "-z", "--no-renames", rev, *([head] if head else []))
+    if not head:
+        changed_paths |= names("ls-files", "-z", "--others", "--exclude-standard")
+    if not changed_paths:
+        return "", []
     modes: dict[str, str] = {}
 
     def list_modes(paths: list[str]) -> None:
@@ -2055,7 +2064,7 @@ def main() -> int:
         print("empty diff: nothing to review")
         return 0
     extra_prompt = priority_threshold_prompt(args.max_priority, load_extra_prompt(args))
-    rules, rule_files = repo_rules(repo, rules_base(repo, target, target_ref, head_ref, commit_ref), changed_paths)
+    rules, rule_files = repo_rules(repo, *rules_revisions(repo, target, target_ref, head_ref, commit_ref))
     prompt = build_prompt(repo, target, display_ref, bundle, extra_prompt, load_datasets(args), rules)
     print(f"bundle: {len(prompt)} chars")
     print(f"changed_paths: {len(changed_paths)}")
