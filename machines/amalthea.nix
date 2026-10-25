@@ -252,6 +252,7 @@ in
     })
     ../modules/actual-bank-sync.nix
     ../modules/kuma-job-health.nix
+    (import ../modules/nvme-health.nix { device = "/dev/nvme0"; })
     ../modules/cliproxyapi-nixos.nix
   ];
 
