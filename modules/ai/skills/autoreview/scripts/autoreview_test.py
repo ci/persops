@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import errno
 import json
 import os
 import runpy
@@ -209,8 +210,14 @@ class RepositoryRulesTests(unittest.TestCase):
 
     def test_non_utf8_tracked_names_do_not_break_rule_loading(self) -> None:
         latin = os.path.join(os.fsencode(self.repo / "apps/mobile"), b"old\xe9.txt")
-        with open(latin, "wb") as handle:
-            handle.write(b"legacy\n")
+        try:
+            with open(latin, "wb") as handle:
+                handle.write(b"legacy\n")
+        except OSError as exc:
+            # APFS (macOS) only stores UTF-8 names and refuses the fixture.
+            if exc.errno == errno.EILSEQ:
+                self.skipTest("filesystem rejects non-UTF-8 file names")
+            raise
         self.commit("latin-1 name")
         with open(latin, "ab") as handle:
             handle.write(b"more\n")
