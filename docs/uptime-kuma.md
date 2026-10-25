@@ -62,6 +62,15 @@ D-Bus rejects transient `DynamicUser` identities. The fixed account can read
 unit properties without permission to start or change units. Filesystem and
 credential isolation remain enabled.
 
+## Root NVMe health
+
+`Root NVMe health` follows the daily-job rules above. `nvme-health.service`
+runs daily (and 5 minutes after boot), appends a SMART snapshot to
+`/var/lib/nvme-health/history.jsonl`, and fails when available spare dropped
+or media errors rose since the previous run, or on a critical warning or spare
+at threshold. The next clean run clears the alert, so each regression alerts
+once; the history file is the trend record.
+
 ## Archive disk availability and recovery
 
 `Archive disk health` is independent of the daily backup deadline. A root-owned,

@@ -252,6 +252,7 @@ in
     })
     ../modules/actual-bank-sync.nix
     ../modules/kuma-job-health.nix
+    (import ../modules/nvme-health.nix { device = "/dev/nvme0"; })
     ../modules/cliproxyapi-nixos.nix
   ];
 
@@ -295,11 +296,6 @@ in
     };
 
     kernelPackages = pkgs.linuxPackages_latest;
-    # Ensure stage1 brings up networking even though NetworkManager
-    # disables networking.useDHCP in stage2.
-    kernelParams = [
-      "ip=192.168.42.231::192.168.42.1:255.255.255.0:amalthea:enp2s0:none"
-    ];
 
     # Remote unlock over SSH in initrd. Keep this out of the generated
     # hardware file so it doesn't get clobbered.
@@ -326,6 +322,14 @@ in
         };
 
         flushBeforeStage2 = true;
+      };
+
+      # systemd initrd generates 40-enp2s0.network (DHCP=no) from
+      # networking.interfaces.enp2s0, which shadows any ip= kernel param,
+      # so the static unlock address has to live on that unit.
+      systemd.network.networks."40-enp2s0" = {
+        address = [ "192.168.42.231/24" ];
+        gateway = [ "192.168.42.1" ];
       };
 
       systemd.contents."/root/.profile".text = ''
