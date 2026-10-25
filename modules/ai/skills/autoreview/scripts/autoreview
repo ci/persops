@@ -836,7 +836,7 @@ def build_prompt(
         - You may use read-only tools and web search to inspect files, dependency contracts, upstream docs, current behavior, and security implications.
         - Shell commands, if available, must be read-only inspection commands. Do not run tests, formatters, package installs, generators, network mutation commands, VCS mutation commands, or commands that write files.
         - Report only actionable defects introduced or exposed by this change.
-        - A change that breaks a rule in the Repository Rules section is an actionable defect, even when the code works: report it at the priority its consequence warrants and quote the rule's file.
+        - A change that breaks a rule in the Repository Rules section is an actionable defect, even when the code works: report it at the priority its consequence warrants, cite the rule's file in the body, and anchor code_location on the changed line that breaks it, never on the rule file.
         - Prefer high-signal findings over style feedback.
         - Include security findings: injection, secret leaks, authz/authn bypass, path traversal, unsafe deserialization, unsafe filesystem or shell use, privacy leaks, and credential handling.
         - Do not reject legitimate functionality merely because it touches shell, filesystem, network, auth, or sensitive data. Report a security finding only when the patch creates a concrete exploitable risk, removes an important safety check, or lacks validation at a trust boundary.
