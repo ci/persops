@@ -261,7 +261,7 @@ in
 
     gc = {
       automatic = true;
-      dates = "Sun 02:00";
+      dates = "Sun 06:30"; # when a switch is unlikely to restart it mid-run
       options = "--delete-older-than 30d";
     };
 

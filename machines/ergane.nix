@@ -29,9 +29,9 @@
       automatic = true;
       interval = {
         Weekday = 0;
-        Hour = 2;
-        Minute = 0;
-      }; # Sunday 2am
+        Hour = 6;
+        Minute = 30;
+      }; # Sunday 06:30, when a switch is unlikely to reload it mid-run
       options = "--delete-older-than 30d";
     };
 
