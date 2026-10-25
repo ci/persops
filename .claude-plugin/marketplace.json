@@ -13,22 +13,18 @@
       "skills": [
         "./modules/ai/skills/autoreview",
         "./modules/ai/skills/bro",
-        "./modules/ai/skills/domain-modeling",
         "./modules/ai/skills/explain-diff",
         "./modules/ai/skills/github-deep-review",
         "./modules/ai/skills/grilling",
-        "./modules/ai/skills/humanizer",
         "./modules/ai/skills/improve-codebase-architecture",
         "./modules/ai/skills/land",
         "./modules/ai/skills/pr-closeout",
         "./modules/ai/skills/propose",
         "./modules/ai/skills/prototype",
-        "./modules/ai/skills/review-branch",
         "./modules/ai/skills/snag",
         "./modules/ai/skills/teach",
         "./modules/ai/skills/thoughts",
-        "./modules/ai/skills/unslop",
-        "./modules/ai/skills/why"
+        "./modules/ai/skills/unslop"
       ],
       "hooks": {
         "SessionStart": [
@@ -52,8 +48,6 @@
         "./modules/ai/skills/effect-ts",
         "./modules/ai/skills/opentui",
         "./modules/ai/skills/shadcn",
-        "./modules/ai/skills/vercel-composition-patterns",
-        "./modules/ai/skills/vercel-react-best-practices",
         "./modules/ai/skills/install-anti-slop"
       ]
     },

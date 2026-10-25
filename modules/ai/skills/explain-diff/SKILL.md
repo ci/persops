@@ -1,6 +1,6 @@
 ---
 name: explain-diff
-description: "Use when the user asks for a rich explanation of a code change, diff, branch, or PR. Produces HTML output."
+description: "Use when the user asks for a rich explanation of a code change, diff, branch, or PR. Produces an interactive HTML page, published as a private Artifact where available."
 ---
 
 # Explain Diff
@@ -16,7 +16,12 @@ It should have these sections:
 
 Format:
 
-- Output a single self-contained HTML file which includes CSS and JavaScript. Make the whole thing one long page with section headers and a table of contents. Don't use tabs for the top-level structure. Basic responsive styling so you can view it on a phone is nice too. Put the file in a global place on my computer outside of the code repo, and make sure the filename always starts with today's date in `YYYY-MM-DD-` format, because it helps keep the files time-sorted and out of version control. For example: /tmp/2026-01-12-explanation-<slug>.html
+- Output a single self-contained HTML file which includes CSS and JavaScript. Make the whole thing one long page with section headers and a table of contents. Don't use tabs for the top-level structure. Basic responsive styling so you can view it on a phone is nice too. Always write it outside the code repo (a scratch or temp dir, e.g. `/tmp/2026-01-12-explanation-<slug>.html`) so it never lands in version control, and start the filename with today's date in `YYYY-MM-DD-` format so the files stay time-sorted.
+- Deliver it privately:
+  - Personal machines, when an Artifact tool is available (Claude Code, claude.ai): publish that file as an Artifact and give the link. Artifacts start private; keep it that way unless the user asks to share it.
+  - Work machines (ergane, or when unsure which): ask before publishing, since it sends a write-up of work code off the device. Without a yes, use the local file below.
+  - Otherwise (no Artifact tool: Codex, Pi, other CLIs), open the file with `open`/`xdg-open` when running on the user's desktop, and give the path.
+  - Never upload it anywhere public (gists, `share-page`, image hosts) unless the user asks.
 - Please write with the clarity and flow of Martin Kleppmann, making it engaging and written in classic style. Transitions between sections should be smooth.
 - Some tips on diagrams. Ideally, you should pick a small number of diagram families that can be reused throughout the explanation to explain various cases. Some useful kinds of diagrams:
   - A very simplified version of the UI that the user sees in the app, to explain UI changes.

@@ -25,7 +25,7 @@ class ImportTests(unittest.TestCase):
         self.skills = self.ai / "skills"
         self.skills.mkdir()
         self.overrides = self.ai / "skill-overrides.json"
-        self.overrides.write_text('{"existing":{"profile":"coding","recursive":true}}\n')
+        self.overrides.write_text('{"existing":{"profile":"codex","recursive":true}}\n')
         for filename in ("add-skill.sh", "resolve-skill-source.py"):
             shutil.copy2(ROOT / "modules/ai/scripts" / filename, self.scripts / filename)
         self.bin = self.root / "bin"

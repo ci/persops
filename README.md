@@ -114,13 +114,11 @@ make deploy
 Profiles:
 
 - default `all`: Claude + Codex + Pi
-- `--profile coding`: Claude + Codex + Pi only
 - `--profile codex`: Codex only
 
 Example:
 
 ```sh
-modules/ai/scripts/add-skill.sh --profile coding vercel-labs/agent-skills
 modules/ai/scripts/add-skill.sh --profile codex owner/repo
 modules/ai/scripts/add-skill.sh https://github.com/shadcn/ui --skill shadcn
 modules/ai/scripts/add-skill.sh https://github.com/openclaw/agent-skills/tree/main/skills/session-viewer

@@ -1,37 +1,69 @@
 ---
 name: persops-install-skills
-description: "Add or update agent skills in ~/p/persops, including vendoring upstream skills into modules/ai/skills, choosing the right propagation profile (`all`, `coding`, `codex`), updating metadata, and applying local+remote Nix switches. Use when the user asks to add a skill, install a skill, update a skill, make a coding skill, or make a Codex-only skill in persops."
+description: "Add, update, or remove agent skills in ~/p/persops: vendor upstream skills into modules/ai/skills, pick the propagation profile (`all` or `codex`), keep the plugin marketplace in sync, and deploy. Use when the user asks to add, install, update, drop, or rename a skill in persops."
 ---
 
 # Persops Install Skills
 
-Use this workflow for skills managed in `~/p/persops/modules/ai/skills`.
+Skills live in `~/p/persops/modules/ai/skills/<name>/`. Nix links each one into
+the agent skill dirs; `.claude-plugin/marketplace.json` ships a subset to
+claude.ai and cloud sessions as plugins.
 
-## Profile Mapping
+## Where a skill goes
 
-- Default to `all`: publish to `.claude/skills`, `.agents/skills`, and `.pi/agent/skills`.
-- Use `coding`: publish to `.claude/skills`, `.agents/skills`, and `.pi/agent/skills` only.
-- Use `codex`: publish to `.agents/skills` only.
+- Profile (`modules/ai/skill-overrides.json`, default `all`):
+  - `all`: `~/.claude/skills`, `~/.agents/skills`, `~/.pi/agent/skills`.
+  - `codex`: `~/.agents/skills` only. Use when the user asks for Codex-only.
+  - Other per-skill keys: `recursive = true`.
+- Host gating (`modules/ai/home.nix`): `personalOnlySkills` stay off ergane;
+  `darwinOnlySkills` stay off amalthea.
+- Marketplace plugin (`.claude-plugin/marketplace.json`):
+  - `persops`: general thinking, review, writing, PR workflow.
+  - `persops-web`: TypeScript, React, TUI frameworks.
+  - `persops-jj`: jj workflows.
+  - Leave out machine-only skills (they need local tools, secrets, or hosts:
+    one-password, share-page, rex, session-viewer, persops-install-skills).
+  - Every plugin entry keeps `"strict": false` (no plugin.json; claude.ai sync
+    rejects entries without it).
 
-## Workflow
+## Add
 
-1. Start with `jj status`, then inspect `modules/ai/home.nix`, `modules/ai/skill-overrides.json`, and any existing skill directory you might touch.
-2. For new upstream skills, run `modules/ai/scripts/add-skill.sh [--profile <all|coding|codex>] <source> [skills-add args...]`.
+1. `jj status`, then read `modules/ai/home.nix`, `skill-overrides.json`, the
+   marketplace, and any skill dir you will touch.
+2. Health-check upstream (`gh repo view <owner/repo> --json pushedAt,stargazerCount,url`).
+3. `modules/ai/scripts/add-skill.sh [--profile all|codex] <source> [skills-add args...]`
    - Example: `modules/ai/scripts/add-skill.sh https://github.com/shadcn/ui --skill shadcn`
-   - Direct GitHub `blob` / `tree` URLs must select a skill directory or its `SKILL.md`. The helper resolves the requested ref with `gh`, pins the commit, preserves the subdirectory, and records both in `UPSTREAM.txt`.
-   - Existing destinations reject the whole batch before copying or profile changes. Update existing skills explicitly; this helper only adds new ones.
-3. Review the vendored files under `modules/ai/skills/<name>/`. Keep repo-owned truth there and verify `UPSTREAM.txt`.
-4. If the profile is not default `all`, update `modules/ai/skill-overrides.json`. Use it for `coding`, `codex`, or other per-skill exceptions like `recursive = true`.
-5. If you create or update a repo-local skill, keep `SKILL.md` concise, keep `agents/openai.yaml` aligned, and validate the skill with `uv run --with pyyaml python3 /Users/cat/.codex/skills/.system/skill-creator/scripts/quick_validate.py <skill-dir>`.
-6. Run `make deploy` to apply the skill to every target reachable from the current controller.
-7. Verify the expected symlinks locally and on `amalthea`:
-   - `~/.claude/skills/<name>` when profile includes Claude
-   - `~/.agents/skills/<name>` when profile includes Codex/Agents
-   - `~/.pi/agent/skills/<name>` when profile includes Pi
-8. Commit changes at the end after verification. Use a Conventional Commit. Do not push unless the user asks.
+   - GitHub `blob`/`tree` URLs must point at a skill dir or its `SKILL.md`; the
+     helper pins the commit and records it in `UPSTREAM.txt`.
+   - It refuses the whole batch if any destination exists; update existing
+     skills by hand.
+4. Review the vendored files and `UPSTREAM.txt`. Record local edits there as
+   `local_patch_<date> = ...`.
+5. Add the skill to the right marketplace plugin, or note why it is
+   machine-only.
 
-## Notes
+## Update, remove, rename
 
-- `make deploy` snapshots a `path:` flake so freshly added uncommitted skill files are included consistently on every selected target.
-- Do a quick upstream health check before vendoring external skills, for example `gh repo view <owner/repo> --json pushedAt,stargazerCount,url`.
-- If the user asks for Codex-only propagation, do not also wire Claude or Pi.
+- Edit in place and log the change in `UPSTREAM.txt`. Keep `agents/openai.yaml`
+  in step with `SKILL.md`.
+- Removing: delete the dir, its `skill-overrides.json` entry, its marketplace
+  path, and any host-gating list entry. `rg '<name>'` across the repo for
+  links from other skills (`../<name>/...`, `$<name>`) and fix them.
+- Renaming: same as remove + add; update the `name:` frontmatter.
+
+## Verify and deploy
+
+1. `python3 -m json.tool .claude-plugin/marketplace.json >/dev/null` and check
+   every marketplace path exists.
+2. `make check`.
+3. Deploy to the personal hosts the controller can reach: from aglaea
+   `make deploy TARGETS="aglaea amalthea"`; from amalthea
+   `make deploy TARGETS=amalthea`, then aglaea switches on its own. Never
+   ergane unless asked.
+4. Check the links on each host: `~/.claude/skills/<name>`,
+   `~/.agents/skills/<name>`, `~/.pi/agent/skills/<name>` (only the dirs its
+   profile includes; a removed skill should be gone from all three).
+5. Commit with a Conventional Commit. Push or PR only when asked.
+
+`make deploy` snapshots a `path:` flake, so uncommitted new skill files deploy
+consistently on every target.

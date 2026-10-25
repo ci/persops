@@ -1,13 +1,13 @@
 ---
 name: autoreview
-description: "Auto Review closeout for Git and Jujutsu changes. Uses Amp by default in Amp orbs and Codex elsewhere."
+description: "Auto Review closeout for Git and Jujutsu changes. Runs a Codex + Claude review panel by default, through Amp inside Amp orbs or when a CLI is missing."
 ---
 
 # Auto Review
 
 Run the bundled structured review helper as a closeout check. This is code review, not Guardian `auto_review` approval routing.
 
-Amp is the default inside an Amp orb, detected by the documented `AMP_ORB=1` environment variable. Codex is the default elsewhere and usually delivers the best local review results. An explicit `--engine` always wins; `AUTOREVIEW_ENGINE` overrides the environment-based default. Both use GPT-6.1 Sol at `xhigh` reasoning: `gpt-6.1-sol` for Codex, `openai/gpt-6.1-sol` for Amp through a generated adapter plugin that reuses the existing `amp login`. Neither default has a model fallback. Only explicitly selecting the older `gpt-5.6-sol` on Codex retains the `gpt-5.6-terra` account-access fallback. Explicit `gpt-6-astra` on Codex defaults to `high`; both GPT-6.1 Sol and Astra accept only `low`, `medium`, `high`, `xhigh`, or `max`. Other Codex models keep the Codex CLI reasoning config. Selecting Claude (for example `--engine claude` or `--reviewers claude`) defaults to pinned Opus 5.5 (`claude-opus-5-5`) at `high` effort; explicit model/effort overrides still win. Grok defaults to `grok-4.6`. Pi and opencode use the model their own CLI is configured for.
+By default the helper runs a two-reviewer panel against one frozen bundle: GPT-6.1 Sol at `xhigh` and Opus 5.5 (`claude-opus-5-5`) at `high`. Each slot uses its native CLI (`codex`, `claude`) when installed. Inside an Amp orb (`AMP_ORB=1`), and for whichever native CLI is missing, the slot runs through `amp` instead: `openai/gpt-6.1-sol` through the generated adapter plugin, and for Claude, Amp's `--mode claude-code` (your Claude subscription) when `amp --help` lists it, else `anthropic/claude-opus-5-5`. A missing slot with no `amp` is skipped with a note. `--engine`, `AUTOREVIEW_ENGINE`, or `--reviewers` replace the panel; keyed `--model`/`--thinking` overrides adjust it: `codex=...` and `claude=...` follow their slot even when Amp runs it (mapped to `openai/...`/`anthropic/...`; a `claude=` override moves the Claude slot off `claude-code`), and `amp=...` targets only the amp-backed GPT slot; and a bare `--model` is rejected because it would hit both reviewers. Explicit `gpt-6-astra` on Codex defaults to `high`; both GPT-6.1 Sol and Astra accept only `low`, `medium`, `high`, `xhigh`, or `max`. Other Codex models keep the Codex CLI reasoning config. Grok defaults to `grok-4.6`. Pi and opencode use the model their own CLI is configured for.
 
 Use when:
 
@@ -30,17 +30,17 @@ Do not require autoreview for a change whose entire diff is prose-only internal 
 - Nitpick escape hatch: if the remaining findings are style-only, taste-level, or speculative edge-casing with no real bug, reject them and stop early — but say so explicitly: report that you stopped early and summarize what the rejected findings said.
 - If a review-triggered fix changes code, rerun focused tests and rerun the structured review helper.
 - For security-audit suppression changes, verify accepted findings remain auditable: suppressed findings stay in structured output, active output keeps an unsuppressible suppression notice, and aggregate findings cannot hide unrelated active risk.
-- Never switch or override the requested review engine/model except for the documented Codex Sol-to-Terra account-access fallback. Capacity, rate-limit, and unrelated failures keep the same engine/model: retry the same command a few times.
+- Never switch or override the requested review engine/model except for the documented Amp `claude-code` to `anthropic/claude-opus-5-5` fallback. Capacity, rate-limit, and unrelated failures keep the same engine/model: retry the same command a few times.
 - Be patient with large bundles. Structured review can take up to 30 minutes while the model call is active, especially with Codex tools or web search.
 - Treat heartbeat lines like `review still running: ... elapsed=... pid=...` as healthy progress, not a hang. Let the helper continue while heartbeats are advancing. Pass `--stream-engine-output` when live engine text is useful; Codex and Claude filter tool/status chatter, other engines pass raw output through.
 - Do not kill a review just because it has been quiet for 2-5 minutes, or because it is still running under the 30-minute window. Inspect the process only after missing multiple expected heartbeats, after 30 minutes, or after an obviously failed subprocess; prefer letting the same helper command finish.
 - Tools are useful in review mode. The helper allows read-only inspection tools and web search by default so reviewers can check dependency contracts, upstream docs, and current behavior.
 - Security perspective is always included, but it should not cripple legitimate functionality. Report security findings only when the change creates a concrete, actionable risk or removes an important safety check.
 - For regression provenance, if no blamed PR is traceable, use the blamed commit as the provenance: commit SHA, date, and author username. Do not guess a merger or frame missing PR metadata as a separate finding.
-- Do not invoke built-in `codex review`, nested reviewers, or reviewer panels from inside the review. The helper builds one bundle, calls one selected engine, validates one structured result, and stops.
+- Do not invoke built-in `codex review`, nested reviewers, or reviewer panels from inside the review. The helper builds one bundle, calls the selected reviewers, validates and merges their structured results, and stops.
 - Stop as soon as the helper exits 0 with no accepted/actionable findings. Do not run an extra review just to get a nicer "clean" line, a second opinion, or clearer closeout wording.
 - Treat the helper's successful exit plus absence of actionable findings as the clean review result, even if the underlying Codex CLI output is terse.
-- Multi-reviewer panels are opt-in only. Use them when explicitly requested or when risk justifies the extra spend; the main agent still verifies every accepted finding before fixing.
+- The default Codex + Claude panel is the normal closeout. Use `--engine <one>` for a cheaper single pass when the user asks; larger `--reviewers` panels are opt-in. The main agent still verifies every accepted finding before fixing.
 - If rejecting a finding as intentional/not worth fixing, add a brief inline code comment only when it explains a real invariant or ownership decision that future reviewers should know.
 - Do not push just to review. Push only when the user requested push/ship/PR update.
 
@@ -151,13 +151,13 @@ Tradeoff: tests may force code changes that stale the review. If tests or review
 
 ## Review Panels
 
-Run multiple reviewers against one frozen bundle:
+The default run is already a Codex + Claude panel. Pick reviewers explicitly with:
 
 ```bash
 <autoreview-helper> --reviewers codex,claude
 ```
 
-`--panel` is shorthand for Codex plus Claude unless `--engine` changes the first reviewer:
+`--panel` is Codex plus Claude with `--engine` as the first reviewer:
 
 ```bash
 <autoreview-helper> --panel
@@ -176,9 +176,11 @@ Inline syntax is also supported:
 ```
 
 The same engine may appear more than once with different models, which is how
-an Amp orb runs the codex+grok panel through amp's model providers:
+an Amp orb runs the default panel through amp (`claude-code` selects Amp's
+Claude Code mode; it takes no model or thinking of its own):
 
 ```bash
+<autoreview-helper> --reviewers amp:openai/gpt-6.1-sol:xhigh,amp:claude-code
 <autoreview-helper> --reviewers amp:openai/gpt-6.1-sol:xhigh,amp:xai/grok-4.6:xhigh
 ```
 
@@ -227,15 +229,15 @@ The helper:
   fetch errors; use `--no-fetch` only when intentionally reviewing local refs
 - exits successfully without invoking any engine when the computed diff has no
   changed paths
-- supports `--engine codex`, `claude`, `amp`, `grok`, `droid`, `copilot`, `pi`, and `opencode`; default precedence is explicit `--engine`, `AUTOREVIEW_ENGINE`, Amp when `AMP_ORB=1`, then Codex
+- supports `--engine codex`, `claude`, `amp`, `grok`, `droid`, `copilot`, `pi`, and `opencode`; precedence is `--reviewers`/`--panel`, explicit `--engine`, `AUTOREVIEW_ENGINE`, then the default Codex + Claude panel (Amp-backed in orbs or for a missing CLI)
 - use `--mode commit --commit <ref>` for already-committed work, especially clean `main` after landing
 - should be left in `--mode auto` or forced to `--mode branch` for PR/branch work; do not force `--mode local` after committing
 - writes only to stdout unless `--output` or `--json-output` is set
 - reports only findings at or above `--max-priority` / `AUTOREVIEW_MAX_PRIORITY` (default `P2`; upstream defaults to `P0`); lower priorities are omitted from output and exit status
 - supports `--dry-run` as a real preflight: builds the bundle, applies the same input validation as a live run, resolves each reviewer binary, and exits nonzero on a broken setup without invoking any engine
 - supports `--parallel-tests`, `--prompt`, `--prompt-file`, `--dataset`, `--no-tools`, `--no-web-search`, and commit refs
-- supports opt-in review panels with `--panel` / `--reviewers`, plus per-engine `--model` and `--thinking` (also via `AUTOREVIEW_MODEL` / `AUTOREVIEW_THINKING`)
-- allows read-only tools and web search by default where the selected CLI supports them; forbids nested review in the prompt; Codex is run through `codex exec` with read-only sandbox and structured output; amp reviews the bundle alone through a generated `amp.ai.generate` adapter plugin (temp config dir, so no personal plugins load; existing `amp login` credentials are reused); grok runs headless with only `read_file`/`grep`/`list_dir` (plus web tools), subagents and MCP meta-tools disabled, prompt via file, session deleted afterwards (grok has no ephemeral mode), and rejects `--no-tools` (grok has no reliable tool-off switch); like claude and codex it runs inside the reviewed checkout under the local trust model, so project hooks/config there apply; pi gets only its read tool; opencode runs its read-only plan agent
+- supports explicit review panels with `--panel` / `--reviewers`, plus per-engine `--model` and `--thinking` (also via `AUTOREVIEW_MODEL` / `AUTOREVIEW_THINKING`)
+- allows read-only tools and web search by default where the selected CLI supports them; forbids nested review in the prompt; Codex is run through `codex exec` with read-only sandbox and structured output; amp reviews the bundle alone from an empty dir, through a generated `amp.ai.generate` adapter plugin or `amp --mode claude-code` (temp config dir, so no personal Amp plugins load; existing `amp login` credentials are reused; claude-code mode runs from an empty dir with Amp's `amp.tools.enable` allowlist set to `read_web_page`/`web_search` only, or a no-match sentinel (Amp treats `[]` as all tools) under `--no-tools`/`--no-web-search`, so it sees just the bundle); grok runs headless with only `read_file`/`grep`/`list_dir` (plus web tools), subagents and MCP meta-tools disabled, prompt via file, session deleted afterwards (grok has no ephemeral mode), and rejects `--no-tools` (grok has no reliable tool-off switch); like claude and codex it runs inside the reviewed checkout under the local trust model, so project hooks/config there apply; pi gets only its read tool; opencode runs its read-only plan agent
 - keeps droid and copilot adapters even though upstream disabled them; they review with the local trust model, not upstream's isolation contract
 - prints `review still running: <engine> elapsed=<seconds>s pid=<pid>` to stderr at long-running intervals while waiting for the selected review engine; `--stream-engine-output` streams live engine text instead
 - prints `autoreview clean: no accepted/actionable findings reported` when the selected review command exits 0

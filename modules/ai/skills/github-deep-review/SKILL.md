@@ -1,11 +1,25 @@
 ---
 name: github-deep-review
-description: "GitHub deep review: bugs, PRs, best fix, stale-or-real, read-code-first."
+description: "Read-only deep review of a GitHub issue, PR, or branch: root cause, best fix, stale-or-real review comments, read-code-first. Reports only; no changes unless asked."
 ---
 
 # GitHub Deep Review
 
 Review like Peter: high-confidence, evidence-first, code-aware, and willing to say "not proven" when the trail is weak. The goal is not a generic summary. The goal is to understand the bug class, find the real cause if possible, decide the best fix after reading enough code, and call out whether a larger refactor would improve the design.
+
+## Read-only contract
+
+Unless the user explicitly asks for changes:
+
+- No product commits, pushes, rebases, or edits to the user's checkout. Only
+  disposable isolation metadata and its verified empty working-copy change may
+  be created and removed.
+- No GitHub writes: no comments, reviews, labels, thread resolutions, closes,
+  merges.
+- `gh`/API reads, local builds, and tests are fine.
+
+Stop after the report. Apply fixes or reply to comments only on explicit
+go-ahead, and say in the report that no changes were made.
 
 ## Start
 
@@ -26,6 +40,32 @@ git fetch origin
 git log --oneline --decorate -20
 rg "<key symbol/error/config/endpoint>"
 ```
+
+## Branch or PR checkout
+
+To read or run a branch, isolate it instead of touching the user's checkout
+(they are often editing at the same time):
+
+- jj: fetch with `jj git fetch --remote origin`, then
+  `jj workspace add /tmp/review-<slug> --name review-<slug> -r
+  '<branch>@origin' -m 'chore: isolate branch review'`. Always pass `-r`;
+  omitting it creates `@` beside the current working copy rather than on the
+  pushed branch. For a jjpr stack, use `$jjpr` only for read-only
+  `jjpr status <top>`.
+- plain Git: `git fetch origin <branch>`, then
+  `git worktree add /tmp/review-<slug> origin/<branch>`.
+
+Review the diff against the merge-base with the default branch, commits as
+pushed. Run builds/tests there when they would change the verdict.
+
+Triage every unresolved review comment (bot or human) against the code as
+pushed: real (with evidence), stale (already addressed, say where), or wrong
+(why).
+
+Clean up afterwards. In jj, capture the temp workspace's name, root, and change
+ID; verify its diff is empty; forget it from a surviving workspace; abandon only
+that captured empty change; then remove the exact directory. In Git, remove the
+temp worktree. If anything is worth keeping, keep it and report its path.
 
 If the repo has local instructions, issue/PR skills, docs lists, test guidance, or maintainer runbooks, read those before deciding.
 
@@ -80,7 +120,7 @@ Call out when a fix is only symptom-level. If a slightly larger refactor makes t
 
 ## PR Review Shape
 
-Lead with findings when reviewing a PR. Findings need file/line/symbol references and a concrete failure mode. Avoid vague "consider" comments.
+Lead with the verdict, then findings, when reviewing a PR. Findings need file/line/symbol references and a concrete failure mode. Avoid vague "consider" comments.
 
 If no blocking issues:
 
@@ -88,6 +128,7 @@ If no blocking issues:
 - list the strongest proof checked
 - name residual risk/test gaps
 - answer whether the design is the best available shape
+- include the review-comment triage when the PR has unresolved comments
 
 Do not approve, comment, close, merge, push, or land unless the user asked for that action.
 
