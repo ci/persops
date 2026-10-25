@@ -57,10 +57,9 @@ AMP_MAX_OUTPUT_CHARS = 2_000_000
 # Selected as the amp "model"; Amp picks the Claude model and effort itself.
 AMP_CLAUDE_CODE_MODEL = "claude-code"
 AMP_CLAUDE_FALLBACK_MODEL = "anthropic/claude-opus-5-5"
-# Claude Code tools denied for the claude-code reviewer via a project
-# settings file in its empty cwd; deny rules win over the user's settings.
-AMP_CLAUDE_CODE_DENY = ("Bash", "Edit", "MultiEdit", "Write", "NotebookEdit", "Task", "Agent")
-AMP_CLAUDE_CODE_READ_TOOLS = ("Read", "Grep", "Glob", "LS")
+# Amp tools left to the claude-code reviewer; shell, edit, thread and
+# settings tools stay off because the patch under review is untrusted.
+AMP_CLAUDE_CODE_WEB_TOOLS = ("read_web_page", "web_search")
 # grok's built-in tool names; review stays read-only.
 GROK_READ_TOOLS = ("read_file", "grep", "list_dir")
 GROK_WEB_TOOLS = ("web_search", "web_fetch")
@@ -970,19 +969,18 @@ def amp_review_plugin_source(
     ).lstrip()
 
 
-def amp_settings(path: Path) -> None:
-    path.write_text(
-        json.dumps(
-            {
-                "amp.updates.mode": "disabled",
-                "amp.mcpPermissions": [
-                    {"matches": {"command": "*"}, "action": "reject"},
-                    {"matches": {"url": "*"}, "action": "reject"},
-                ],
-            },
-            separators=(",", ":"),
-        )
-    )
+def amp_settings(path: Path, enabled_tools: list[str] | None = None) -> None:
+    settings: dict[str, Any] = {
+        "amp.updates.mode": "disabled",
+        "amp.mcpPermissions": [
+            {"matches": {"command": "*"}, "action": "reject"},
+            {"matches": {"url": "*"}, "action": "reject"},
+        ],
+    }
+    if enabled_tools is not None:
+        # Allowlist of Amp tool names; claude-code mode runs on Amp's tools.
+        settings["amp.tools.enable"] = enabled_tools
+    path.write_text(json.dumps(settings, separators=(",", ":")))
 
 
 def run_amp_claude_code(args: argparse.Namespace, prompt: str) -> str:
@@ -994,15 +992,8 @@ def run_amp_claude_code(args: argparse.Namespace, prompt: str) -> str:
         for path in (review_root, runtime_config / "amp" / "plugins"):
             path.mkdir(parents=True)
         settings_path = runtime_root / "settings.json"
-        amp_settings(settings_path)
-        deny = list(AMP_CLAUDE_CODE_DENY)
-        if not args.tools:
-            deny.extend(AMP_CLAUDE_CODE_READ_TOOLS)
-        if not args.tools or not args.web_search:
-            deny.extend(["WebSearch", "WebFetch"])
-        claude_settings = review_root / ".claude" / "settings.json"
-        claude_settings.parent.mkdir()
-        claude_settings.write_text(json.dumps({"permissions": {"deny": deny}}, separators=(",", ":")))
+        # The bundle is in the prompt; only web lookups stay enabled.
+        amp_settings(settings_path, list(AMP_CLAUDE_CODE_WEB_TOOLS) if args.tools and args.web_search else [])
         env = dict(os.environ)
         env.update({"XDG_CONFIG_HOME": str(runtime_config), "NO_COLOR": "1"})
         cmd = [
@@ -1535,20 +1526,20 @@ def engine_available(args: argparse.Namespace, engine: str) -> bool:
     return shutil_which(bin_name) is not None
 
 
-def default_reviewers(args: argparse.Namespace) -> list[tuple[str, str | None, str | None, bool]]:
+def default_reviewers(args: argparse.Namespace) -> list[tuple[str, str | None, str | None, bool, str | None]]:
     """Codex + Claude, natively when installed; amp for both inside an orb or
     for whichever native CLI is missing."""
     in_orb = os.environ.get("AMP_ORB") == "1"
     amp_ok = engine_available(args, "amp")
-    reviewers: list[tuple[str, str | None, str | None, bool]] = []
+    reviewers: list[tuple[str, str | None, str | None, bool, str | None]] = []
     missing: list[str] = []
     for engine, amp_model, amp_thinking in DEFAULT_PANEL:
         if not in_orb and engine_available(args, engine):
-            reviewers.append((engine, None, None, False))
+            reviewers.append((engine, None, None, True, engine))
         elif in_orb or amp_ok:
             if engine == "claude" and amp_supports_claude_code(args):
                 amp_model, amp_thinking = AMP_CLAUDE_CODE_MODEL, None
-            reviewers.append(("amp", amp_model, amp_thinking, True))
+            reviewers.append(("amp", amp_model, amp_thinking, True, engine))
         else:
             missing.append(engine)
     for engine in missing:
@@ -1701,22 +1692,23 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
     global_thinking, thinking_by_engine = parse_keyed_options(args.thinking, "thinking")
     env_global_model, env_model_by_engine = env_keyed_options("AUTOREVIEW_MODEL", "model")
     env_global_thinking, env_thinking_by_engine = env_keyed_options("AUTOREVIEW_THINKING", "thinking")
-    # (engine, model, thinking, defaults_only): defaults_only entries come from
-    # the default panel and yield to CLI/env overrides like built-in defaults.
-    reviewers: list[tuple[str, str | None, str | None, bool]] = []
+    # (engine, model, thinking, defaults_only, slot): defaults_only entries come
+    # from the default panel and yield to CLI/env overrides like built-in
+    # defaults; slot is the logical reviewer (codex/claude) even when amp runs it.
+    reviewers: list[tuple[str, str | None, str | None, bool, str | None]] = []
     if args.reviewers:
         tokens = [token.strip() for token in args.reviewers.split(",") if token.strip()]
         if len(tokens) == 1 and tokens[0] == "all":
             tokens = list(ENGINES)
-        reviewers = [(*parse_reviewer_token(token), False) for token in tokens]
+        reviewers = [(*parse_reviewer_token(token), False, None) for token in tokens]
     elif args.panel:
         engines = [args.engine or "codex"]
         for engine in ("codex", "claude"):
             if engine not in engines:
                 engines.append(engine)
-        reviewers = [(engine, None, None, False) for engine in engines]
+        reviewers = [(engine, None, None, False, None) for engine in engines]
     elif args.engine:
-        reviewers = [(args.engine, None, None, False)]
+        reviewers = [(args.engine, None, None, False, None)]
     else:
         if global_model or env_global_model:
             raise SystemExit(
@@ -1727,16 +1719,27 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
 
     seen: set[tuple[str, str | None]] = set()
     result: list[argparse.Namespace] = []
-    for engine, entry_model, entry_thinking, defaults_only in reviewers:
+    for engine, entry_model, entry_thinking, defaults_only, slot in reviewers:
         inline_model = None if defaults_only else entry_model
         inline_thinking = None if defaults_only else entry_thinking
-        # Keyed amp=... overrides target the default panel's GPT slot; the
-        # amp-backed Claude slot keeps its own model so the two stay distinct.
-        amp_claude_slot = defaults_only and entry_model in {AMP_CLAUDE_CODE_MODEL, AMP_CLAUDE_FALLBACK_MODEL}
-        keyed_model = None if amp_claude_slot else model_by_engine.get(engine)
-        env_keyed_model = None if amp_claude_slot else env_model_by_engine.get(engine)
-        keyed_thinking = None if amp_claude_slot else thinking_by_engine.get(engine)
-        env_keyed_thinking = None if amp_claude_slot else env_thinking_by_engine.get(engine)
+        keyed_model = model_by_engine.get(engine)
+        env_keyed_model = env_model_by_engine.get(engine)
+        keyed_thinking = thinking_by_engine.get(engine)
+        env_keyed_thinking = env_thinking_by_engine.get(engine)
+        if engine == "amp" and slot:
+            # An amp-backed default slot honors its logical codex=/claude= keys
+            # (mapped to amp's provider/model ids); amp= keys target only the
+            # GPT slot so the two amp reviewers stay distinct.
+            slot_model = model_by_engine.get(slot) or env_model_by_engine.get(slot)
+            slot_thinking = thinking_by_engine.get(slot) or env_thinking_by_engine.get(slot)
+            if slot == "claude":
+                keyed_model = env_keyed_model = keyed_thinking = env_keyed_thinking = None
+                if (slot_model or slot_thinking) and entry_model == AMP_CLAUDE_CODE_MODEL:
+                    entry_model, entry_thinking = AMP_CLAUDE_FALLBACK_MODEL, DEFAULT_THINKING_BY_ENGINE["claude"]
+            if slot_model:
+                provider = "openai" if slot == "codex" else "anthropic"
+                inline_model = slot_model if "/" in slot_model else f"{provider}/{slot_model}"
+            inline_thinking = slot_thinking
         model = (
             inline_model
             or keyed_model

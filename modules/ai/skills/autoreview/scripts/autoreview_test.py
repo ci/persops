@@ -271,23 +271,43 @@ class EngineRoutingTests(unittest.TestCase):
                         [("amp", "openai/gpt-5.6-sol", "high"), claude_slot],
                     )
 
-    def test_claude_code_reviewer_denies_write_tools(self) -> None:
-        reviewer = self.reviewers("--reviewers", "amp:claude-code", "--no-web-search")[0]
+    def claude_code_settings(self, *arguments: str) -> tuple[list[str], dict]:
+        reviewer = self.reviewers("--reviewers", "amp:claude-code", *arguments)[0]
         run = AUTOREVIEW["run_amp_claude_code"]
         captured: dict[str, object] = {}
 
         def heartbeat(cmd, cwd, **_kwargs):
             captured["cmd"] = cmd
-            captured["settings"] = json.loads((Path(cwd) / ".claude/settings.json").read_text())
+            settings_file = cmd[cmd.index("--settings-file") + 1]
+            captured["settings"] = json.loads(Path(settings_file).read_text())
             return subprocess.CompletedProcess(cmd, 0, stdout='{"result": "{\\"findings\\": []}"}', stderr="")
 
         with mock.patch.dict(run.__globals__, {"run_with_heartbeat": heartbeat}):
             run(reviewer, "review fixture")
-        deny = captured["settings"]["permissions"]["deny"]
-        for tool in ("Bash", "Edit", "Write", "WebSearch", "WebFetch"):
-            self.assertIn(tool, deny)
-        self.assertNotIn("Read", deny)
-        self.assertEqual(captured["cmd"][captured["cmd"].index("--mode") + 1], "claude-code")
+        return captured["cmd"], captured["settings"]
+
+    def test_claude_code_reviewer_only_gets_web_tools(self) -> None:
+        cmd, settings = self.claude_code_settings()
+        self.assertEqual(cmd[cmd.index("--mode") + 1], "claude-code")
+        self.assertEqual(settings["amp.tools.enable"], ["read_web_page", "web_search"])
+        for arguments in (("--no-web-search",), ("--no-tools",)):
+            with self.subTest(arguments=arguments):
+                self.assertEqual(self.claude_code_settings(*arguments)[1]["amp.tools.enable"], [])
+
+    def test_amp_backed_slots_honor_logical_keys(self) -> None:
+        self.assertEqual(
+            self.summary(
+                self.reviewers(
+                    "--model", "claude=claude-sonnet-5", "--thinking", "claude=medium", "--model", "codex=gpt-6-astra",
+                    available=("amp",), claude_code=True,
+                )
+            ),
+            [("amp", "openai/gpt-6-astra", "xhigh"), ("amp", "anthropic/claude-sonnet-5", "medium")],
+        )
+        self.assertEqual(
+            self.summary(self.reviewers(env={"AMP_ORB": "1", "AUTOREVIEW_THINKING": "claude=max"}, claude_code=True))[1],
+            ("amp", "anthropic/claude-opus-5-5", "max"),
+        )
 
     def test_missing_native_cli_falls_back_to_amp(self) -> None:
         self.assertEqual(
