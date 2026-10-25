@@ -53,7 +53,10 @@ one immutable Nix store snapshot before activation. A remote Amalthea deployment
 checks its deploy-rs profile; a local Amalthea deployment checks its NixOS config.
 Amalthea is verified with `scripts/remote-verify`. Aglaea activation and its
 `ops-status` verification run in a transient launchd job so replacing the Amp
-runner cannot interrupt the switch. Use `make check` separately to evaluate every
+runner cannot interrupt the switch. Local Amalthea activation likewise runs in a
+transient `persops-deploy-amalthea-*` system unit, because it restarts the
+remote-control bridges that may host the controller; if the session drops, read
+the result with `journalctl -u 'persops-deploy-amalthea-*'`. Use `make check` separately to evaluate every
 machine config.
 
 ## Delegating From an Orb
