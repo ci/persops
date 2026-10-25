@@ -6,6 +6,7 @@
   "ntfy-backup": {"name": "ntfy backup", "unit": "restic-backups-ntfy-daily", "max_age": 93600},
   "archive-backup": {"name": "Archive backup", "unit": "restic-backups-archive-daily", "max_age": 93600},
   "sea16-health": {"name": "Archive disk health", "unit": "sea16-health", "max_age": 600},
+  "nvme-health": {"name": "Root NVMe health", "unit": "nvme-health", "max_age": 93600},
   "bank-sync": {"name": "Actual bank sync", "unit": "actual-bank-sync", "max_age": 93600},
   "opnix-poll": {"name": "1Password secret poll", "unit": "opnix-secrets-poll", "max_age": 43200}
 }
