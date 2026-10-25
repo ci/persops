@@ -190,7 +190,25 @@ class RepositoryRulesTests(unittest.TestCase):
         self.assertEqual(files, ["AGENTS.md", "apps/mobile/AGENTS.md"])
         self.assertIn("## AGENTS.md (first 2500 characters)\nRoot rule.", rules)
         self.assertNotIn("Every UI state ships a story.", rules)
-        self.assertIn("read the rest of: AGENTS.md, apps/mobile/AGENTS.md", rules)
+        self.assertIn("as of revision HEAD (`git show HEAD:<path>`), not from the working tree: AGENTS.md, apps/mobile/AGENTS.md", rules)
+
+    def test_quoted_non_ascii_paths_still_find_nested_rules(self) -> None:
+        (self.repo / "apps/mobile/café.tsx").write_text("export const b = 1;\n")
+        changed = AUTOREVIEW["review_paths"](self.repo, "local", None, "HEAD", "HEAD")
+        self.assertIn('"apps/mobile/caf\\303\\251.tsx"', changed)
+        _, files = AUTOREVIEW["repo_rules"](self.repo, "HEAD", changed)
+        self.assertEqual(files, ["AGENTS.md", "apps/mobile/AGENTS.md"])
+
+    def test_non_utf8_tracked_names_do_not_break_rule_loading(self) -> None:
+        latin = os.path.join(os.fsencode(self.repo / "apps/mobile"), b"old\xe9.txt")
+        with open(latin, "wb") as handle:
+            handle.write(b"legacy\n")
+        self.commit("latin-1 name")
+        with open(latin, "ab") as handle:
+            handle.write(b"more\n")
+        changed = AUTOREVIEW["review_paths"](self.repo, "local", None, "HEAD", "HEAD")
+        _, files = AUTOREVIEW["repo_rules"](self.repo, "HEAD", changed)
+        self.assertEqual(files, ["AGENTS.md", "apps/mobile/AGENTS.md"])
 
     def test_symlinked_rule_files_inline_their_target(self) -> None:
         (self.repo / "apps/mobile/AGENTS.md").unlink()

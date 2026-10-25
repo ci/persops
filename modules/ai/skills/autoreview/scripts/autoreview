@@ -695,20 +695,38 @@ def rules_base(repo: Path, target: str, target_ref: str | None, head_ref: str, c
     return git(repo, "rev-parse", "--verify", "--quiet", f"{commit_ref}^", check=False).strip() or None
 
 
-def rule_file_paths(changed_paths: set[str], tracked: set[str]) -> list[str]:
+def unquote_git_path(path: str) -> str:
+    # `git diff --name-only` C-quotes non-ASCII names ("apps/caf\\303\\251.tsx"); undo it so ancestors resolve.
+    if len(path) < 2 or not (path.startswith('"') and path.endswith('"')):
+        return path
+    raw = path[1:-1].encode("latin-1", "backslashreplace").decode("unicode_escape").encode("latin-1")
+    return raw.decode("utf-8", "surrogateescape")
+
+
+def rule_dirs(changed_paths: set[str]) -> list[PurePosixPath]:
     dirs: set[PurePosixPath] = set()
     for path in changed_paths:
-        parent = PurePosixPath(path).parent
+        parent = PurePosixPath(unquote_git_path(path)).parent
         dirs.add(parent)
         dirs.update(parent.parents)
+    return sorted(dirs, key=lambda d: (len(d.parts), str(d)))
+
+
+def rule_file_paths(changed_paths: set[str], tracked: set[str]) -> list[str]:
     found: list[str] = []
-    for directory in sorted(dirs, key=lambda d: (len(d.parts), str(d))):
+    for directory in rule_dirs(changed_paths):
         for name in RULE_FILE_NAMES:
             candidate = (directory / name).as_posix()
             if candidate in tracked:
                 found.append(candidate)
                 break
     return found
+
+
+def git_bytes(repo: Path, *args: str) -> bytes:
+    # Raw output: tree paths may not be UTF-8, and run() decodes strictly.
+    result = subprocess.run(["git", *args], cwd=repo, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    return result.stdout if result.returncode == 0 else b""
 
 
 def repo_rules(repo: Path, rev: str | None, changed_paths: set[str]) -> tuple[str, list[str]]:
@@ -721,23 +739,31 @@ def repo_rules(repo: Path, rev: str | None, changed_paths: set[str]) -> tuple[st
             return "", []
         git_dir = [f"--git-dir={root}"]
     modes: dict[str, str] = {}
-    for entry in git(repo, *git_dir, "ls-tree", "-r", "-z", rev, check=False).split("\0"):
-        meta, _, path = entry.partition("\t")
-        if path:
-            modes[path] = meta.split(" ", 1)[0]
+
+    def list_modes(paths: list[str]) -> None:
+        # Only the candidate paths: listing the whole tree is slow on big repos.
+        out = git_bytes(repo, *git_dir, "ls-tree", "-z", rev, "--", *paths)
+        for entry in out.split(b"\0"):
+            meta, _, path = entry.partition(b"\t")
+            if path:
+                modes[path.decode("utf-8", "surrogateescape")] = meta.split(b" ", 1)[0].decode()
 
     def read(rel: str) -> str:
         # Follow tracked in-repo symlinks (CLAUDE.md -> AGENTS.md style) to their contents.
         for _ in range(5):
-            text = git(repo, *git_dir, "show", f"{rev}:{rel}", check=False)
+            text = git_bytes(repo, *git_dir, "show", f"{rev}:{rel}").decode("utf-8", "replace")
             if modes.get(rel) != "120000":
                 return text.strip()
             target = posixpath.normpath(posixpath.join(posixpath.dirname(rel), text.strip()))
+            if target.startswith("../"):
+                return ""
+            list_modes([target])
             if target not in modes:
                 return ""
             rel = target
         return ""
 
+    list_modes([(directory / name).as_posix() for directory in rule_dirs(changed_paths) for name in RULE_FILE_NAMES])
     chunks: list[str] = []
     listed: list[str] = []
     omitted: list[str] = []
@@ -758,12 +784,16 @@ def repo_rules(repo: Path, rev: str | None, changed_paths: set[str]) -> tuple[st
         else:
             omitted.append(rel)
     if omitted:
-        chunks.append("Cut for size; if you can read repository files, read the rest of: " + ", ".join(omitted))
+        # The checkout may hold the patched versions, so point at the pre-change revision.
+        chunks.append(
+            f"Cut for size. If you can read the repository, read the rest of these files as of revision {rev} "
+            f"(`git show {rev}:<path>`), not from the working tree: " + ", ".join(omitted)
+        )
     if not chunks:
         return "", []
     header = (
         "# Repository Rules\n"
-        "These instruction files govern the changed paths, read from the revision before the change. "
+        f"These instruction files govern the changed paths, read from revision {rev}, before the change. "
         "A file in a deeper directory adds to or overrides the ones above it."
     )
     return "\n\n".join([header, *chunks]), listed
