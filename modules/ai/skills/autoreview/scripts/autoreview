@@ -6,6 +6,7 @@ import concurrent.futures
 import copy
 import json
 import os
+import posixpath
 import queue
 import re
 import subprocess
@@ -47,6 +48,7 @@ PRIORITIES = ("P0", "P1", "P2", "P3")
 # Per-directory agent instructions; AGENTS.md wins when a directory has both.
 RULE_FILE_NAMES = ("AGENTS.md", "CLAUDE.md")
 RULES_MAX_CHARS = 60_000
+RULES_MIN_EXCERPT_CHARS = 2_000
 
 AMP_OUTER_TRIGGER = "Run the isolated autoreview adapter."
 AMP_ADAPTER_TOOL = "autoreview_generate"
@@ -668,15 +670,23 @@ def review_paths(repo: Path, target: str, target_ref: str | None, head_ref: str,
     return names
 
 
+def jj_first_parent(repo: Path, revset: str) -> str | None:
+    # A merge change has several parents and rule files must come from one tree: take the first.
+    out = jj(repo, "log", "-r", revset, "--no-graph", "-T", 'parents.map(|c| c.commit_id()).join("\\n")', check=False)
+    return next(iter(out.split()), None)
+
+
 def rules_base(repo: Path, target: str, target_ref: str | None, head_ref: str, commit_ref: str) -> str | None:
     # Rules come from the pre-change revision, so a patch can't rewrite the rules it is judged by.
+    # jj revisions resolve to git commit ids, which repo_rules reads through jj's git store.
     if is_jj_repo(repo):
         if target == "local":
-            return "@-"
+            return jj_first_parent(repo, "@")
         if target == "branch":
             assert target_ref
-            return jj_branch_base(target_ref, head_ref)
-        return f"({commit_ref})-"
+            out = jj(repo, "log", "-r", jj_branch_base(target_ref, head_ref), "--no-graph", "-T", 'commit_id ++ "\\n"', check=False)
+            return next(iter(out.split()), None)
+        return jj_first_parent(repo, commit_ref)
     if target == "local":
         return "HEAD"
     if target == "branch":
@@ -704,30 +714,51 @@ def rule_file_paths(changed_paths: set[str], tracked: set[str]) -> list[str]:
 def repo_rules(repo: Path, rev: str | None, changed_paths: set[str]) -> tuple[str, list[str]]:
     if not rev:
         return "", []
-    jj_repo = is_jj_repo(repo)
-    if jj_repo:
-        tracked = set(jj(repo, "file", "list", "-r", rev, check=False).splitlines())
-    else:
-        tracked = set(git(repo, "ls-tree", "-r", "--name-only", rev, check=False).splitlines())
+    git_dir: list[str] = []
+    if is_jj_repo(repo):
+        root = jj(repo, "git", "root", check=False).strip()
+        if not root:
+            return "", []
+        git_dir = [f"--git-dir={root}"]
+    modes: dict[str, str] = {}
+    for entry in git(repo, *git_dir, "ls-tree", "-r", "-z", rev, check=False).split("\0"):
+        meta, _, path = entry.partition("\t")
+        if path:
+            modes[path] = meta.split(" ", 1)[0]
+
+    def read(rel: str) -> str:
+        # Follow tracked in-repo symlinks (CLAUDE.md -> AGENTS.md style) to their contents.
+        for _ in range(5):
+            text = git(repo, *git_dir, "show", f"{rev}:{rel}", check=False)
+            if modes.get(rel) != "120000":
+                return text.strip()
+            target = posixpath.normpath(posixpath.join(posixpath.dirname(rel), text.strip()))
+            if target not in modes:
+                return ""
+            rel = target
+        return ""
+
     chunks: list[str] = []
-    included: list[str] = []
-    skipped: list[str] = []
+    listed: list[str] = []
+    omitted: list[str] = []
     budget = RULES_MAX_CHARS
-    for rel in rule_file_paths(changed_paths, tracked):
-        if jj_repo:
-            text = jj(repo, "file", "show", "-r", rev, rel, check=False).strip()
-        else:
-            text = git(repo, "show", f"{rev}:{rel}", check=False).strip()
+    for rel in rule_file_paths(changed_paths, set(modes)):
+        text = read(rel)
         if not text:
             continue
-        if len(text) > budget:
-            skipped.append(rel)
-            continue
-        budget -= len(text)
-        included.append(rel)
-        chunks.append(f"## {rel}\n{text}")
-    if skipped:
-        chunks.append("Too large to include here; read them from the repository before reviewing: " + ", ".join(skipped))
+        listed.append(rel)
+        if len(text) <= budget:
+            budget -= len(text)
+            chunks.append(f"## {rel}\n{text}")
+        elif budget >= RULES_MIN_EXCERPT_CHARS:
+            # Bundle-only reviewers (amp, --no-tools) can't open files, so give them as much as fits.
+            chunks.append(f"## {rel} (first {budget} characters)\n{text[:budget]}")
+            omitted.append(rel)
+            budget = 0
+        else:
+            omitted.append(rel)
+    if omitted:
+        chunks.append("Cut for size; if you can read repository files, read the rest of: " + ", ".join(omitted))
     if not chunks:
         return "", []
     header = (
@@ -735,7 +766,7 @@ def repo_rules(repo: Path, rev: str | None, changed_paths: set[str]) -> tuple[st
         "These instruction files govern the changed paths, read from the revision before the change. "
         "A file in a deeper directory adds to or overrides the ones above it."
     )
-    return "\n\n".join([header, *chunks]), included + skipped
+    return "\n\n".join([header, *chunks]), listed
 
 
 def load_extra_prompt(args: argparse.Namespace) -> str:
