@@ -6,4 +6,4 @@ requested_source = https://gist.github.com/geoffreylitt/a29df1b5f9865506e8952488
 via = manual vendor; gist file is not a SKILL.md repository
 upstream_file = explain-diff-html.md
 upstream_revision = 126e7fe9eecaafadfe1ac8bb183d135812b608f2
-local_changes = renamed skill from explain-diff-html to explain-diff; quoted description frontmatter
+local_changes = renamed skill from explain-diff-html to explain-diff; quoted description frontmatter; deliver as a private Artifact where available, dated temp file elsewhere
