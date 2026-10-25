@@ -259,6 +259,36 @@ class EngineRoutingTests(unittest.TestCase):
                 run(reviewer, Path.cwd(), "review fixture")
         failing.assert_called_once()
 
+    def test_keyed_amp_override_targets_only_the_gpt_slot(self) -> None:
+        for claude_code, claude_slot in ((True, ("amp", "claude-code", None)), (False, ("amp", "anthropic/claude-opus-5-5", "high"))):
+            for arguments, env in (
+                (("--model", "amp=openai/gpt-5.6-sol", "--thinking", "amp=high"), {"AMP_ORB": "1"}),
+                ((), {"AMP_ORB": "1", "AUTOREVIEW_MODEL": "amp=openai/gpt-5.6-sol", "AUTOREVIEW_THINKING": "amp=high"}),
+            ):
+                with self.subTest(claude_code=claude_code, arguments=arguments, env=env):
+                    self.assertEqual(
+                        self.summary(self.reviewers(*arguments, env=env, claude_code=claude_code)),
+                        [("amp", "openai/gpt-5.6-sol", "high"), claude_slot],
+                    )
+
+    def test_claude_code_reviewer_denies_write_tools(self) -> None:
+        reviewer = self.reviewers("--reviewers", "amp:claude-code", "--no-web-search")[0]
+        run = AUTOREVIEW["run_amp_claude_code"]
+        captured: dict[str, object] = {}
+
+        def heartbeat(cmd, cwd, **_kwargs):
+            captured["cmd"] = cmd
+            captured["settings"] = json.loads((Path(cwd) / ".claude/settings.json").read_text())
+            return subprocess.CompletedProcess(cmd, 0, stdout='{"result": "{\\"findings\\": []}"}', stderr="")
+
+        with mock.patch.dict(run.__globals__, {"run_with_heartbeat": heartbeat}):
+            run(reviewer, "review fixture")
+        deny = captured["settings"]["permissions"]["deny"]
+        for tool in ("Bash", "Edit", "Write", "WebSearch", "WebFetch"):
+            self.assertIn(tool, deny)
+        self.assertNotIn("Read", deny)
+        self.assertEqual(captured["cmd"][captured["cmd"].index("--mode") + 1], "claude-code")
+
     def test_missing_native_cli_falls_back_to_amp(self) -> None:
         self.assertEqual(
             self.summary(self.reviewers(available=("claude", "amp"))),

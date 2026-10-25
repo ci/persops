@@ -57,6 +57,10 @@ AMP_MAX_OUTPUT_CHARS = 2_000_000
 # Selected as the amp "model"; Amp picks the Claude model and effort itself.
 AMP_CLAUDE_CODE_MODEL = "claude-code"
 AMP_CLAUDE_FALLBACK_MODEL = "anthropic/claude-opus-5-5"
+# Claude Code tools denied for the claude-code reviewer via a project
+# settings file in its empty cwd; deny rules win over the user's settings.
+AMP_CLAUDE_CODE_DENY = ("Bash", "Edit", "MultiEdit", "Write", "NotebookEdit", "Task", "Agent")
+AMP_CLAUDE_CODE_READ_TOOLS = ("Read", "Grep", "Glob", "LS")
 # grok's built-in tool names; review stays read-only.
 GROK_READ_TOOLS = ("read_file", "grep", "list_dir")
 GROK_WEB_TOOLS = ("web_search", "web_fetch")
@@ -991,6 +995,14 @@ def run_amp_claude_code(args: argparse.Namespace, prompt: str) -> str:
             path.mkdir(parents=True)
         settings_path = runtime_root / "settings.json"
         amp_settings(settings_path)
+        deny = list(AMP_CLAUDE_CODE_DENY)
+        if not args.tools:
+            deny.extend(AMP_CLAUDE_CODE_READ_TOOLS)
+        if not args.tools or not args.web_search:
+            deny.extend(["WebSearch", "WebFetch"])
+        claude_settings = review_root / ".claude" / "settings.json"
+        claude_settings.parent.mkdir()
+        claude_settings.write_text(json.dumps({"permissions": {"deny": deny}}, separators=(",", ":")))
         env = dict(os.environ)
         env.update({"XDG_CONFIG_HOME": str(runtime_config), "NO_COLOR": "1"})
         cmd = [
@@ -1718,20 +1730,27 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
     for engine, entry_model, entry_thinking, defaults_only in reviewers:
         inline_model = None if defaults_only else entry_model
         inline_thinking = None if defaults_only else entry_thinking
+        # Keyed amp=... overrides target the default panel's GPT slot; the
+        # amp-backed Claude slot keeps its own model so the two stay distinct.
+        amp_claude_slot = defaults_only and entry_model in {AMP_CLAUDE_CODE_MODEL, AMP_CLAUDE_FALLBACK_MODEL}
+        keyed_model = None if amp_claude_slot else model_by_engine.get(engine)
+        env_keyed_model = None if amp_claude_slot else env_model_by_engine.get(engine)
+        keyed_thinking = None if amp_claude_slot else thinking_by_engine.get(engine)
+        env_keyed_thinking = None if amp_claude_slot else env_thinking_by_engine.get(engine)
         model = (
             inline_model
-            or model_by_engine.get(engine)
+            or keyed_model
             or global_model
-            or env_model_by_engine.get(engine)
+            or env_keyed_model
             or env_global_model
             or (entry_model if defaults_only else None)
             or DEFAULT_MODEL_BY_ENGINE.get(engine)
         )
         thinking = (
             inline_thinking
-            or thinking_by_engine.get(engine)
+            or keyed_thinking
             or global_thinking
-            or env_thinking_by_engine.get(engine)
+            or env_keyed_thinking
             or env_global_thinking
             or (entry_thinking if defaults_only else None)
             or DEFAULT_THINKING_BY_ENGINE.get(engine)
