@@ -43,8 +43,6 @@ DEFAULT_THINKING_BY_ENGINE = {
     "claude": "high",
     "amp": "xhigh",
 }
-# Retried once when the account cannot access explicitly selected gpt-5.6-sol.
-DEFAULT_CODEX_ACCESS_FALLBACK_MODEL = "gpt-5.6-terra"
 PRIORITIES = ("P0", "P1", "P2", "P3")
 
 AMP_OUTER_TRIGGER = "Run the isolated autoreview adapter."
@@ -729,80 +727,47 @@ def write_json_temp(data: dict[str, Any]) -> Path:
     return Path(handle.name)
 
 
-def codex_model_access_failure(result: subprocess.CompletedProcess[str], model: str) -> bool:
-    haystack = f"{result.stdout}\n{result.stderr}".lower()
-    if model.lower() not in haystack:
-        return False
-    return any(
-        marker in haystack
-        for marker in (
-            "does not exist or you do not have access",
-            "do not have access to",
-            "don't have access to",
-            "does not appear in the list of models available to your account",
-            "not supported when using codex",
-        )
-    )
-
-
 def run_codex(args: argparse.Namespace, repo: Path, prompt: str) -> str:
-    def attempt(model: str | None) -> tuple[subprocess.CompletedProcess[str], str]:
-        schema_path = write_json_temp(SCHEMA)
-        output_path = Path(tempfile.NamedTemporaryFile("w", suffix=".json", delete=False).name)
-        cmd = [args.codex_bin, "--ask-for-approval", "never"]
-        if args.web_search:
-            cmd.append("--search")
-        if model:
-            cmd.extend(["--model", model])
-        if args.thinking:
-            cmd.extend(["-c", f'model_reasoning_effort="{args.thinking}"'])
-        cmd.append("exec")
-        if is_jj_repo(repo) and not (repo / ".git").exists():
-            cmd.append("--skip-git-repo-check")
-        if args.stream_engine_output:
-            cmd.append("--json")
-        cmd.extend(
-            [
-                "--ephemeral",
-                "-C",
-                str(repo),
-                "-s",
-                "read-only",
-                "--output-schema",
-                str(schema_path),
-                "--output-last-message",
-                str(output_path),
-                "-",
-            ]
-        )
-        result = run_with_heartbeat(
-            cmd,
-            repo,
-            input_text=prompt,
-            label="codex",
-            stream_display=JsonlStreamDisplay("codex") if args.stream_engine_output else None,
-        )
-        try:
-            output = output_path.read_text()
-        finally:
-            schema_path.unlink(missing_ok=True)
-            output_path.unlink(missing_ok=True)
-        return result, output
-
-    result, output = attempt(args.model)
-    fallback_model = getattr(args, "fallback_model", None)
-    if (
-        result.returncode != 0
-        and args.model
-        and fallback_model
-        and fallback_model != args.model
-        and codex_model_access_failure(result, args.model)
-    ):
-        print(
-            f"codex model {args.model} unavailable to this account; retrying with {fallback_model}",
-            file=sys.stderr,
-        )
-        result, output = attempt(fallback_model)
+    schema_path = write_json_temp(SCHEMA)
+    output_path = Path(tempfile.NamedTemporaryFile("w", suffix=".json", delete=False).name)
+    cmd = [args.codex_bin, "--ask-for-approval", "never"]
+    if args.web_search:
+        cmd.append("--search")
+    if args.model:
+        cmd.extend(["--model", args.model])
+    if args.thinking:
+        cmd.extend(["-c", f'model_reasoning_effort="{args.thinking}"'])
+    cmd.append("exec")
+    if is_jj_repo(repo) and not (repo / ".git").exists():
+        cmd.append("--skip-git-repo-check")
+    if args.stream_engine_output:
+        cmd.append("--json")
+    cmd.extend(
+        [
+            "--ephemeral",
+            "-C",
+            str(repo),
+            "-s",
+            "read-only",
+            "--output-schema",
+            str(schema_path),
+            "--output-last-message",
+            str(output_path),
+            "-",
+        ]
+    )
+    result = run_with_heartbeat(
+        cmd,
+        repo,
+        input_text=prompt,
+        label="codex",
+        stream_display=JsonlStreamDisplay("codex") if args.stream_engine_output else None,
+    )
+    try:
+        output = output_path.read_text()
+    finally:
+        schema_path.unlink(missing_ok=True)
+        output_path.unlink(missing_ok=True)
     if result.returncode != 0:
         raise SystemExit(f"codex engine failed ({result.returncode})\n{result.stderr or result.stdout}")
     return output or result.stdout
@@ -1747,8 +1712,11 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
             env_keyed_model = amp_id(env_model_by_engine.get(slot)) or (env_keyed_model if own else None)
             keyed_thinking = thinking_by_engine.get(slot) or (keyed_thinking if own else None)
             env_keyed_thinking = env_thinking_by_engine.get(slot) or (env_keyed_thinking if own else None)
+            # claude-code has no model/effort knob, so any Claude model or
+            # effort choice (keyed or bare) moves the slot to the generate path.
             if slot == "claude" and entry_model == AMP_CLAUDE_CODE_MODEL and (
                 keyed_model or env_keyed_model or keyed_thinking or env_keyed_thinking
+                or global_thinking or env_global_thinking
             ):
                 entry_model, entry_thinking = AMP_CLAUDE_FALLBACK_MODEL, DEFAULT_THINKING_BY_ENGINE["claude"]
         model = (
@@ -1773,10 +1741,6 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
         if (engine, model) in seen:
             raise SystemExit(f"reviewer specified more than once: {engine} model={model}")
         seen.add((engine, model))
-        if engine == "codex" and model == "gpt-5.6-sol":
-            fallback_model = DEFAULT_CODEX_ACCESS_FALLBACK_MODEL
-        else:
-            fallback_model = None
         if engine == "amp" and model == AMP_CLAUDE_CODE_MODEL:
             thinking = None  # Amp's claude-code mode has no effort knob.
         thinking_levels = THINKING_LEVELS_BY_ENGINE[engine]
@@ -1792,7 +1756,6 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
         clone.engine = engine
         clone.model = model
         clone.thinking = thinking
-        clone.fallback_model = fallback_model
         result.append(clone)
     return result
 
@@ -1801,8 +1764,6 @@ def reviewer_label(args: argparse.Namespace) -> str:
     parts = [args.engine]
     if args.model:
         parts.append(f"model={args.model}")
-    if getattr(args, "fallback_model", None):
-        parts.append(f"fallback={args.fallback_model}")
     if args.thinking:
         parts.append(f"thinking={args.thinking}")
     return " ".join(parts)

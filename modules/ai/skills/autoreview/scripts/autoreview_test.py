@@ -144,12 +144,11 @@ class AstraValidationTests(unittest.TestCase):
             args = AUTOREVIEW["parse_args"]()
             return AUTOREVIEW["reviewer_args"](args)[0]
 
-    def test_astra_defaults_to_high_without_fallback(self) -> None:
+    def test_astra_defaults_to_high(self) -> None:
         reviewer = self.reviewer("--model", "gpt-6-astra")
 
         self.assertEqual(reviewer.model, "gpt-6-astra")
         self.assertEqual(reviewer.thinking, "high")
-        self.assertIsNone(reviewer.fallback_model)
 
     def test_astra_accepts_supported_efforts(self) -> None:
         for effort in ("low", "medium", "high", "xhigh", "max"):
@@ -236,7 +235,6 @@ class EngineRoutingTests(unittest.TestCase):
             self.summary(reviewers),
             [("codex", "gpt-6.1-sol", "xhigh"), ("claude", "claude-opus-5-5", "high")],
         )
-        self.assertIsNone(reviewers[0].fallback_model)
 
     def test_orb_runs_both_default_reviewers_through_amp(self) -> None:
         for available in (("codex", "claude", "amp"), ()):
@@ -308,6 +306,14 @@ class EngineRoutingTests(unittest.TestCase):
             with self.assertRaisesRegex(SystemExit, "amp truncates claude-code input"):
                 run(reviewer, "x" * 150_001)
         heartbeat.assert_not_called()
+
+    def test_bare_thinking_moves_claude_code_slot_to_opus(self) -> None:
+        for arguments, env in ((("--thinking", "low"), {"AMP_ORB": "1"}), ((), {"AMP_ORB": "1", "AUTOREVIEW_THINKING": "low"})):
+            with self.subTest(arguments=arguments, env=env):
+                self.assertEqual(
+                    self.summary(self.reviewers(*arguments, env=env, claude_code=True)),
+                    [("amp", "openai/gpt-6.1-sol", "low"), ("amp", "anthropic/claude-opus-5-5", "low")],
+                )
 
     def test_amp_backed_slots_put_cli_above_env(self) -> None:
         self.assertEqual(
@@ -382,7 +388,7 @@ class EngineRoutingTests(unittest.TestCase):
                 with self.assertRaisesRegex(SystemExit, "bare --model/AUTOREVIEW_MODEL"):
                     self.reviewers(*arguments, env=env)
 
-    def test_explicit_sol_keeps_access_fallback_and_config_effort(self) -> None:
+    def test_explicit_older_codex_model_keeps_config_effort(self) -> None:
         for arguments, env in (
             (("--engine", "codex", "--model", "gpt-5.6-sol"), {}),
             ((), {"AUTOREVIEW_MODEL": "codex=gpt-5.6-sol"}),
@@ -391,7 +397,6 @@ class EngineRoutingTests(unittest.TestCase):
                 reviewer = self.reviewer(*arguments, env=env)
                 self.assertEqual(reviewer.model, "gpt-5.6-sol")
                 self.assertIsNone(reviewer.thinking)
-                self.assertEqual(reviewer.fallback_model, "gpt-5.6-terra")
 
     def test_codex_default_respects_effort_overrides(self) -> None:
         reviewer = self.reviewer(
