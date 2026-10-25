@@ -234,6 +234,7 @@ The helper:
 - should be left in `--mode auto` or forced to `--mode branch` for PR/branch work; do not force `--mode local` after committing
 - writes only to stdout unless `--output` or `--json-output` is set
 - reports only findings at or above `--max-priority` / `AUTOREVIEW_MAX_PRIORITY` (default `P2`; upstream defaults to `P0`); lower priorities are omitted from output and exit status
+- adds the repository's own rules to the prompt: the `AGENTS.md` (or, failing that, `CLAUDE.md`) in the repo root and in every directory down to each changed path (a moved file counts in both its old and new directory), read from the pre-change revision (a merge's first parent) so a patch can't rewrite them, following in-repo symlinks, capped at 60k characters (a file past the cap is excerpted or named for reviewers that can read files). Reviewers count a broken rule as a finding, which catches nested rules such as `apps/mobile/AGENTS.md` that a CLI started at the repo root never loads
 - supports `--dry-run` as a real preflight: builds the bundle, applies the same input validation as a live run, resolves each reviewer binary, and exits nonzero on a broken setup without invoking any engine
 - supports `--parallel-tests`, `--prompt`, `--prompt-file`, `--dataset`, `--no-tools`, `--no-web-search`, and commit refs
 - supports explicit review panels with `--panel` / `--reviewers`, plus per-engine `--model` and `--thinking` (also via `AUTOREVIEW_MODEL` / `AUTOREVIEW_THINKING`)
