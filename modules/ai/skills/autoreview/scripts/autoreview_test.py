@@ -292,7 +292,7 @@ class EngineRoutingTests(unittest.TestCase):
         self.assertEqual(settings["amp.tools.enable"], ["read_web_page", "web_search"])
         for arguments in (("--no-web-search",), ("--no-tools",)):
             with self.subTest(arguments=arguments):
-                self.assertEqual(self.claude_code_settings(*arguments)[1]["amp.tools.enable"], [])
+                self.assertEqual(self.claude_code_settings(*arguments)[1]["amp.tools.enable"], ["autoreview-no-tools"])
 
     def test_amp_backed_slots_honor_logical_keys(self) -> None:
         self.assertEqual(

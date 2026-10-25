@@ -60,6 +60,7 @@ AMP_CLAUDE_FALLBACK_MODEL = "anthropic/claude-opus-5-5"
 # Amp tools left to the claude-code reviewer; shell, edit, thread and
 # settings tools stay off because the patch under review is untrusted.
 AMP_CLAUDE_CODE_WEB_TOOLS = ("read_web_page", "web_search")
+AMP_NO_TOOLS_SENTINEL = "autoreview-no-tools"
 # grok's built-in tool names; review stays read-only.
 GROK_READ_TOOLS = ("read_file", "grep", "list_dir")
 GROK_WEB_TOOLS = ("web_search", "web_fetch")
@@ -979,7 +980,9 @@ def amp_settings(path: Path, enabled_tools: list[str] | None = None) -> None:
     }
     if enabled_tools is not None:
         # Allowlist of Amp tool names; claude-code mode runs on Amp's tools.
-        settings["amp.tools.enable"] = enabled_tools
+        # Amp treats an empty list as unset (all tools), so "none" needs a
+        # name that matches no tool.
+        settings["amp.tools.enable"] = enabled_tools or [AMP_NO_TOOLS_SENTINEL]
     path.write_text(json.dumps(settings, separators=(",", ":")))
 
 
