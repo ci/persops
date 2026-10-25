@@ -176,6 +176,12 @@ in
     user.services = {
       codex-remote-control = {
         description = "Codex remote control bridge";
+        # Only the login user has the home dirs the log paths need; other user
+        # managers (lightdm) crash-loop on them.
+        unitConfig.ConditionUser = user;
+        # Restart in one queued job: a separate stop phase kills a deploy run
+        # from this bridge before the start phase, leaving the bridge down.
+        stopIfChanged = false;
         wantedBy = [ "default.target" ];
         wants = [ "network-online.target" ];
         after = [ "network-online.target" ];
@@ -198,6 +204,9 @@ in
 
       claude-remote-control = {
         description = "Claude remote control bridge";
+        # See codex-remote-control.
+        unitConfig.ConditionUser = user;
+        stopIfChanged = false;
         wantedBy = [ "default.target" ];
         wants = [ "network-online.target" ];
         after = [ "network-online.target" ];

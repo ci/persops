@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Activation restarts the remote-control bridges, which may host this
+# controller. Run it as a transient system unit so it finishes even if the
+# caller is killed; the journal keeps the log.
+flake="${1:?missing flake}"
+out_dir="$(mktemp -d)"
+trap 'rm -rf "$out_dir"' EXIT
+
+nh os build --out-link "${out_dir}/result" "${flake}#amalthea"
+system="$(readlink -f "${out_dir}/result")"
+unit="persops-deploy-amalthea-$(date +%Y%m%d%H%M%S)"
+
+echo "Activating ${system} in ${unit}."
+echo "Log: journalctl -u ${unit}"
+status=0
+sudo systemd-run \
+	--unit "$unit" \
+	--description "persops Amalthea activation" \
+	--property Type=oneshot \
+	--collect \
+	--wait \
+	--quiet \
+	-- /bin/sh -c '"$1/sw/bin/nix-env" -p /nix/var/nix/profiles/system --set "$1" && exec "$1/bin/switch-to-configuration" switch' sh "$system" ||
+	status=$?
+sudo journalctl -u "$unit" -o cat --no-pager
+exit "$status"

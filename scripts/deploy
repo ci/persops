@@ -135,7 +135,7 @@ make -C "$repo_root" \
 # restart the Amp runner or alter connectivity needed to finish remote work.
 if [ "$deploy_amalthea" -eq 1 ]; then
 	if [ "$controller" = "amalthea" ]; then
-		nh os switch "${flake}#amalthea"
+		"$repo_root/scripts/deploy-amalthea" "$flake"
 		"$repo_root/scripts/remote-verify"
 	else
 		"$repo_root/scripts/remote-preflight" "$remote_user" "$remote_host" "$remote_port"
