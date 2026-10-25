@@ -226,6 +226,17 @@ class RepositoryRulesTests(unittest.TestCase):
                 _, files = self.rules(target)
                 self.assertEqual(files, ["AGENTS.md", "apps/mobile/AGENTS.md", "apps/web/AGENTS.md"])
 
+    def test_changes_across_thousands_of_directories_batch_the_lookup(self) -> None:
+        for index in range(1200):
+            (self.repo / f"gen/d{index:04}").mkdir(parents=True)
+            (self.repo / f"gen/d{index:04}/f.txt").write_text("x\n")
+        (self.repo / "gen/d0007/AGENTS.md").write_text("Generated rule.\n")
+        self.commit("generated")
+        for index in range(1200):
+            (self.repo / f"gen/d{index:04}/f.txt").write_text("y\n")
+        _, files = self.rules()
+        self.assertEqual(files, ["AGENTS.md", "gen/d0007/AGENTS.md"])
+
     def test_symlinked_rule_files_inline_their_target(self) -> None:
         (self.repo / "apps/mobile/AGENTS.md").unlink()
         (self.repo / "docs").mkdir()

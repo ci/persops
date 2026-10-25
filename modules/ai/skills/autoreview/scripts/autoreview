@@ -750,12 +750,14 @@ def repo_rules(repo: Path, rev: str | None, head: str | None) -> tuple[str, list
     modes: dict[str, str] = {}
 
     def list_modes(paths: list[str]) -> None:
-        # Only the candidate paths: listing the whole tree is slow on big repos.
-        out = git_bytes(repo, *git_dir, "ls-tree", "-z", rev, "--", *paths)
-        for entry in out.split(b"\0"):
-            meta, _, path = entry.partition(b"\t")
-            if path:
-                modes[path.decode("utf-8", "surrogateescape")] = meta.split(b" ", 1)[0].decode()
+        # Only the candidate paths: listing the whole tree is slow on big repos. Batched so a
+        # change touching thousands of directories stays under ARG_MAX.
+        for start in range(0, len(paths), 500):
+            out = git_bytes(repo, *git_dir, "ls-tree", "-z", rev, "--", *paths[start : start + 500])
+            for entry in out.split(b"\0"):
+                meta, _, path = entry.partition(b"\t")
+                if path:
+                    modes[path.decode("utf-8", "surrogateescape")] = meta.split(b" ", 1)[0].decode()
 
     def read(rel: str) -> str:
         # Follow tracked in-repo symlinks (CLAUDE.md -> AGENTS.md style) to their contents.
