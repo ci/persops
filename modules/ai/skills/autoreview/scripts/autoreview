@@ -15,7 +15,7 @@ import textwrap
 import threading
 import time
 import uuid
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 from urllib.parse import urlparse
 
@@ -44,6 +44,9 @@ DEFAULT_THINKING_BY_ENGINE = {
     "amp": "xhigh",
 }
 PRIORITIES = ("P0", "P1", "P2", "P3")
+# Per-directory agent instructions; AGENTS.md wins when a directory has both.
+RULE_FILE_NAMES = ("AGENTS.md", "CLAUDE.md")
+RULES_MAX_CHARS = 60_000
 
 AMP_OUTER_TRIGGER = "Run the isolated autoreview adapter."
 AMP_ADAPTER_TOOL = "autoreview_generate"
@@ -665,6 +668,76 @@ def review_paths(repo: Path, target: str, target_ref: str | None, head_ref: str,
     return names
 
 
+def rules_base(repo: Path, target: str, target_ref: str | None, head_ref: str, commit_ref: str) -> str | None:
+    # Rules come from the pre-change revision, so a patch can't rewrite the rules it is judged by.
+    if is_jj_repo(repo):
+        if target == "local":
+            return "@-"
+        if target == "branch":
+            assert target_ref
+            return jj_branch_base(target_ref, head_ref)
+        return f"({commit_ref})-"
+    if target == "local":
+        return "HEAD"
+    if target == "branch":
+        assert target_ref
+        return git(repo, "merge-base", target_ref, head_ref, check=False).strip() or None
+    return git(repo, "rev-parse", "--verify", "--quiet", f"{commit_ref}^", check=False).strip() or None
+
+
+def rule_file_paths(changed_paths: set[str], tracked: set[str]) -> list[str]:
+    dirs: set[PurePosixPath] = set()
+    for path in changed_paths:
+        parent = PurePosixPath(path).parent
+        dirs.add(parent)
+        dirs.update(parent.parents)
+    found: list[str] = []
+    for directory in sorted(dirs, key=lambda d: (len(d.parts), str(d))):
+        for name in RULE_FILE_NAMES:
+            candidate = (directory / name).as_posix()
+            if candidate in tracked:
+                found.append(candidate)
+                break
+    return found
+
+
+def repo_rules(repo: Path, rev: str | None, changed_paths: set[str]) -> tuple[str, list[str]]:
+    if not rev:
+        return "", []
+    jj_repo = is_jj_repo(repo)
+    if jj_repo:
+        tracked = set(jj(repo, "file", "list", "-r", rev, check=False).splitlines())
+    else:
+        tracked = set(git(repo, "ls-tree", "-r", "--name-only", rev, check=False).splitlines())
+    chunks: list[str] = []
+    included: list[str] = []
+    skipped: list[str] = []
+    budget = RULES_MAX_CHARS
+    for rel in rule_file_paths(changed_paths, tracked):
+        if jj_repo:
+            text = jj(repo, "file", "show", "-r", rev, rel, check=False).strip()
+        else:
+            text = git(repo, "show", f"{rev}:{rel}", check=False).strip()
+        if not text:
+            continue
+        if len(text) > budget:
+            skipped.append(rel)
+            continue
+        budget -= len(text)
+        included.append(rel)
+        chunks.append(f"## {rel}\n{text}")
+    if skipped:
+        chunks.append("Too large to include here; read them from the repository before reviewing: " + ", ".join(skipped))
+    if not chunks:
+        return "", []
+    header = (
+        "# Repository Rules\n"
+        "These instruction files govern the changed paths, read from the revision before the change. "
+        "A file in a deeper directory adds to or overrides the ones above it."
+    )
+    return "\n\n".join([header, *chunks]), included + skipped
+
+
 def load_extra_prompt(args: argparse.Namespace) -> str:
     chunks: list[str] = []
     for value in args.prompt or []:
@@ -684,7 +757,9 @@ def load_datasets(args: argparse.Namespace) -> str:
     return "\n\n".join(chunks)
 
 
-def build_prompt(repo: Path, target: str, target_ref: str | None, bundle: str, extra_prompt: str, datasets: str) -> str:
+def build_prompt(
+    repo: Path, target: str, target_ref: str | None, bundle: str, extra_prompt: str, datasets: str, rules: str = ""
+) -> str:
     target_line = f"{target} {target_ref}" if target_ref else target
     return textwrap.dedent(
         f"""
@@ -700,6 +775,7 @@ def build_prompt(repo: Path, target: str, target_ref: str | None, bundle: str, e
         - You may use read-only tools and web search to inspect files, dependency contracts, upstream docs, current behavior, and security implications.
         - Shell commands, if available, must be read-only inspection commands. Do not run tests, formatters, package installs, generators, network mutation commands, VCS mutation commands, or commands that write files.
         - Report only actionable defects introduced or exposed by this change.
+        - A change that breaks a rule in the Repository Rules section is an actionable defect, even when the code works: report it at the priority its consequence warrants and quote the rule's file.
         - Prefer high-signal findings over style feedback.
         - Include security findings: injection, secret leaks, authz/authn bypass, path traversal, unsafe deserialization, unsafe filesystem or shell use, privacy leaks, and credential handling.
         - Do not reject legitimate functionality merely because it touches shell, filesystem, network, auth, or sensitive data. Report a security finding only when the patch creates a concrete exploitable risk, removes an important safety check, or lacks validation at a trust boundary.
@@ -713,6 +789,8 @@ def build_prompt(repo: Path, target: str, target_ref: str | None, bundle: str, e
         {extra_prompt}
 
         {datasets}
+
+        {rules}
 
         # Change Bundle
         {bundle}
@@ -1910,14 +1988,17 @@ def main() -> int:
         )
     else:
         bundle = commit_bundle(repo, commit_ref)
-    extra_prompt = priority_threshold_prompt(args.max_priority, load_extra_prompt(args))
-    prompt = build_prompt(repo, target, display_ref, bundle, extra_prompt, load_datasets(args))
     changed_paths = review_paths(repo, target, target_ref, head_ref, commit_ref)
-    print(f"bundle: {len(prompt)} chars")
-    print(f"changed_paths: {len(changed_paths)}")
     if not changed_paths:
+        print("changed_paths: 0")
         print("empty diff: nothing to review")
         return 0
+    extra_prompt = priority_threshold_prompt(args.max_priority, load_extra_prompt(args))
+    rules, rule_files = repo_rules(repo, rules_base(repo, target, target_ref, head_ref, commit_ref), changed_paths)
+    prompt = build_prompt(repo, target, display_ref, bundle, extra_prompt, load_datasets(args), rules)
+    print(f"bundle: {len(prompt)} chars")
+    print(f"changed_paths: {len(changed_paths)}")
+    print(f"rules: {', '.join(rule_files) or 'none'}")
     validate_engine_options(args, reviewers)
     if args.dry_run:
         return dry_run_preflight(reviewers)
