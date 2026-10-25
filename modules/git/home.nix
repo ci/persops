@@ -20,6 +20,21 @@ let
       key = "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBADjNY1+2tfqHBzFnGEm+d7PtpyvPTRFsZ7DaxnRlX0qGLgm75ZsKLD1E3rKolKJRUPjyyym6sai02e3wgZmU9U= ergane-sign@secretive.ergane.local";
     };
   };
+  # Linux hosts have no Secretive: they sign with a passphrase-less key file made on the host
+  # (`ssh-keygen -t ed25519 -N "" -f ~/.ssh/git-signing`), so unattended landings can sign.
+  localSigningConfigs = {
+    amalthea = {
+      identities = "catalin.irimie@gmail.com,6650666+ci@users.noreply.github.com,ci@users.noreply.github.com";
+      key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE8XlM292Bad9V0tZ8mK7GaYdC157JXxOfGFegkiNEO2 git-signing@amalthea";
+    };
+  };
+  localSigningConfig =
+    if currentSystemName != null && builtins.hasAttr currentSystemName localSigningConfigs then
+      builtins.getAttr currentSystemName localSigningConfigs
+    else
+      null;
+  useLocalSigning = !isDarwin && localSigningConfig != null;
+  localSigningKeyPath = "/home/${currentSystemUser}/.ssh/git-signing";
   secretiveSigningConfig =
     if currentSystemName != null && builtins.hasAttr currentSystemName secretiveSigningConfigs then
       builtins.getAttr currentSystemName secretiveSigningConfigs
@@ -62,29 +77,51 @@ in
       ''
       + lib.optionalString useSecretiveSigning ''
         ${secretiveSigningConfig.identities} namespaces="git" ${secretiveSigningConfig.key}
+      ''
+      + lib.optionalString useLocalSigning ''
+        ${localSigningConfig.identities} namespaces="git" ${localSigningConfig.key}
       '';
       force = true;
     };
 
     "git/ssh-signing.inc" = {
-      text = lib.optionalString isDarwin (
-        if useSecretiveSigning then
-          ''
-            [user]
-                signingkey = ${secretivePublicKeyPath}
+      text =
+        lib.optionalString useLocalSigning ''
+          [user]
+              signingkey = ${localSigningKeyPath}
+        ''
+        + lib.optionalString isDarwin (
+          if useSecretiveSigning then
+            ''
+              [user]
+                  signingkey = ${secretivePublicKeyPath}
 
-            [gpg "ssh"]
-                program = /Users/${currentSystemUser}/.local/bin/git-ssh-sign-secretive
-          ''
-        else
-          ''
-            [gpg "ssh"]
-                program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
-          ''
-      );
+              [gpg "ssh"]
+                  program = /Users/${currentSystemUser}/.local/bin/git-ssh-sign-secretive
+            ''
+          else
+            ''
+              [gpg "ssh"]
+                  program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
+            ''
+        );
       force = true;
     };
 
+  }
+  // lib.optionalAttrs useLocalSigning {
+    "jj/conf.d/${currentSystemName}-signing.toml" = {
+      text = ''
+        [signing]
+        behavior = "own"
+        backend = "ssh"
+        key = "${localSigningKeyPath}"
+
+        [signing.backends.ssh]
+        allowed-signers = "/home/${currentSystemUser}/.config/git/allowed_signers"
+      '';
+      force = true;
+    };
   }
   // lib.optionalAttrs useSecretiveSigning {
     "jj/conf.d/${currentSystemName}-signing.toml" = {
