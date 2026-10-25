@@ -237,6 +237,13 @@ class RepositoryRulesTests(unittest.TestCase):
         _, files = self.rules()
         self.assertEqual(files, ["AGENTS.md", "gen/d0007/AGENTS.md"])
 
+    def test_staged_edit_undone_in_the_working_tree_keeps_its_rules(self) -> None:
+        (self.repo / "apps/mobile/screen.tsx").write_text("export const a = 2;\n")
+        self.git("add", "apps/mobile/screen.tsx")
+        (self.repo / "apps/mobile/screen.tsx").write_text("export const a = 1;\n")
+        _, files = self.rules()
+        self.assertEqual(files, ["AGENTS.md", "apps/mobile/AGENTS.md"])
+
     def test_symlinked_rule_files_inline_their_target(self) -> None:
         (self.repo / "apps/mobile/AGENTS.md").unlink()
         (self.repo / "docs").mkdir()

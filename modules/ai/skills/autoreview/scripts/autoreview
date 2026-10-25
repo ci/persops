@@ -742,9 +742,16 @@ def repo_rules(repo: Path, rev: str | None, head: str | None) -> tuple[str, list
 
     # Own NUL-delimited listing: review_paths() output is C-quoted, and --no-renames keeps a
     # moved file's source directory, whose rules govern the removal.
-    changed_paths = names("diff", "--name-only", "-z", "--no-renames", rev, *([head] if head else []))
-    if not head:
-        changed_paths |= names("ls-files", "-z", "--others", "--exclude-standard")
+    if head:
+        changed_paths = names("diff", "--name-only", "-z", "--no-renames", rev, head)
+    else:
+        # Staged and unstaged separately, like local_bundle(): an edit staged and then undone in
+        # the working tree is still part of the review.
+        changed_paths = (
+            names("diff", "--cached", "--name-only", "-z", "--no-renames", rev)
+            | names("diff", "--name-only", "-z", "--no-renames")
+            | names("ls-files", "-z", "--others", "--exclude-standard")
+        )
     if not changed_paths:
         return "", []
     modes: dict[str, str] = {}
