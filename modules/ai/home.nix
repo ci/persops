@@ -49,11 +49,6 @@ let
       ".agents/skills"
       ".pi/agent/skills"
     ];
-    coding = [
-      ".claude/skills"
-      ".agents/skills"
-      ".pi/agent/skills"
-    ];
     codex = [
       ".agents/skills"
     ];

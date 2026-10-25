@@ -1,9 +1,0 @@
-source = herdrdev/herdr
-source_type = github
-profile = all
-installed_at = 2026-06-19T19:34:13Z
-updated_at = 2026-09-30T23:17:54Z
-requested_source = https://github.com/herdrdev/herdr/tree/v0.9.3/skills/herdr
-via = manual vendor of skills/herdr/SKILL.md at the flake-pinned herdr v0.9.3 commit; identical to `herdr --skill`
-upstream_commit = 7b116c05bfda646af39d2524c54e70c751f57ee8
-sha256 = b16ba0d9a22adbaf259d2022cd323801f8e51d530c94cb0cd23a69069292506b

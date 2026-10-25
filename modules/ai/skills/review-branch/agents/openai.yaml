@@ -1,4 +1,0 @@
-interface:
-  display_name: "Review Branch"
-  short_description: "Read-only branch and PR review in isolation"
-  default_prompt: "Use $review-branch to review this branch from origin in an isolated workspace, read its PR context, triage comments, and report without changing the branch."
