@@ -56,7 +56,10 @@ claude.ai and cloud sessions as plugins.
 1. `python3 -m json.tool .claude-plugin/marketplace.json >/dev/null` and check
    every marketplace path exists.
 2. `make check`.
-3. `make deploy TARGETS="aglaea amalthea"` (never ergane unless asked).
+3. Deploy to the personal hosts the controller can reach: from aglaea
+   `make deploy TARGETS="aglaea amalthea"`; from amalthea
+   `make deploy TARGETS=amalthea`, then aglaea switches on its own. Never
+   ergane unless asked.
 4. Check the links on each host: `~/.claude/skills/<name>`,
    `~/.agents/skills/<name>`, `~/.pi/agent/skills/<name>` (only the dirs its
    profile includes; a removed skill should be gone from all three).

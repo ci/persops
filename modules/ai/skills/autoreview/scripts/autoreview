@@ -61,6 +61,9 @@ AMP_CLAUDE_FALLBACK_MODEL = "anthropic/claude-opus-5-5"
 # settings tools stay off because the patch under review is untrusted.
 AMP_CLAUDE_CODE_WEB_TOOLS = ("read_web_page", "web_search")
 AMP_NO_TOOLS_SENTINEL = "autoreview-no-tools"
+# Amp truncates inline messages past ~150k chars; larger bundles take the
+# file-based generate path instead of reaching claude-code partially.
+AMP_CLAUDE_CODE_MAX_PROMPT_CHARS = 140_000
 # grok's built-in tool names; review stays read-only.
 GROK_READ_TOOLS = ("read_file", "grep", "list_dir")
 GROK_WEB_TOOLS = ("web_search", "web_fetch")
@@ -988,6 +991,8 @@ def amp_settings(path: Path, enabled_tools: list[str] | None = None) -> None:
 
 def run_amp_claude_code(args: argparse.Namespace, prompt: str) -> str:
     """Review the bundle alone with `amp --mode claude-code` from an empty dir."""
+    if len(prompt) > AMP_CLAUDE_CODE_MAX_PROMPT_CHARS:
+        raise SystemExit(f"bundle is {len(prompt)} chars; amp truncates claude-code input past {AMP_CLAUDE_CODE_MAX_PROMPT_CHARS}")
     with tempfile.TemporaryDirectory(prefix="autoreview-amp-cc.") as runtime_dir:
         runtime_root = Path(runtime_dir)
         review_root = runtime_root / "empty"
@@ -1024,8 +1029,7 @@ def run_amp_claude_code(args: argparse.Namespace, prompt: str) -> str:
         raise SystemExit(f"amp claude-code failed ({result.returncode})\n{result.stderr or result.stdout}")
     if len(result.stdout) > AMP_MAX_OUTPUT_CHARS:
         raise SystemExit("amp engine result exceeds the output limit")
-    extract_json(result.stdout)
-    return result.stdout
+    return json.dumps(extract_json(result.stdout))
 
 
 def run_amp(args: argparse.Namespace, repo: Path, prompt: str) -> str:
@@ -1731,18 +1735,22 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
         env_keyed_thinking = env_thinking_by_engine.get(engine)
         if engine == "amp" and slot:
             # An amp-backed default slot honors its logical codex=/claude= keys
-            # (mapped to amp's provider/model ids); amp= keys target only the
-            # GPT slot so the two amp reviewers stay distinct.
-            slot_model = model_by_engine.get(slot) or env_model_by_engine.get(slot)
-            slot_thinking = thinking_by_engine.get(slot) or env_thinking_by_engine.get(slot)
-            if slot == "claude":
-                keyed_model = env_keyed_model = keyed_thinking = env_keyed_thinking = None
-                if (slot_model or slot_thinking) and entry_model == AMP_CLAUDE_CODE_MODEL:
-                    entry_model, entry_thinking = AMP_CLAUDE_FALLBACK_MODEL, DEFAULT_THINKING_BY_ENGINE["claude"]
-            if slot_model:
-                provider = "openai" if slot == "codex" else "anthropic"
-                inline_model = slot_model if "/" in slot_model else f"{provider}/{slot_model}"
-            inline_thinking = slot_thinking
+            # (mapped to amp's provider/model ids) ahead of amp= keys, CLI above
+            # env; amp= keys target only the GPT slot so the two stay distinct.
+            provider = "openai" if slot == "codex" else "anthropic"
+
+            def amp_id(value: str | None) -> str | None:
+                return value if not value or "/" in value else f"{provider}/{value}"
+
+            own = slot == "codex"
+            keyed_model = amp_id(model_by_engine.get(slot)) or (keyed_model if own else None)
+            env_keyed_model = amp_id(env_model_by_engine.get(slot)) or (env_keyed_model if own else None)
+            keyed_thinking = thinking_by_engine.get(slot) or (keyed_thinking if own else None)
+            env_keyed_thinking = env_thinking_by_engine.get(slot) or (env_keyed_thinking if own else None)
+            if slot == "claude" and entry_model == AMP_CLAUDE_CODE_MODEL and (
+                keyed_model or env_keyed_model or keyed_thinking or env_keyed_thinking
+            ):
+                entry_model, entry_thinking = AMP_CLAUDE_FALLBACK_MODEL, DEFAULT_THINKING_BY_ENGINE["claude"]
         model = (
             inline_model
             or keyed_model

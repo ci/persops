@@ -198,6 +198,14 @@ class AstraValidationTests(unittest.TestCase):
                 self.assertEqual(self.reviewer("--model", "gpt-5.6-sol", "--thinking", effort).thinking, effort)
 
 
+CLEAN_REPORT = {
+    "findings": [],
+    "overall_correctness": "patch is correct",
+    "overall_explanation": "Synthetic clean report.",
+    "overall_confidence": 0.9,
+}
+
+
 class EngineRoutingTests(unittest.TestCase):
     def reviewers(
         self,
@@ -280,11 +288,41 @@ class EngineRoutingTests(unittest.TestCase):
             captured["cmd"] = cmd
             settings_file = cmd[cmd.index("--settings-file") + 1]
             captured["settings"] = json.loads(Path(settings_file).read_text())
-            return subprocess.CompletedProcess(cmd, 0, stdout='{"result": "{\\"findings\\": []}"}', stderr="")
+            events = [
+                {"type": "system", "subtype": "init", "agent_mode": "external-agent:claude-code"},
+                {"type": "assistant", "message": {"role": "assistant", "content": [{"type": "text", "text": "Reviewing."}]}},
+                {"type": "result", "subtype": "success", "result": json.dumps(CLEAN_REPORT)},
+            ]
+            return subprocess.CompletedProcess(cmd, 0, stdout="\n".join(map(json.dumps, events)) + "\n", stderr="")
 
         with mock.patch.dict(run.__globals__, {"run_with_heartbeat": heartbeat}):
-            run(reviewer, "review fixture")
+            output = run(reviewer, "review fixture")
+        self.assertEqual(json.loads(output), CLEAN_REPORT)
         return captured["cmd"], captured["settings"]
+
+    def test_claude_code_rejects_bundles_amp_would_truncate(self) -> None:
+        reviewer = self.reviewers("--reviewers", "amp:claude-code")[0]
+        run = AUTOREVIEW["run_amp_claude_code"]
+        heartbeat = mock.Mock()
+        with mock.patch.dict(run.__globals__, {"run_with_heartbeat": heartbeat}):
+            with self.assertRaisesRegex(SystemExit, "amp truncates claude-code input"):
+                run(reviewer, "x" * 150_001)
+        heartbeat.assert_not_called()
+
+    def test_amp_backed_slots_put_cli_above_env(self) -> None:
+        self.assertEqual(
+            self.summary(
+                self.reviewers(
+                    "--thinking", "amp=low", "--model", "amp=openai/gpt-5.6-sol",
+                    env={"AMP_ORB": "1", "AUTOREVIEW_THINKING": "codex=xhigh", "AUTOREVIEW_MODEL": "codex=gpt-6-astra"},
+                )
+            )[0],
+            ("amp", "openai/gpt-5.6-sol", "low"),
+        )
+        self.assertEqual(
+            self.summary(self.reviewers("--thinking", "high", env={"AMP_ORB": "1", "AUTOREVIEW_THINKING": "codex=low"}))[0],
+            ("amp", "openai/gpt-6.1-sol", "high"),
+        )
 
     def test_claude_code_reviewer_only_gets_web_tools(self) -> None:
         cmd, settings = self.claude_code_settings()
