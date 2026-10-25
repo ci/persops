@@ -199,30 +199,104 @@ class AstraValidationTests(unittest.TestCase):
 
 
 class EngineRoutingTests(unittest.TestCase):
-    def reviewer(self, *arguments: str, env: dict[str, str] | None = None):
+    def reviewers(
+        self,
+        *arguments: str,
+        env: dict[str, str] | None = None,
+        available: tuple[str, ...] = ("codex", "claude", "amp"),
+        claude_code: bool = False,
+    ):
+        engine_available = lambda _args, engine: engine in available
         with mock.patch.dict(os.environ, env or {}, clear=True), mock.patch.object(
             sys, "argv", ["autoreview", *arguments]
+        ), mock.patch.dict(
+            AUTOREVIEW["default_reviewers"].__globals__,
+            {"engine_available": engine_available, "amp_supports_claude_code": lambda _args: claude_code},
         ):
             args = AUTOREVIEW["parse_args"]()
-            return AUTOREVIEW["reviewer_args"](args)[0]
+            return AUTOREVIEW["reviewer_args"](args)
 
-    def test_orb_selects_amp_sol_6_1_xhigh(self) -> None:
-        reviewer = self.reviewer(env={"AMP_ORB": "1"})
-        self.assertEqual(reviewer.engine, "amp")
-        self.assertEqual(reviewer.model, "openai/gpt-6.1-sol")
-        self.assertEqual(reviewer.thinking, "xhigh")
-        self.assertIsNone(reviewer.fallback_model)
+    def reviewer(self, *arguments: str, env: dict[str, str] | None = None):
+        return self.reviewers(*arguments, env=env)[0]
 
-    def test_outside_orb_selects_codex_sol_6_1_xhigh_without_fallback(self) -> None:
-        reviewer = self.reviewer()
-        self.assertEqual(reviewer.engine, "codex")
-        self.assertEqual(reviewer.model, "gpt-6.1-sol")
-        self.assertEqual(reviewer.thinking, "xhigh")
-        self.assertIsNone(reviewer.fallback_model)
+    def summary(self, reviewers) -> list[tuple[str, str | None, str | None]]:
+        return [(reviewer.engine, reviewer.model, reviewer.thinking) for reviewer in reviewers]
+
+    def test_default_panel_is_codex_sol_and_claude_opus(self) -> None:
+        reviewers = self.reviewers()
+        self.assertEqual(
+            self.summary(reviewers),
+            [("codex", "gpt-6.1-sol", "xhigh"), ("claude", "claude-opus-5-5", "high")],
+        )
+        self.assertIsNone(reviewers[0].fallback_model)
+
+    def test_orb_runs_both_default_reviewers_through_amp(self) -> None:
+        for available in (("codex", "claude", "amp"), ()):
+            with self.subTest(available=available):
+                self.assertEqual(
+                    self.summary(self.reviewers(env={"AMP_ORB": "1"}, available=available)),
+                    [("amp", "openai/gpt-6.1-sol", "xhigh"), ("amp", "anthropic/claude-opus-5-5", "high")],
+                )
+
+    def test_amp_claude_slot_prefers_claude_code_mode(self) -> None:
+        self.assertEqual(
+            self.summary(self.reviewers(env={"AMP_ORB": "1"}, claude_code=True)),
+            [("amp", "openai/gpt-6.1-sol", "xhigh"), ("amp", "claude-code", None)],
+        )
+        self.assertEqual(
+            self.summary(self.reviewers(available=("codex", "amp"), claude_code=True)),
+            [("codex", "gpt-6.1-sol", "xhigh"), ("amp", "claude-code", None)],
+        )
+
+    def test_claude_code_failure_falls_back_to_amp_opus(self) -> None:
+        reviewer = self.reviewers("--reviewers", "amp:claude-code")[0]
+        run = AUTOREVIEW["run_amp"]
+        failing = mock.Mock(side_effect=SystemExit("amp claude-code failed (1)"))
+        with mock.patch.dict(run.__globals__, {"run_amp_claude_code": failing}), mock.patch(
+            "tempfile.TemporaryDirectory", side_effect=RuntimeError("generate path")
+        ), mock.patch("sys.stderr"):
+            with self.assertRaisesRegex(RuntimeError, "generate path"):
+                run(reviewer, Path.cwd(), "review fixture")
+        failing.assert_called_once()
+
+    def test_missing_native_cli_falls_back_to_amp(self) -> None:
+        self.assertEqual(
+            self.summary(self.reviewers(available=("claude", "amp"))),
+            [("amp", "openai/gpt-6.1-sol", "xhigh"), ("claude", "claude-opus-5-5", "high")],
+        )
+        self.assertEqual(
+            self.summary(self.reviewers(available=("codex", "amp"))),
+            [("codex", "gpt-6.1-sol", "xhigh"), ("amp", "anthropic/claude-opus-5-5", "high")],
+        )
+
+    def test_missing_cli_without_amp_is_skipped(self) -> None:
+        self.assertEqual(
+            self.summary(self.reviewers(available=("claude",))),
+            [("claude", "claude-opus-5-5", "high")],
+        )
+        with self.assertRaisesRegex(SystemExit, "no default reviewer available"):
+            self.reviewers(available=())
+
+    def test_default_panel_honors_keyed_overrides(self) -> None:
+        self.assertEqual(
+            self.summary(
+                self.reviewers(
+                    "--model", "codex=gpt-6-astra", "--thinking", "claude=max",
+                    env={"AUTOREVIEW_THINKING": "codex=low"},
+                )
+            ),
+            [("codex", "gpt-6-astra", "low"), ("claude", "claude-opus-5-5", "max")],
+        )
+
+    def test_default_panel_rejects_bare_model(self) -> None:
+        for arguments, env in ((("--model", "gpt-5.6-sol"), {}), ((), {"AUTOREVIEW_MODEL": "gpt-5.6-sol"})):
+            with self.subTest(arguments=arguments, env=env):
+                with self.assertRaisesRegex(SystemExit, "bare --model/AUTOREVIEW_MODEL"):
+                    self.reviewers(*arguments, env=env)
 
     def test_explicit_sol_keeps_access_fallback_and_config_effort(self) -> None:
         for arguments, env in (
-            (("--model", "gpt-5.6-sol"), {}),
+            (("--engine", "codex", "--model", "gpt-5.6-sol"), {}),
             ((), {"AUTOREVIEW_MODEL": "codex=gpt-5.6-sol"}),
         ):
             with self.subTest(arguments=arguments, env=env):
@@ -287,16 +361,16 @@ class EngineRoutingTests(unittest.TestCase):
         self.assertEqual(reviewer.engine, "codex")
 
     def test_environment_engine_wins_over_orb(self) -> None:
-        reviewer = self.reviewer(env={"AMP_ORB": "1", "AUTOREVIEW_ENGINE": "codex"})
-        self.assertEqual(reviewer.engine, "codex")
+        reviewers = self.reviewers(env={"AMP_ORB": "1", "AUTOREVIEW_ENGINE": "codex"})
+        self.assertEqual(self.summary(reviewers), [("codex", "gpt-6.1-sol", "xhigh")])
 
     def test_explicit_model_and_effort_win_over_orb_defaults(self) -> None:
         reviewer = self.reviewer(
-            "--model", "amp=openai/gpt-5.6-sol", "--thinking", "amp=xhigh",
+            "--engine", "amp", "--model", "amp=openai/gpt-5.6-sol", "--thinking", "amp=high",
             env={"AMP_ORB": "1"},
         )
         self.assertEqual(reviewer.model, "openai/gpt-5.6-sol")
-        self.assertEqual(reviewer.thinking, "xhigh")
+        self.assertEqual(reviewer.thinking, "high")
 
 
 if __name__ == "__main__":

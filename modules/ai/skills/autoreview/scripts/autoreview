@@ -53,6 +53,10 @@ AMP_ADAPTER_MODE = "autoreview"
 AMP_ADAPTER_AGENT = "autoreview-adapter"
 AMP_OUTER_MODEL = "openai/gpt-5.6-luna"
 AMP_MAX_OUTPUT_CHARS = 2_000_000
+# `amp --mode claude-code` runs Claude Code on the user's Claude subscription.
+# Selected as the amp "model"; Amp picks the Claude model and effort itself.
+AMP_CLAUDE_CODE_MODEL = "claude-code"
+AMP_CLAUDE_FALLBACK_MODEL = "anthropic/claude-opus-5-5"
 # grok's built-in tool names; review stays read-only.
 GROK_READ_TOOLS = ("read_file", "grep", "list_dir")
 GROK_WEB_TOOLS = ("web_search", "web_fetch")
@@ -962,7 +966,74 @@ def amp_review_plugin_source(
     ).lstrip()
 
 
+def amp_settings(path: Path) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "amp.updates.mode": "disabled",
+                "amp.mcpPermissions": [
+                    {"matches": {"command": "*"}, "action": "reject"},
+                    {"matches": {"url": "*"}, "action": "reject"},
+                ],
+            },
+            separators=(",", ":"),
+        )
+    )
+
+
+def run_amp_claude_code(args: argparse.Namespace, prompt: str) -> str:
+    """Review the bundle alone with `amp --mode claude-code` from an empty dir."""
+    with tempfile.TemporaryDirectory(prefix="autoreview-amp-cc.") as runtime_dir:
+        runtime_root = Path(runtime_dir)
+        review_root = runtime_root / "empty"
+        runtime_config = runtime_root / "config"
+        for path in (review_root, runtime_config / "amp" / "plugins"):
+            path.mkdir(parents=True)
+        settings_path = runtime_root / "settings.json"
+        amp_settings(settings_path)
+        env = dict(os.environ)
+        env.update({"XDG_CONFIG_HOME": str(runtime_config), "NO_COLOR": "1"})
+        cmd = [
+            args.amp_bin,
+            "--execute",
+            "--stream-json",
+            "--stream-json-input",
+            "--mode",
+            AMP_CLAUDE_CODE_MODEL,
+            "--no-ide",
+            "--no-notifications",
+            "--settings-file",
+            str(settings_path),
+        ]
+        message = {"type": "user", "message": {"role": "user", "content": [{"type": "text", "text": prompt}]}}
+        result = run_with_heartbeat(
+            cmd,
+            review_root,
+            input_text=json.dumps(message, separators=(",", ":")) + "\n",
+            label="amp claude-code",
+            env=env,
+            stream_display=passthrough_stream_display if args.stream_engine_output else None,
+        )
+    if result.returncode != 0:
+        raise SystemExit(f"amp claude-code failed ({result.returncode})\n{result.stderr or result.stdout}")
+    if len(result.stdout) > AMP_MAX_OUTPUT_CHARS:
+        raise SystemExit("amp engine result exceeds the output limit")
+    extract_json(result.stdout)
+    return result.stdout
+
+
 def run_amp(args: argparse.Namespace, repo: Path, prompt: str) -> str:
+    if args.model == AMP_CLAUDE_CODE_MODEL:
+        try:
+            return run_amp_claude_code(args, prompt)
+        except SystemExit as exc:
+            print(
+                f"amp claude-code unavailable, retrying with {AMP_CLAUDE_FALLBACK_MODEL}: {bounded_field(str(exc), 500)}",
+                file=sys.stderr,
+            )
+            args = copy.copy(args)
+            args.model = AMP_CLAUDE_FALLBACK_MODEL
+            args.thinking = DEFAULT_THINKING_BY_ENGINE["claude"]
     if not args.model:
         raise SystemExit("amp engine requires a provider/model, e.g. --model amp=openai/gpt-5.6-sol")
     if AMP_MODEL_PATTERN.fullmatch(args.model) is None:
@@ -979,18 +1050,7 @@ def run_amp(args: argparse.Namespace, repo: Path, prompt: str) -> str:
         result_path = runtime_root / "review-result.json"
         error_path = runtime_root / "review-error.txt"
         settings_path = runtime_root / "settings.json"
-        settings_path.write_text(
-            json.dumps(
-                {
-                    "amp.updates.mode": "disabled",
-                    "amp.mcpPermissions": [
-                        {"matches": {"command": "*"}, "action": "reject"},
-                        {"matches": {"url": "*"}, "action": "reject"},
-                    ],
-                },
-                separators=(",", ":"),
-            )
-        )
+        amp_settings(settings_path)
         plugin_path = plugin_root / "autoreview-adapter.ts"
         plugin_path.write_text(amp_review_plugin_source(prompt_path, result_path, error_path, args.model, thinking))
         prompt_path.write_text(prompt)
@@ -1440,11 +1500,50 @@ def finish_parallel_tests(proc: subprocess.Popen, started: float) -> int:
     return int(proc.returncode or 0)
 
 
-def default_engine() -> str:
-    configured = os.environ.get("AUTOREVIEW_ENGINE")
-    if configured is not None:
-        return configured
-    return "amp" if os.environ.get("AMP_ORB") == "1" else "codex"
+# Default panel: one GPT reviewer and one Claude reviewer. Each slot uses its
+# native CLI when installed and falls back to amp with the same model family.
+DEFAULT_PANEL = (
+    ("codex", "openai/gpt-6.1-sol", "xhigh"),
+    ("claude", AMP_CLAUDE_FALLBACK_MODEL, "high"),
+)
+
+
+def amp_supports_claude_code(args: argparse.Namespace) -> bool:
+    try:
+        result = subprocess.run([args.amp_bin, "--help"], capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0 and AMP_CLAUDE_CODE_MODEL in result.stdout + result.stderr
+
+
+def engine_available(args: argparse.Namespace, engine: str) -> bool:
+    bin_name = getattr(args, ENGINE_BIN_ATTR[engine])
+    if os.sep in bin_name:
+        return os.access(bin_name, os.X_OK)
+    return shutil_which(bin_name) is not None
+
+
+def default_reviewers(args: argparse.Namespace) -> list[tuple[str, str | None, str | None, bool]]:
+    """Codex + Claude, natively when installed; amp for both inside an orb or
+    for whichever native CLI is missing."""
+    in_orb = os.environ.get("AMP_ORB") == "1"
+    amp_ok = engine_available(args, "amp")
+    reviewers: list[tuple[str, str | None, str | None, bool]] = []
+    missing: list[str] = []
+    for engine, amp_model, amp_thinking in DEFAULT_PANEL:
+        if not in_orb and engine_available(args, engine):
+            reviewers.append((engine, None, None, False))
+        elif in_orb or amp_ok:
+            if engine == "claude" and amp_supports_claude_code(args):
+                amp_model, amp_thinking = AMP_CLAUDE_CODE_MODEL, None
+            reviewers.append(("amp", amp_model, amp_thinking, True))
+        else:
+            missing.append(engine)
+    for engine in missing:
+        print(f"default reviewer {engine} unavailable (no {engine} or amp binary); skipping", file=sys.stderr)
+    if not reviewers:
+        raise SystemExit("no default reviewer available: install codex, claude, or amp, or pass --engine/--reviewers")
+    return reviewers
 
 
 def parse_args() -> argparse.Namespace:
@@ -1455,9 +1554,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--remote", default="origin", help="Remote to fetch and use for detected base refs.")
     parser.add_argument("--no-fetch", dest="fetch_remote", action="store_false", default=True, help="Use existing local refs without refreshing the selected remote.")
     parser.add_argument("--commit", help="Commit/change to review. Defaults to @- in jj repos and HEAD in Git repos.")
-    parser.add_argument("--engine", choices=ENGINES, default=default_engine())
+    parser.add_argument(
+        "--engine",
+        choices=ENGINES,
+        default=os.environ.get("AUTOREVIEW_ENGINE"),
+        help="Single review engine. Default (no --engine/AUTOREVIEW_ENGINE/--reviewers): Codex + Claude panel, via amp inside an orb or when a native CLI is missing.",
+    )
     parser.add_argument("--reviewers", help="Comma-separated review panel, e.g. codex,claude,amp,pi or codex:gpt-5.6-sol:high.")
-    parser.add_argument("--panel", action="store_true", help="Run a Codex/Claude review panel unless --engine changes the first reviewer.")
+    parser.add_argument("--panel", action="store_true", help="Run a Codex/Claude review panel with --engine as the first reviewer.")
     parser.add_argument("--model", action="append", help="Model for all reviewers or engine=model. Repeatable. Overrides AUTOREVIEW_MODEL and built-in defaults.")
     parser.add_argument(
         "--thinking",
@@ -1509,7 +1613,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--expect-findings", action="store_true", help="Treat findings as success; for harness acceptance tests.")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
-    if args.engine not in ENGINES:
+    if args.engine is not None and args.engine not in ENGINES:
         raise SystemExit(f"invalid --engine/AUTOREVIEW_ENGINE: {args.engine}")
     if args.max_priority not in PRIORITIES:
         raise SystemExit(f"invalid --max-priority/AUTOREVIEW_MAX_PRIORITY: {args.max_priority}")
@@ -1585,30 +1689,42 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
     global_thinking, thinking_by_engine = parse_keyed_options(args.thinking, "thinking")
     env_global_model, env_model_by_engine = env_keyed_options("AUTOREVIEW_MODEL", "model")
     env_global_thinking, env_thinking_by_engine = env_keyed_options("AUTOREVIEW_THINKING", "thinking")
-    reviewers: list[tuple[str, str | None, str | None]] = []
+    # (engine, model, thinking, defaults_only): defaults_only entries come from
+    # the default panel and yield to CLI/env overrides like built-in defaults.
+    reviewers: list[tuple[str, str | None, str | None, bool]] = []
     if args.reviewers:
         tokens = [token.strip() for token in args.reviewers.split(",") if token.strip()]
         if len(tokens) == 1 and tokens[0] == "all":
             tokens = list(ENGINES)
-        reviewers = [parse_reviewer_token(token) for token in tokens]
+        reviewers = [(*parse_reviewer_token(token), False) for token in tokens]
     elif args.panel:
-        engines = [args.engine]
+        engines = [args.engine or "codex"]
         for engine in ("codex", "claude"):
             if engine not in engines:
                 engines.append(engine)
-        reviewers = [(engine, None, None) for engine in engines]
+        reviewers = [(engine, None, None, False) for engine in engines]
+    elif args.engine:
+        reviewers = [(args.engine, None, None, False)]
     else:
-        reviewers = [(args.engine, None, None)]
+        if global_model or env_global_model:
+            raise SystemExit(
+                "a bare --model/AUTOREVIEW_MODEL would apply to both default reviewers; "
+                "use engine=model (e.g. codex=gpt-6-astra) or pick one with --engine"
+            )
+        reviewers = default_reviewers(args)
 
     seen: set[tuple[str, str | None]] = set()
     result: list[argparse.Namespace] = []
-    for engine, inline_model, inline_thinking in reviewers:
+    for engine, entry_model, entry_thinking, defaults_only in reviewers:
+        inline_model = None if defaults_only else entry_model
+        inline_thinking = None if defaults_only else entry_thinking
         model = (
             inline_model
             or model_by_engine.get(engine)
             or global_model
             or env_model_by_engine.get(engine)
             or env_global_model
+            or (entry_model if defaults_only else None)
             or DEFAULT_MODEL_BY_ENGINE.get(engine)
         )
         thinking = (
@@ -1617,6 +1733,7 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
             or global_thinking
             or env_thinking_by_engine.get(engine)
             or env_global_thinking
+            or (entry_thinking if defaults_only else None)
             or DEFAULT_THINKING_BY_ENGINE.get(engine)
         )
         # The same engine may appear with different models (amp panels: sol + grok).
@@ -1627,6 +1744,8 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
             fallback_model = DEFAULT_CODEX_ACCESS_FALLBACK_MODEL
         else:
             fallback_model = None
+        if engine == "amp" and model == AMP_CLAUDE_CODE_MODEL:
+            thinking = None  # Amp's claude-code mode has no effort knob.
         thinking_levels = THINKING_LEVELS_BY_ENGINE[engine]
         thinking_target = engine
         if engine == "codex" and model in {"gpt-6.1-sol", "gpt-6-astra"}:
