@@ -29,6 +29,48 @@ Amalthea only. Aglaea health warnings (exit 1) are reported without failing a
 successful activation; health failures (exit 2 or unexpected errors) still fail
 the deployment.
 
+Darwin-only deployment builds the repository check and evaluates the selected
+machine. `make check` remains the full gate, including every machine and Linux
+checks; run it on Amalthea after the Rex metadata prefetch below.
+
+## Rex on Amalthea
+
+Amalthea runs the official Rex NixOS login server. Tailscale Serve exposes it at
+`https://amalthea.reverse-justitia.ts.net`, and the accounts policy maps
+`catalin.irimie@gmail.com` to the existing `cat` account. The server starts at boot;
+its terminals run as `cat`, with the same files and permissions as an SSH login.
+
+In Rex for Mac, choose **Add Remote Host…** and enter that address. For CLI access:
+
+```sh
+rex hosts add amalthea https://amalthea.reverse-justitia.ts.net
+rex -S amalthea ls
+```
+
+Tailscale must be connected on the client. The service has no anonymous or public listener.
+Other named Tailscale Services keep their own HTTPS mappings.
+
+The `rex` flake input pins the vendor's snapshot channel. Fetching its private
+beta package metadata requires the supplied package credential in a private
+netrc file; Amalthea's copy is `/etc/nix/netrc`, readable only by root. Keep that
+credential out of the repository and Nix store. Local `make deploy` fetches the
+inputs with sudo before running unprivileged checks and builds. For standalone
+`make check`, `make build`, or `make switch`, prefetch once after a Rex update
+or garbage collection:
+
+```sh
+sudo nix flake archive --option netrc-file /etc/nix/netrc .
+```
+
+Aglaea needs no Rex credential to deploy itself. To deploy Amalthea remotely
+from Aglaea, provision the vendor netrc outside this repository, owned by the
+invoking user with mode `0600`, and set `netrc-file` to its absolute path in
+that user's Nix configuration. Never provision it on Ergane. See the
+[vendor's Linux docs](https://www.superlogical.com/rex/docs/linux/installation).
+
+Check the service with `systemctl status rex-login-server rex-tailscale-serve`
+and its logs with `journalctl -u rex-login-server -u rex-tailscale-serve`.
+
 ## Ergane (work Mac)
 
 Ergane uses the `work` profile (`lib/mksystem.nix`): core CLI and language

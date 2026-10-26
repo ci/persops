@@ -16,6 +16,7 @@ shell_scripts=(
 	scripts/deploy-aglaea
 	scripts/deploy-amalthea
 	scripts/test-deploy-check
+	scripts/test-deploy-snapshot
 	scripts/test-deploy-aglaea
 	scripts/kuma-job-secrets-install
 	scripts/pheme-watch-install
@@ -44,6 +45,7 @@ shfmt -d "${shell_scripts[@]}"
 
 section "deployment target checks"
 bash scripts/test-deploy-check
+bash scripts/test-deploy-snapshot
 
 section "detached Aglaea deployment checks"
 bash scripts/test-deploy-aglaea

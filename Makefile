@@ -90,7 +90,13 @@ deploy-check:
 	@if [ "$(DEPLOY_CONTROLLER)" = amalthea ] && [ -n "$(filter aglaea,$(TARGETS))" ]; then echo "error: aglaea cannot be checked for deployment from amalthea" >&2; exit 1; fi
 	@if [ "$(DEPLOY_CONTROLLER)" = ergane ] && [ -n "$(filter-out ergane,$(TARGETS))" ]; then echo "error: ergane is isolated and can deploy only itself" >&2; exit 1; fi
 	@if [ "$(DEPLOY_CONTROLLER)" != ergane ] && [ -n "$(filter ergane,$(TARGETS))" ]; then echo "error: ergane can be deployed only from ergane" >&2; exit 1; fi
+ifneq ($(filter amalthea,$(TARGETS)),)
 	nix flake check --print-build-logs "$(FLAKE)"
+else
+# flake check also evaluates every NixOS configuration, including private Rex
+# metadata. Darwin-only deployment runs the repository check and selected host.
+	nix build --no-link --print-build-logs '$(FLAKE)#checks.$(CURRENT_SYSTEM).repo'
+endif
 	@set -e; $(foreach attr,$(DEPLOY_EVAL_ATTRS),nix eval --raw '$(FLAKE)#$(attr)';)
 
 # Force each machine config through the module system without realizing it.

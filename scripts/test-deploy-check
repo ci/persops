@@ -29,6 +29,7 @@ run_case() {
 		make --no-print-directory --silent -C "$repo_root" \
 		FLAKE=/snapshot \
 		DEPLOY_CONTROLLER="$controller" \
+		CURRENT_SYSTEM="$(if [ "$controller" = amalthea ]; then echo x86_64-linux; else echo aarch64-darwin; fi)" \
 		TARGETS="$targets" \
 		deploy-check
 	actual="$(cat "$temp_dir/calls")"
@@ -41,7 +42,7 @@ run_case() {
 }
 
 run_case aglaea aglaea <<'EOF'
-flake check --print-build-logs /snapshot
+build --no-link --print-build-logs /snapshot#checks.aarch64-darwin.repo
 eval --raw /snapshot#darwinConfigurations.aglaea.config.system.build.toplevel.drvPath
 EOF
 
@@ -57,7 +58,7 @@ eval --raw /snapshot#darwinConfigurations.aglaea.config.system.build.toplevel.dr
 EOF
 
 run_case ergane ergane <<'EOF'
-flake check --print-build-logs /snapshot
+build --no-link --print-build-logs /snapshot#checks.aarch64-darwin.repo
 eval --raw /snapshot#darwinConfigurations.ergane.config.system.build.toplevel.drvPath
 EOF
 

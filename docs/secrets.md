@@ -24,6 +24,17 @@ before the network is up), Actual's `enabled` kill-switch marker, pheme's
 credentials (not a Nix host; `scripts/pheme-watch-install` injects them), and
 cliproxyapi's self-generated API key.
 
+Rex's Linux beta also requires a manually provisioned package netrc at
+`/etc/nix/netrc` on Amalthea, owned by root with mode `0600`. This is the
+credential for `pkgs.superlogical.com`. Local deployment uses sudo only for the
+input archive so the Nix client can read it; the daemon cannot read it on an
+unprivileged client's behalf. Standalone checks/builds need the privileged
+prefetch described in the README. An Aglaea controller deploying Amalthea needs
+its own invoking-user-owned `0600` netrc and a user `netrc-file` setting. Mac-only
+deployment needs no Rex credential, and Ergane must never receive one.
+This credential does not grant Rex remote access. Client access
+uses the Tailscale identity policy in `modules/rex-nixos.nix`.
+
 ## How it works
 
 - **Amalthea** uses opnix's NixOS module (`modules/secrets/nixos.nix`).
