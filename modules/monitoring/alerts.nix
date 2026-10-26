@@ -94,6 +94,30 @@ in
             "10m"
           )
           (rule "exporter-down" "Monitoring target unavailable" "1 - up" 0 "3m")
+          (rule "scheduled-job-unhealthy" "Scheduled job failed or overdue"
+            "1 - persops_job_healthy{host=\"amalthea\"}"
+            0
+            "5m"
+          )
+          (rule "job-observer-stale" "Scheduled-job observer stalled"
+            "time() - persops_job_observer_timestamp_seconds{host=\"amalthea\"}"
+            900
+            "0s"
+          )
+          (rule "container-missing" "Persistent container stopped reporting" (
+            "1 - (max by (name) (time() - container_last_seen{host=\"amalthea\"} < bool 180) or on (name) ("
+            + builtins.concatStringsSep " or " (
+              map (name: "label_replace(vector(0), \"name\", \"relay-${name}-1\", \"\", \"\")") [
+                "api"
+                "worker"
+                "gateway"
+                "keycloak"
+                "redis"
+                "postgres"
+              ]
+            )
+            + "))"
+          ) 0 "3m")
         ];
       }
     ];

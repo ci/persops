@@ -13,6 +13,8 @@ let
     targets = pkgs.lib.imap0 (index: query: {
       refId = "A${toString index}";
       expr = if builtins.isString query then query else query.expr;
+      instant = type == "stat";
+      range = type != "stat";
       legendFormat =
         if builtins.isString query then "{{__name__}} {{device}}{{mountpoint}}{{name}}" else query.legend;
     }) (if builtins.isList expr then expr else [ expr ]);
@@ -75,6 +77,11 @@ let
       {
         title = "Storage";
         url = "/grafana/d/amalthea-storage/amalthea-storage";
+        type = "link";
+      }
+      {
+        title = "Jobs and containers";
+        url = "/grafana/d/amalthea-operations/amalthea-jobs-and-containers";
         type = "link";
       }
       {
@@ -222,6 +229,72 @@ let
       12
     )
   ];
+  operations = dashboard "amalthea-operations" "Amalthea jobs and containers" [
+    (panel 1 "Scheduled-job health (1 = healthy)" [
+      {
+        expr = "persops_job_healthy{host=\"amalthea\"}";
+        legend = "{{scheduled_job}}";
+      }
+    ] "short" "timeseries" 0 0 12)
+    (panel 2 "Time since successful completion" [
+      {
+        expr = "time() - (persops_job_last_success_timestamp_seconds{host=\"amalthea\"} > 0)";
+        legend = "{{scheduled_job}}";
+      }
+    ] "s" "stat" 12 0 12)
+    (panel 3 "Observer age (seconds; should stay below 900)"
+      "time() - persops_job_observer_timestamp_seconds{host=\"amalthea\"}"
+      "s"
+      "stat"
+      0
+      7
+      6
+    )
+    (panel 4 "Persistent containers reporting (expected 6)"
+      "count(time() - container_last_seen{host=\"amalthea\"} < 180) or vector(0)"
+      "short"
+      "stat"
+      6
+      7
+      6
+    )
+    (panel 5 "Jobs without success evidence" [
+      {
+        expr = "persops_job_last_success_timestamp_seconds{host=\"amalthea\"} == bool 0";
+        legend = "{{scheduled_job}}";
+      }
+    ] "short" "stat" 12 7 12)
+    (panel 6 "Container CPU cores" [
+      {
+        expr = "sum by (name) (rate(container_cpu_usage_seconds_total{host=\"amalthea\",cpu=\"total\"}[5m]))";
+        legend = "{{name}}";
+      }
+    ] "short" "timeseries" 0 14 12)
+    (panel 7 "Container working memory" "container_memory_working_set_bytes{host=\"amalthea\"}" "bytes"
+      "timeseries"
+      12
+      14
+      12
+    )
+    (panel 8 "Container starts observed in 24h"
+      "changes(container_start_time_seconds{host=\"amalthea\"}[24h])"
+      "short"
+      "stat"
+      0
+      21
+      12
+    )
+    (panel 9 "Container network" [
+      {
+        expr = "sum by (name) (rate(container_network_receive_bytes_total{host=\"amalthea\"}[5m]))";
+        legend = "Receive {{name}}";
+      }
+      {
+        expr = "sum by (name) (rate(container_network_transmit_bytes_total{host=\"amalthea\"}[5m]))";
+        legend = "Transmit {{name}}";
+      }
+    ] "Bps" "timeseries" 12 21 12)
+  ];
 in
 pkgs.linkFarm "monitoring-dashboards" [
   {
@@ -231,5 +304,9 @@ pkgs.linkFarm "monitoring-dashboards" [
   {
     name = "storage.json";
     path = pkgs.writeText "storage.json" (builtins.toJSON storage);
+  }
+  {
+    name = "operations.json";
+    path = pkgs.writeText "operations.json" (builtins.toJSON operations);
   }
 ]

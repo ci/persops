@@ -1,4 +1,4 @@
-"""Report scheduled-job freshness to Kuma without running or changing jobs."""
+"""Observe scheduled jobs; publish durable freshness metrics and Kuma heartbeats."""
 
 import json
 import os
@@ -57,12 +57,32 @@ def publish(token, status, message):
             raise RuntimeError("Kuma rejected heartbeat")
 
 
-def run(config_path, tokens_path, state_path):
+def write_metrics(path, jobs, observations, now):
+    lines = [f"persops_job_observer_timestamp_seconds {now}"]
+    for key, job in jobs.items():
+        status, record = observations[key]
+        labels = f'scheduled_job={json.dumps(key)}'
+        for metric, value in {
+            "healthy": int(status == "up"),
+            "last_success_timestamp_seconds": record.get("last_success", 0),
+            "max_age_seconds": job["max_age"],
+        }.items():
+            lines.append(f"persops_job_{metric}{{{labels}}} {value}")
+    path = Path(path)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text("\n".join(lines) + "\n")
+    # The parent directory is private to the observer and node exporter group.
+    temporary.chmod(0o640)
+    temporary.replace(path)
+
+
+def run(config_path, tokens_path, state_path, metrics_path):
     jobs = json.loads(Path(config_path).read_text())
-    tokens = json.loads(Path(tokens_path).read_text())
     state_path = Path(state_path)
     state = json.loads(state_path.read_text()) if state_path.exists() else {}
     failed = False
+    observations = {}
+    heartbeats = {}
     for key, job in jobs.items():
         try:
             status, message, record = assess(
@@ -75,12 +95,28 @@ def run(config_path, tokens_path, state_path):
             temporary = state_path.with_suffix(".tmp")
             temporary.write_text(json.dumps(state))
             temporary.replace(state_path)
-            publish(tokens[key], status, message)
+            observations[key] = (status, record)
+            if job["kuma"]:
+                heartbeats[key] = (status, message)
             print(f"{key}: {status}: {message}", flush=True)
         except Exception as error:
             # URLs contain credentials. Never print exception text or tracebacks.
-            print(f"{key}: probe/delivery failed ({type(error).__name__})", file=sys.stderr)
+            print(f"{key}: probe failed ({type(error).__name__})", file=sys.stderr)
             failed = True
+            observations[key] = ("down", state.get(key, {}))
+    # Publish every job, including probe failures, before attempting delivery.
+    write_metrics(metrics_path, jobs, observations, int(time.time()))
+    try:
+        tokens = json.loads(Path(tokens_path).read_text())
+        for key, (status, message) in heartbeats.items():
+            try:
+                publish(tokens[key], status, message)
+            except Exception as error:
+                print(f"{key}: delivery failed ({type(error).__name__})", file=sys.stderr)
+                failed = True
+    except Exception as error:
+        print(f"Token loading failed ({type(error).__name__})", file=sys.stderr)
+        failed = True
     return int(failed)
 
 

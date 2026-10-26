@@ -30,6 +30,7 @@ let
   '';
 in
 {
+  imports = [ ./containers.nix ];
   services.victoriametrics = {
     enable = true;
     listenAddress = "127.0.0.1:8428";
