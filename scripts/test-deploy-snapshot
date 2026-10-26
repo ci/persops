@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+temp_dir="$(mktemp -d)"
+trap 'rm -rf "$temp_dir"' EXIT
+mkdir -p "$temp_dir/bin"
+mkdir -p "$temp_dir/repo/scripts"
+cp "$repo_root/scripts/deploy" "$temp_dir/repo/scripts/deploy"
+git init --quiet "$temp_dir/repo"
+git -C "$temp_dir/repo" add scripts/deploy
+for tool in hostname nix sudo make; do
+	printf '#!%s\n' "$(command -v bash)" >"$temp_dir/bin/$tool"
+done
+
+cat >>"$temp_dir/bin/hostname" <<'EOF'
+printf '%s\n' "${TEST_HOSTNAME:?}"
+EOF
+cat >>"$temp_dir/bin/nix" <<'EOF'
+printf 'nix %s\n' "$*" >>"${SNAPSHOT_CALLS:?}"
+printf '{"path":"/nix/store/test-snapshot"}\n'
+EOF
+cat >>"$temp_dir/bin/sudo" <<'EOF'
+printf 'sudo %s\n' "$*" >>"${SNAPSHOT_CALLS:?}"
+exec "$@"
+EOF
+cat >>"$temp_dir/bin/make" <<'EOF'
+printf 'make %s\n' "$*" >>"${SNAPSHOT_CALLS:?}"
+# Stop before activation, proving snapshotting preserves gate failures.
+exit 42
+EOF
+chmod +x "$temp_dir"/bin/*
+
+# Amalthea puts /run/wrappers/bin first; a function keeps sudo mocked there too.
+sudo() { "$SNAPSHOT_BIN/sudo" "$@"; }
+export -f sudo
+
+run_case() {
+	local controller="$1" target="$2" expected="$3"
+	local result=0
+	: >"$temp_dir/calls"
+	PATH="$temp_dir/bin:$PATH" TEST_HOSTNAME="$controller" SNAPSHOT_CALLS="$temp_dir/calls" SNAPSHOT_BIN="$temp_dir/bin" \
+		bash "$temp_dir/repo/scripts/deploy" "$target" >"$temp_dir/output" 2>&1 || result=$?
+	if [ "$result" -ne 42 ]; then
+		cat "$temp_dir/output" >&2
+		echo "snapshot did not reach the failing gate for $controller/$target" >&2
+		return 1
+	fi
+	if ! grep -q "$expected" "$temp_dir/calls"; then
+		cat "$temp_dir/calls" >&2
+		return 1
+	fi
+	if [ "$controller" = amalthea ]; then
+		grep -q '^sudo nix flake archive --option netrc-file /etc/nix/netrc ' "$temp_dir/calls"
+	else
+		if grep -Eq '^sudo |flake archive|netrc' "$temp_dir/calls"; then
+			echo "Mac snapshot touched the private package credential" >&2
+			return 1
+		fi
+	fi
+	grep -q 'FLAKE=/nix/store/test-snapshot .*deploy-check$' "$temp_dir/calls"
+}
+
+run_case amalthea amalthea '^nix flake archive '
+run_case aglaea aglaea '^nix flake metadata '
+run_case aglaea amalthea '^nix flake metadata '
+run_case ergane ergane '^nix flake metadata '
+
+echo "deployment snapshot checks passed"

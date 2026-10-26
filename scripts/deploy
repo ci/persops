@@ -120,7 +120,14 @@ while IFS= read -r -d '' path; do
 done <"$file_list"
 
 flake="$(
-	nix flake archive --json --no-write-lock-file "path:${snapshot_source}" |
+	# Metadata snapshots the root without fetching unused private inputs. Only
+	# Amalthea's local deploy needs the root-owned Rex package credential.
+	if [ "$deploy_amalthea" -eq 1 ] && [ "$controller" = "amalthea" ]; then
+		sudo nix flake archive --option netrc-file /etc/nix/netrc \
+			--json --no-write-lock-file "path:${snapshot_source}"
+	else
+		nix flake metadata --json --no-write-lock-file "path:${snapshot_source}"
+	fi |
 		jq --exit-status --raw-output '.path'
 )"
 echo "snapshot: ${flake}"
