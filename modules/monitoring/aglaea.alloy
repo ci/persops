@@ -1,0 +1,48 @@
+prometheus.exporter.unix "host" {
+	set_collectors = ["boottime", "cpu", "diskstats", "filesystem", "loadavg", "meminfo", "netdev", "time", "thermal"]
+
+	filesystem {
+		mount_points_exclude = "^/(dev|Volumes|System/Volumes/(Preboot|VM|Update|xarts|iSCPreboot|Hardware))($|/)"
+	}
+}
+
+prometheus.scrape "host" {
+	targets         = prometheus.exporter.unix.host.targets
+	scrape_interval = "60s"
+	forward_to      = [prometheus.relabel.host.receiver]
+}
+
+prometheus.relabel "host" {
+	forward_to = [prometheus.remote_write.amalthea.receiver]
+
+	rule {
+		target_label = "host"
+		replacement  = "aglaea"
+	}
+
+	rule {
+		target_label = "instance"
+		replacement  = "aglaea"
+	}
+
+	rule {
+		target_label = "job"
+		replacement  = "node"
+	}
+}
+
+prometheus.remote_write "amalthea" {
+	endpoint {
+		url               = "https://home.reverse-justitia.ts.net/metrics/api/v1/write"
+		bearer_token_file = "/Users/cat/.config/monitoring/push-token"
+
+		queue_config {
+			max_shards = 2
+		}
+	}
+
+	wal {
+		truncate_frequency = "30m"
+		max_keepalive_time = "8h"
+	}
+}

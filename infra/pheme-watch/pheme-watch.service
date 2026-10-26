@@ -1,5 +1,5 @@
 [Unit]
-Description=Off-host Tailscale and private notification health
+Description=Off-host Tailscale, notification and metrics pipeline health
 Wants=network-online.target tailscaled.service
 After=network-online.target tailscaled.service
 

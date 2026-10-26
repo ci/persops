@@ -53,8 +53,8 @@ existing write-only `uptime-kuma` notification credential, rendered by opnix
 into a root-only Grafana environment file. No credentials enter Git/Nix store.
 Kuma continues to own availability and its existing scheduled-job checks, including
 its daily NVMe regression check. Grafana also alerts on job health, stale job
-observations (15 minutes), and missing persistent containers. Pheme's independent watcher remains unchanged; Grafana
-cannot report a total Amalthea outage from the failed machine.
+observations (15 minutes), and missing persistent containers. Pheme independently checks the telemetry pipeline; Grafana cannot report a
+total Amalthea outage from the failed machine.
 
 `restic-backups-monitoring-daily` runs nightly around 03:00. It takes an online
 SQLite backup of Grafana and backs that up with `/var/lib/nvme-health` to the
@@ -86,15 +86,55 @@ Stat panels use instant queries so an old healthy value from the selected time
 range cannot conceal missing current telemetry. Container starts are changes
 observed during collection, not a complete Docker restart counter.
 
-## Verification and next phase
+## Verification
 
 Check `grafana`, `grafana-metrics-proxy`, `victoriametrics`, `prometheus-node-exporter`, and
 `prometheus-smartctl-exporter` with systemctl. Query
-`http://127.0.0.1:8428/api/v1/query?query=up` locally; all seven targets should be
+`http://127.0.0.1:8428/api/v1/query?query=up` locally; all nine Amalthea targets should be
 1. Grafana's local `/api/health` should return 200; protected APIs without an
 identity must return 401. An HTTP request carrying a fake identity through
 Tailscale must not retain that identity.
 
-Next: scrape Kuma with a dedicated API key and install an Alloy push agent
-on Aglaea with explicit sleep/offline semantics. Extend the independent watchdog
-to cover this telemetry pipeline. Ergane remains isolated.
+On Aglaea, check `launchctl list org.nixos.persops-alloy` and the Alloy logs.
+The Grafana availability dashboard should show new Aglaea samples while awake.
+The receiver must reject unauthenticated writes and authenticated query/admin paths.
+
+## Kuma and external push
+
+The availability/Aglaea dashboard mirrors Kuma's status, response time and
+certificate lifetime. Kuma still sends availability notifications; Grafana does
+not duplicate them. A dedicated Kuma metrics API key is injected by opnix into
+VictoriaMetrics' service credential. Ingestion retains only named monitor
+identity/type labels, never monitor URLs or push URLs.
+
+Aglaea runs Alloy as a user launch agent, collecting CPU, Darwin memory,
+filesystem, disk and network metrics every minute. It sends authenticated remote
+write to `https://home.reverse-justitia.ts.net/metrics/api/v1/write`. The scoped
+bearer credential is injected by Home Manager from
+`op://persops/monitoring-amalthea/aglaea_push_token`. Rotate that field and
+activate both hosts to rotate access. Each additional host needs its own token,
+receiver user and forced host/instance identity. Ergane is excluded.
+
+The receiver allows only `/api/v1/write`, forces `host=aglaea`,
+`instance=aglaea`, `job=node`, and exposes neither queries nor administrative
+APIs. Its internal metrics use a separate loopback listener. The existing
+`svc:home` personal-device ACL and TLS remain in force. Amalthea's queries and
+alerts select its host explicitly so external metrics cannot affect server
+health readings. Local processes remain inside the receiver's trust boundary.
+
+Aglaea sleeping or disconnecting is expected: there is no laptop-down alert.
+The reporting indicator requires a sample within three minutes; last sample age
+uses the client's clock and can show up to 30 days of history. Keep clocks
+synchronized. Current hardware panels eventually lose samples while history
+remains available. Alloy buffers through network outages with an eight-hour WAL
+retention window and 30-minute truncation; this is not a disk quota or a promise
+of complete history. State is private under
+`~/Library/Application Support/persops-alloy`; logs are in `~/Library/Logs`.
+
+Pheme separately probes `https://notify.reverse-justitia.ts.net/monitoring-health/`
+through its existing narrow ACL. This endpoint exposes only a health boolean:
+Grafana's database must be healthy, all nine Amalthea scrape targets must be up,
+and their samples must be younger than three minutes. It does not prove every
+metric, alert evaluation or laptop delivery is healthy. Three failed polls use
+Pheme's existing independent notification/fallback route. No new policy grant
+or public listener is needed.

@@ -92,6 +92,12 @@ class WatchTests(unittest.TestCase):
         with patch.object(watch.subprocess, "run", side_effect=subprocess.TimeoutExpired("tailscale", 6)), patch.object(watch, "request_json", side_effect=OSError):
             self.assertFalse(any(watch.probes().values()))
 
+    def test_pipeline_is_checked_independently_of_notification_health(self):
+        with patch.object(watch.subprocess, "run", return_value=subprocess.CompletedProcess([], 0, "pong via TSMP")), patch.object(watch, "request_json", side_effect=[{"healthy": True}, OSError]):
+            results = watch.probes()
+        self.assertTrue(results["Private notifications"])
+        self.assertFalse(results["Metrics pipeline"])
+
     def test_publish_routes_and_no_secret_error_output(self):
         secret = {"primary_token": "tk_" + "a" * 29, "fallback_topic": "f" * 64}
         with patch.object(watch, "request_json", return_value={"event": "message", "id": "test"}) as request:

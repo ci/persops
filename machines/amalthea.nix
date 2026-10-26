@@ -578,6 +578,8 @@ in
 
           ${tailscaleServiceCommands}
           ${pkgs.tailscale}/bin/tailscale serve --service=svc:home --https=443 --set-path=/grafana --yes http://127.0.0.1:3002
+          ${pkgs.tailscale}/bin/tailscale serve --service=svc:home --https=443 --set-path=/metrics --yes http://127.0.0.1:8423
+          ${pkgs.tailscale}/bin/tailscale serve --service=svc:notify --https=443 --set-path=/monitoring-health --yes http://127.0.0.1:8425
           ${pkgs.coreutils}/bin/install -m 0600 ${tailscaleServiceManifest} "$pending_services"
           ${pkgs.coreutils}/bin/mv "$pending_services" "$managed_services"
         '';

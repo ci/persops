@@ -61,39 +61,43 @@ in
         folder = "Infrastructure";
         interval = "1m";
         rules = [
-          (rule "nvme-new-errors" "NVMe media errors increased" "increase(smartctl_device_media_errors[30m])"
+          (rule "nvme-new-errors" "NVMe media errors increased"
+            "increase(smartctl_device_media_errors{host=\"amalthea\"}[30m])"
             0
             "0s"
           )
           # Spare is exported as a counter upstream, but decreases are degradation,
           # not counter resets. Compare its observed range without rate/increase.
           (rule "nvme-spare-drop" "NVMe spare capacity dropped"
-            "max_over_time(smartctl_device_available_spare[30m]) - smartctl_device_available_spare"
+            "max_over_time(smartctl_device_available_spare{host=\"amalthea\"}[30m]) - smartctl_device_available_spare{host=\"amalthea\"}"
             0
             "0s"
           )
-          (rule "nvme-critical" "NVMe critical warning" "smartctl_device_critical_warning" 0 "0s")
+          (rule "nvme-critical" "NVMe critical warning" "smartctl_device_critical_warning{host=\"amalthea\"}"
+            0
+            "0s"
+          )
           (rule "nvme-low-spare" "NVMe spare at threshold"
-            "smartctl_device_available_spare_threshold - smartctl_device_available_spare"
+            "smartctl_device_available_spare_threshold{host=\"amalthea\"} - smartctl_device_available_spare{host=\"amalthea\"}"
             (-1)
             "0s"
           )
           (rule "nvme-temperature" "NVMe temperature above 70 C"
-            "smartctl_device_temperature{temperature_type=\"current\"}"
+            "smartctl_device_temperature{host=\"amalthea\",temperature_type=\"current\"}"
             70
             "5m"
           )
           (rule "filesystem-full" "Filesystem more than 90% full"
-            "100 * (1 - node_filesystem_avail_bytes{mountpoint=~\"/|/srv/sea16\"} / node_filesystem_size_bytes{mountpoint=~\"/|/srv/sea16\"})"
+            "100 * (1 - node_filesystem_avail_bytes{host=\"amalthea\",mountpoint=~\"/|/srv/sea16\"} / node_filesystem_size_bytes{host=\"amalthea\",mountpoint=~\"/|/srv/sea16\"})"
             90
             "10m"
           )
           (rule "memory-pressure" "Available memory below 5%"
-            "100 * (1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)"
+            "100 * (1 - node_memory_MemAvailable_bytes{host=\"amalthea\"} / node_memory_MemTotal_bytes{host=\"amalthea\"})"
             95
             "10m"
           )
-          (rule "exporter-down" "Monitoring target unavailable" "1 - up" 0 "3m")
+          (rule "exporter-down" "Monitoring target unavailable" "1 - up{host=\"amalthea\"}" 0 "3m")
           (rule "scheduled-job-unhealthy" "Scheduled job failed or overdue"
             "1 - persops_job_healthy{host=\"amalthea\"}"
             0

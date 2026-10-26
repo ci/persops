@@ -11,6 +11,10 @@ Pheme runs a small Python/systemd watcher independently of Matrix containers:
 - TSMP checks Amalthea and aletheia's encrypted Tailscale transport. TSMP stops
   before the peer OS/application ACLs; no new host/SSH grants are needed.
 - HTTPS checks private ntfy's `/v1/health` endpoint, including DNS and TLS.
+- A separate `/monitoring-health/` check on the same private service verifies
+  Grafana database health and nine fresh, successful Amalthea scrape targets.
+  It exposes only a boolean and uses the existing ACL. Laptop sleep does not
+  affect this server pipeline check.
 - Three consecutive failures trigger DOWN; the next success triggers RECOVERED.
   Polling is every 60 seconds after completion, so detection takes roughly 3 minutes.
 - Normal alerts publish to private `alerts` with a separate `pheme-watch` user
@@ -62,6 +66,10 @@ installs root-owned code and root-only credentials, then enables the timer.
 No NixOS switch, packages, Docker, Matrix configuration, or other services change.
 The watcher runs unprivileged with a systemd credential and a private state
 directory; only tailscaled's local socket and outbound HTTPS/TSMP are used.
+
+For a code-only update, preserve the installed credentials and incident state;
+install the reviewed `watch.py` and units, verify units with `systemd-analyze verify`,
+reload systemd, then start the watcher. Credential reprovisioning is unnecessary.
 
 Check `systemctl status pheme-watch.timer` and `journalctl -u pheme-watch.service`.
 The journal reports boolean probe/delivery results, never secret URLs. A failed

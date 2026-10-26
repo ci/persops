@@ -75,6 +75,9 @@ python3 scripts/test-kuma-job-health.py
 section "Pheme off-host watcher checks"
 python3 scripts/test-pheme-watch.py
 
+section "Monitoring pipeline health"
+python3 scripts/test-monitoring-health.py
+
 section "deadnix"
 deadnix --fail .
 
