@@ -23,6 +23,11 @@ before the network is up), Actual's `enabled` kill-switch marker, pheme's
 credentials (not a Nix host; `scripts/pheme-watch-install` injects them), and
 cliproxyapi's self-generated API key.
 
+Rex's Linux beta also requires a manually provisioned package netrc at
+`/etc/nix/netrc` on Amalthea, owned by root with mode `0600`. This is the
+credential for `pkgs.superlogical.com`, not Rex remote access. Client access
+uses the Tailscale identity policy in `modules/rex-nixos.nix`.
+
 ## How it works
 
 - **Amalthea** uses opnix's NixOS module (`modules/secrets/nixos.nix`).

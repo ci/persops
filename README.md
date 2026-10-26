@@ -29,6 +29,32 @@ Amalthea only. Aglaea health warnings (exit 1) are reported without failing a
 successful activation; health failures (exit 2 or unexpected errors) still fail
 the deployment.
 
+## Rex on Amalthea
+
+Amalthea runs the official Rex NixOS login server. Tailscale Serve exposes it at
+`https://amalthea.reverse-justitia.ts.net`, and the accounts policy maps
+`catalin.irimie@gmail.com` to the existing `cat` account. The server starts at boot;
+its terminals run as `cat`, with the same files and permissions as an SSH login.
+
+In Rex for Mac, choose **Add Remote Host…** and enter that address. For CLI access:
+
+```sh
+rex hosts add amalthea https://amalthea.reverse-justitia.ts.net
+rex -S amalthea ls
+```
+
+Tailscale must be connected on the client. The service has no anonymous or public listener.
+Other named Tailscale Services keep their own HTTPS mappings.
+
+The `rex` flake input pins the vendor's snapshot channel. Fetching its private
+beta package metadata requires the supplied package credential in a private
+netrc file; Amalthea's copy is `/etc/nix/netrc`, readable only by root. Keep that
+credential out of the repository and Nix store. See the
+[vendor's Linux docs](https://www.superlogical.com/rex/docs/linux/installation).
+
+Check the service with `systemctl status rex-login-server rex-tailscale-serve`
+and its logs with `journalctl -u rex-login-server -u rex-tailscale-serve`.
+
 ## Ergane (work Mac)
 
 Ergane uses the `work` profile (`lib/mksystem.nix`): core CLI and language
