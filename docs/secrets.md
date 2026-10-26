@@ -12,6 +12,7 @@ store. Each item's notes name the files it feeds.
 | `Hetzner Storage Box - <Host>` | `/etc/secrets/restic-storage-box/id_ed25519` | `~/.ssh/hetzner-storage-box-aglaea` |
 | `Actual-Budget` | `/etc/secrets/actual-automation/{password,sync-id}` | |
 | `ntfy-amalthea` | `/etc/secrets/ntfy-sh/environment` | |
+| `ntfy-amalthea/uptime_kuma_token` | `/etc/secrets/grafana/environment` (shared alerts writer) | |
 | `kuma-job-tokens` (document) | `/etc/secrets/kuma-job-health/tokens.json` | |
 | `amalthea login hash` | `/etc/secrets/login/cat.hash` (`hashedPasswordFile`) | |
 

@@ -252,6 +252,7 @@ in
     })
     ../modules/actual-bank-sync.nix
     ../modules/kuma-job-health.nix
+    ../modules/monitoring
     (import ../modules/nvme-health.nix { device = "/dev/nvme0"; })
     ../modules/cliproxyapi-nixos.nix
   ];
@@ -532,6 +533,7 @@ in
         wants = [
           "actual.service"
           "homepage-dashboard.service"
+          "grafana.service"
           "home-assistant.service"
           "ntfy-sh.service"
           "uptime-kuma.service"
@@ -540,6 +542,7 @@ in
           "tailscaled.service"
           "actual.service"
           "homepage-dashboard.service"
+          "grafana.service"
           "home-assistant.service"
           "ntfy-sh.service"
           "uptime-kuma.service"
@@ -574,6 +577,7 @@ in
           done < "$managed_services"
 
           ${tailscaleServiceCommands}
+          ${pkgs.tailscale}/bin/tailscale serve --service=svc:home --https=443 --set-path=/grafana --yes http://127.0.0.1:3002
           ${pkgs.coreutils}/bin/install -m 0600 ${tailscaleServiceManifest} "$pending_services"
           ${pkgs.coreutils}/bin/mv "$pending_services" "$managed_services"
         '';
@@ -681,6 +685,13 @@ in
         }
         {
           Monitoring = [
+            {
+              Grafana = {
+                icon = "grafana.png";
+                href = "https://home.reverse-justitia.ts.net/grafana/";
+                description = "Host and storage metrics";
+              };
+            }
             {
               ntfy = {
                 icon = "ntfy.png";
