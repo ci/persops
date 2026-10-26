@@ -85,6 +85,9 @@ Host secrets come from the shared `persops` 1Password vault through opnix; see
 
 ## Ops status
 
+Amalthea's [Grafana monitoring](docs/monitoring.md) provides host and NVMe
+dashboards alongside the existing Uptime Kuma availability checks.
+
 `ops-status` prints a local health summary for the current machine: Nix, `persops`
 VCS state, Restic, Time Machine, Tailscale, desktop services, and Linux systemd
 services where available. Use `ops-status --remote` for a small read-only
