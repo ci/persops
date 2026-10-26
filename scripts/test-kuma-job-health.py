@@ -83,11 +83,51 @@ class JobHealthTests(unittest.TestCase):
     def test_observation_persists_when_delivery_fails(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "jobs").write_text(json.dumps({"test": {"unit": "test", "max_age": 93600}}))
+            (root / "jobs").write_text(json.dumps({"test": {"unit": "test", "max_age": 93600, "kuma": True}}))
             (root / "tokens").write_text(json.dumps({"test": "secret"}))
             with patch.object(health, "properties", side_effect=[self.service, self.timer]), patch.object(health, "publish", side_effect=TimeoutError), patch.object(health.time, "time", return_value=1100):
-                self.assertEqual(health.run(root / "jobs", root / "tokens", root / "state"), 1)
+                self.assertEqual(health.run(root / "jobs", root / "tokens", root / "state", root / "jobs.prom"), 1)
             self.assertEqual(json.loads((root / "state").read_text())["test"]["last_success"], 1000)
+            self.assertIn('persops_job_healthy{scheduled_job="test"} 1', (root / "jobs.prom").read_text())
+
+    def test_metrics_include_probe_failure_without_fabricating_success(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            jobs = {key: {"unit": key, "max_age": 7200, "kuma": False} for key in ["ok", "broken"]}
+            (root / "jobs").write_text(json.dumps(jobs))
+            (root / "tokens").write_text("{}")
+            with patch.object(health, "properties", side_effect=[self.service, self.timer, TimeoutError]), patch.object(health, "publish") as publish, patch.object(health.time, "time", return_value=1100):
+                self.assertEqual(health.run(root / "jobs", root / "tokens", root / "state", root / "jobs.prom"), 1)
+            publish.assert_not_called()
+            metrics = (root / "jobs.prom").read_text()
+            self.assertIn('persops_job_healthy{scheduled_job="broken"} 0', metrics)
+            self.assertIn('persops_job_last_success_timestamp_seconds{scheduled_job="broken"} 0', metrics)
+            self.assertIn('persops_job_last_success_timestamp_seconds{scheduled_job="ok"} 1000', metrics)
+            self.assertEqual((root / "jobs.prom").stat().st_mode & 0o777, 0o640)
+            self.assertFalse((root / "jobs.tmp").exists())
+
+    def test_metrics_survive_missing_tokens(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "jobs").write_text(json.dumps({"test": {"unit": "test", "max_age": 93600, "kuma": True}}))
+            with patch.object(health, "properties", side_effect=[self.service, self.timer]), patch.object(health.time, "time", return_value=1100):
+                self.assertEqual(health.run(root / "jobs", root / "missing-tokens", root / "state", root / "jobs.prom"), 1)
+            self.assertIn("persops_job_observer_timestamp_seconds 1100", (root / "jobs.prom").read_text())
+
+    def test_job_finishing_during_observation_uses_clock_after_properties(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "jobs").write_text(json.dumps({"test": {"unit": "test", "max_age": 93600, "kuma": True}}))
+            (root / "tokens").write_text(json.dumps({"test": "secret"}))
+            clock = [999]
+
+            def properties(unit):
+                clock[0] = 1100
+                return self.timer if unit.endswith(".timer") else self.service
+
+            with patch.object(health, "properties", side_effect=properties), patch.object(health.time, "time", side_effect=lambda: clock[0]), patch.object(health, "publish") as publish:
+                self.assertEqual(health.run(root / "jobs", root / "tokens", root / "state", root / "jobs.prom"), 0)
+            self.assertEqual(publish.call_args.args[1], "up")
 
 
 if __name__ == "__main__":
