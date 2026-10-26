@@ -80,3 +80,8 @@ until opnix has fetched it once.
   `op://persops/`; the service account cannot read other vaults.
 
 Keep old 1Password fields until no deployed generation still references them.
+
+Monitoring uses `persops/monitoring-amalthea`: `kuma_metrics_api_key` is the
+dedicated Kuma metrics-only API key; `aglaea_push_token` authenticates only the
+Aglaea remote-write receiver path. Opnix renders the server files; Home Manager
+injects the laptop token. Rotate the push field and activate both hosts together.

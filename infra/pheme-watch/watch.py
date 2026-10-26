@@ -38,10 +38,11 @@ def probes():
             results[name] = result.returncode == 0 and "via TSMP" in result.stdout
         except (OSError, subprocess.TimeoutExpired):
             results[name] = False
-    try:
-        results["Private notifications"] = request_json(PRIMARY + "/v1/health").get("healthy") is True
-    except Exception:
-        results["Private notifications"] = False
+    for name, path in {"Private notifications": "/v1/health", "Metrics pipeline": "/monitoring-health/"}.items():
+        try:
+            results[name] = request_json(PRIMARY + path).get("healthy") is True
+        except Exception:
+            results[name] = False
     return results
 
 
