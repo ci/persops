@@ -255,6 +255,7 @@ in
     ../modules/monitoring
     (import ../modules/nvme-health.nix { device = "/dev/nvme0"; })
     ../modules/cliproxyapi-nixos.nix
+    ../modules/rex-nixos.nix
   ];
 
   nix = {
