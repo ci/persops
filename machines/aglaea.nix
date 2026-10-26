@@ -80,6 +80,7 @@
   };
 
   imports = [
+    ../modules/awdl.nix
     ../modules/cliproxyapi-darwin.nix
     ../modules/backup/restic-darwin.nix
     ../modules/monitoring/aglaea.nix

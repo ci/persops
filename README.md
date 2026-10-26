@@ -109,6 +109,29 @@ AeroSpace is installed through Homebrew only. Nix manages its configuration and
 zen-toggle script, which calls the Homebrew CLI. After a Homebrew AeroSpace
 upgrade, restart `/Applications/AeroSpace.app` to keep the server and CLI matched.
 
+## AWDL on Aglaea
+
+`modules/awdl.nix` installs `awdl` and a root-owned, one-shot startup job on
+Aglaea only. AWDL defaults to off at boot to avoid the Wi-Fi latency spikes
+observed on this Mac. Normal Wi-Fi and internet access remain enabled.
+
+- `awdl on`: enable for AirDrop and other nearby-device features.
+- `awdl off`: disable again.
+- `awdl toggle`: switch the current state.
+- `awdl status`: show the current state; also the default with no arguments.
+
+Changes use `sudo` in a terminal or the native macOS authorization dialog without
+one. The startup job waits up to two minutes for AWDL to become available, then
+disables it once and exits. It does not continually enforce the off state, so
+manual `awdl on` is preserved until another change or reboot. Reloading a changed
+startup job during a Nix switch also reapplies the off default. macOS itself may
+reactivate AWDL for nearby-device features; use `awdl status` to check.
+
+The old hand-installed `~/.local/bin/awdl` and
+`/Library/LaunchDaemons/local.awdl-default-off.plist` are retired after the first
+successful deployment. Nix owns the command in the system profile and
+`/Library/LaunchDaemons/org.nixos.awdl-default-off.plist` thereafter.
+
 ## Updating AI Packages
 
 Codex, Claude Code, and Pi-related agent packages are pinned through flake inputs.
