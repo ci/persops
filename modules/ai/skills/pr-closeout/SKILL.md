@@ -75,10 +75,9 @@ For phased or multi-part work when the user asks for stacked PRs:
   split further instead.
 - Run the full closeout loop (gate + autoreview) per phase before opening its
   PR.
-- Follow `$jjpr`'s ordinary or native path for submission and landing. Verify
-  every PR's title, head/base, and complete commit segment after submit or
-  restack. Do not rely on jjpr rebase reconciliation for multi-commit segments
-  on 0.39.1/0.40.0; preserve original reviewed SHAs/trees for landing proof.
+- Follow `$jjpr` for submission and landing. Verify every PR's commit segment
+  after submit or restack, and land only with the merge reconcile strategy
+  (the rebase strategy drops commits from multi-commit segments).
 - In plain Git, phase N bases on phase N-1; after a parent merges, retarget and
   rebase the child as needed.
 - Between phases, report what's next with a go/no-go recommendation and wait

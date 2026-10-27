@@ -5,283 +5,103 @@ description: "Manage stacked pull requests with jjpr in Jujutsu repositories."
 
 # JJPR
 
-Use with the `$jj` skill. Keep one authority per layer:
+Use with the `$jj` skill. One authority per layer:
 
 - `jj` owns changes, ancestry, bookmarks, workspaces, and recovery.
-- `jjpr` submits ordinary GitHub, GitLab, and Forgejo PRs; use the ordinary
-  landing guide rather than assuming its merge reconciliation is safe.
-- For native GitHub Stacks only, `jjpr` creates or updates the PRs,
-  `gh stack link` or the Stacks REST API registers them, and `gh stack merge`
-  lands them.
+- `jjpr` pushes bookmarks, creates/updates PRs, and lands ordinary stacks.
+- Native GitHub Stacks are optional. `gh stack link` registers jjpr's PRs and
+  `gh stack merge` lands them; see [Native GitHub Stacks](references/native-stacks.md).
 
-Never use Git-local `gh stack init`, `add`, `modify`, `rebase`, `sync`, `push`,
-or `submit` in a jj-owned repository.
+Validated live on jjpr 0.45.1, jj 0.45.1, gh 2.102.0, gh-stack 0.1.1.
 
-jjpr 0.39.1 and 0.40.0 misassign multi-commit bookmark segments: submitted PR
-titles can come from a neighboring segment, and squash/rebase landing can lose
-commits while reporting success. Do not use `jjpr merge` or `jjpr watch` with
-rebase reconciliation for such stacks. The native GitHub path is
-additionally validated with gh 2.97.0, gh-stack 0.1.0, and API version
-`2026-03-10`. If a selected tool version differs, stop before its first forge
-write and revalidate that path.
+**Always land with `--reconcile-strategy merge`.** The rebase strategy rebases
+a surviving PR from its tip and drops every earlier commit in a multi-commit
+segment while reporting success (reproduced on 0.39.1 and 0.45.1). Pass the
+flag explicitly: a repo-local `.jj/jjpr.toml` can override the global config.
 
 ## Guardrails
 
-- Start with `jj status` and `jjpr --version`. For native GitHub work, also run
-  `gh --version` and `gh stack --version`.
-- Choose explicit `OWNER/REPO`, Stack base, and Git remote values. Never depend on
-  repository inference from a `.git`-less jj workspace.
-- Run `jjpr auth test` before the first forge operation. After selecting the
-  native GitHub path, or before using GitHub REST to detect native membership,
-  also run `gh auth status --active --hostname github.com`. Never use
-  `--show-token`.
-- Treat `jjpr submit` as push/PR-write, `gh stack link` and `unstack` as remote
-  Stack writes, and `gh stack merge` as landing. Require matching authority.
-- Never use raw `git push` in a jj repository.
-- Use one jj workspace per independent stack, not one per PR. Workspaces share
+- Start with `jj status` and `jjpr --version`; run `jjpr auth test` before the
+  first forge write.
+- Pass the top bookmark, `--base`, and `--remote` explicitly on every write.
+  An empty `@` above the stack is not a reliable inference target.
+- Never raw `git push`. Never use Git-local `gh stack init`, `add`, `modify`,
+  `rebase`, `sync`, `push`, or `submit` in a jj repo.
+- One jj workspace per independent stack, not per PR. Workspaces share
   bookmarks, so one session owns a stack's bookmarks at a time.
-- On persops-managed machines, edit `modules/jjpr.nix`; do not edit the
-  generated jjpr config.
-- `jjpr status` has no remote selector in 0.39.1. Treat it as an optional local
-  hint only; explicit REST reads are authoritative for remote Stack state.
+- On persops-managed machines, change jjpr config in `modules/jjpr.nix`.
 
-## Check the local stack
+## Shape the stack
 
-Use one bookmark per independently landable PR, ordered bottom to top. Commits
+One bookmark per independently landable PR, ordered bottom to top. Commits
 between bookmarks belong to the upper bookmark's PR. Bookmarks follow rewritten
-changes but do not move to a newly created child; use `jj bookmark set` when
-advancing one. Finish with an empty `@` above the top bookmark.
-
-Before any submission, verify the whole range:
+changes but not new children; use `jj bookmark set` to advance one. Finish with
+an empty `@` above the top bookmark.
 
 ```bash
-jj status
 jj log -r '<base>..<top>'
 jj log -r 'conflicts() & <base>..<top>'
-jj bookmark list --all-remotes
 ```
 
-Stop on conflicts, divergent bookmarks, an unexpected base, or extra changes
-inside a PR segment.
+Stop on conflicts, divergent bookmarks, an unexpected base, or stray changes
+inside a segment.
 
-For work intended to become a native Stack, declare and count the complete PR
-list before the first forge write. Native Stacks contain 2–100 PRs. Keep a
-singleton as an ordinary unstacked PR; split a larger series into separately
-authorized Stacks before submitting anything.
-
-## Choose the publication model
-
-For ordinary chained PRs on GitHub, GitLab, or Forgejo, read and follow
-[Ordinary jjpr stacks](references/ordinary-stacks.md) and do not run `gh stack`.
-For an existing GitHub PR chain, use explicitly scoped REST reads to detect
-native membership before choosing. Continue below only when the user wants a
-new native GitHub Stack or the PRs are already native members.
-
-## Native pre-submit gate
-
-Before any live `jjpr submit` on the native path, obtain exclusive remote-writer
-coordination for the desired PR heads and bases and any existing Stack. Hold it
-through final projection verification. If that cannot be guaranteed, stop for
-manual coordination.
-
-Pass the top bookmark explicitly; a normal empty `@` above the stack is not a
-reliable inference target. Preview the complete write:
+## Submit and update
 
 ```bash
 jjpr submit <top> --base <base> --remote <remote> --dry-run
-```
-
-Require the intended repository, the bottom PR targeting the chosen base, and
-every higher PR targeting the bookmark directly below it.
-
-After the dry-run and before its live counterpart, resolve each existing open
-PR by exact repository and head ref. Require zero or one result per bookmark;
-an ambiguous result is a stop:
-
-```bash
-gh pr list --repo OWNER/REPO --state open --head '<bookmark>' --limit 100 \
-  --json number,headRefName,headRefOid,baseRefName,state,isDraft,url
-```
-
-For every existing result, read both its PR record and landing state:
-
-```bash
-gh api 'repos/OWNER/REPO/pulls/PR_NUMBER' \
-  -H 'X-GitHub-Api-Version: 2026-03-10' \
-  --jq '{number,head:.head.ref,head_sha:.head.sha,base:.base.ref,state,merged,locked,stack}'
-gh api graphql -F owner=OWNER -F repo=REPO -F number=PR_NUMBER \
-  -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){state merged mergeQueueEntry{id} autoMergeRequest{enabledAt}}}}'
-```
-
-Require the exact expected head ref, the recorded remote bookmark SHA, `OPEN`,
-unmerged, unlocked, no merge-queue entry, and no auto-merge request. Any native
-membership selects **Update a registered Stack**; the create path additionally
-requires every existing PR to be unstacked. Stop before pushing on any drift or
-ineligible PR.
-
-## Create the PRs
-
-Use this live-submit path only after the native pre-submit gate, for initial
-creation or when every desired PR is proven unstacked. If any PR is a native
-member, use **Update a registered Stack** instead.
-
-```bash
 jjpr submit <top> --base <base> --remote <remote>
 ```
 
-Use `--draft` only when requested; otherwise submit ready for review. Optional
-reviewer flags are:
+The preview must show the bottom PR targeting `<base>` and each higher PR
+targeting the bookmark below it. Submit ready for review unless asked;
+`--draft`, `--reviewer alice,bob`, and `--reviewer-scope all` only on request.
+
+After every submit, check each PR's commits against its jj segment:
 
 ```bash
-jjpr submit <top> --base <base> --remote <remote> --reviewer alice,bob
-jjpr submit <top> --base <base> --remote <remote> --reviewer alice,bob --reviewer-scope all
+gh api --paginate 'repos/OWNER/REPO/pulls/PR/commits?per_page=100' --jq '.[].sha'
+jj log -r '<lower>..<upper>' --no-graph --reversed -T 'commit_id ++ "\n"'
 ```
 
-After submission, resolve each bookmark to exactly one open PR and record the
-PR numbers bottom to top. Verify title/body, head, base, and complete commit
-membership against the intended segment; jjpr's graph may misattribute titles
-even when the published commit list is correct:
+Use `<base>` as `<lower>` for the bottom PR. Fix a wrong title/body with
+`gh pr edit`. Wrong commit membership is a stop, not a metadata fix.
+
+To update, rewrite with jj (`jj squash --into`, `jj edit`, `jj rebase -s`),
+recheck conflicts, and repeat the dry-run/live pair. Reviewers see a force push.
+
+## Land an ordinary stack
 
 ```bash
-gh pr view <bookmark> --repo OWNER/REPO \
-  --json number,title,body,headRefName,headRefOid,baseRefName,state,isDraft,url
-gh api --paginate 'repos/OWNER/REPO/pulls/PR_NUMBER/commits?per_page=100' \
-  --jq '.[].sha'
-jj log -r '<bookmark>' --no-graph -T 'commit_id ++ "\n"'
+jjpr merge <top> --base <base> --remote <remote> --reconcile-strategy merge --dry-run
+jjpr merge <top> --base <base> --remote <remote> --reconcile-strategy merge
 ```
 
-Require `headRefOid == commit_id` for every bookmark before continuing.
-If metadata belongs to another segment, correct that PR's title/body through
-the forge before review (on GitHub: `gh pr edit PR_NUMBER --repo OWNER/REPO
---title 'INTENDED_TITLE'`; use `--body-file BODY_FILE` only if the body is
-wrong, after preparing and inspecting that file). Preserve correct metadata.
-This repairs metadata only, not commit membership; recheck both after every
-later `jjpr submit`, which may update the PR again. Stop if the published
-commits or base differ from the intended segment.
+jjpr merges from the bottom, fetches, merges the new base into the survivors,
+pushes, retargets, and repeats. It enforces the configured approvals, CI, draft,
+changes-requested, and conflict gates; re-run it after a gate clears. Override
+gates only when the user asks.
 
-Do not pass bookmark or branch names to `gh stack link`; PR-number-only linking
-prevents another tool from pushing the branches.
-
-## Preflight native Stack registration
-
-`gh stack link` has no dry-run. It can attempt PR-base writes before rejecting
-an invalid reorder, so read remote state and classify it before calling `link`.
-Reconfirm that the complete desired list still contains 2–100 PRs.
-
-The link API has no expected-membership or compare-and-swap guard. Keep the
-exclusive remote-writer coordination acquired before live submission through
-this read/write/verification sequence.
-
-Read every desired PR using the preview API:
+Then verify content, not just merged flags:
 
 ```bash
-for pr in PR1 PR2 PR3; do
-  gh api "repos/OWNER/REPO/pulls/$pr" \
-    -H 'X-GitHub-Api-Version: 2026-03-10' \
-    --jq '{number,head:.head.ref,head_sha:.head.sha,base:.base.ref,state,merged,draft,locked,auto_merge,stack}'
-  gh api graphql -F owner=OWNER -F repo=REPO -F number="$pr" \
-    -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){state merged mergeQueueEntry{id} autoMergeRequest{enabledAt}}}}'
-done
+jj git fetch --remote <remote>
+jj diff --from <original-top-commit> --to '<base>@<remote>' --stat
 ```
 
-Require every desired PR to remain open, unmerged, unlocked, unqueued, and
-without auto-merge. Draft state may differ only when the authorized
-`jjpr submit` changed it. Immediately before `link` or the REST add, repeat the
-PR and complete-Stack reads and require the recorded heads, bases, membership,
-order, eligibility, and intended classification to be unchanged.
+The diff must be empty when the base had no independent changes; otherwise
+review what differs. After landing, `jjpr status` may list merged bookmarks
+as "no PR yet, run jjpr submit". Don't resubmit them; confirm with
+`gh pr list --repo OWNER/REPO --state merged --head <bookmark>` and delete the
+local bookmark.
 
-If a PR reports Stack membership, read that complete Stack:
+## Recover
 
-```bash
-gh api 'repos/OWNER/REPO/stacks/STACK_NUMBER' \
-  -H 'X-GitHub-Api-Version: 2026-03-10' \
-  --jq '{number,base:.base.ref,pull_requests:[.pull_requests[] | {number,head:.head.ref,state}]}'
-```
-
-Permit exactly one case:
-
-1. **All unstacked:** create a Stack from the complete desired order.
-2. **Exact match:** do nothing; skip `link`.
-3. **Top append:** current ordered membership is a strict prefix of the desired
-   order and every appended PR is unstacked; append only those PRs.
-4. **Anything else:** stop. Do not call `link`; insertion, reorder, removal,
-   mixed Stack membership, or a base mismatch needs an explicit reshape.
-
-For a new Stack, pass every PR bottom to top:
-
-```bash
-GH_REPO=OWNER/REPO gh stack link --base BASE PR1 PR2 PR3
-```
-
-For a clean top append, bypass gh-stack 0.1.0's unpaginated Stack-number lookup
-and call the already-preflighted official add endpoint with only the new top
-PRs:
-
-```bash
-gh api --method POST 'repos/OWNER/REPO/stacks/STACK_NUMBER/add' \
-  -H 'X-GitHub-Api-Version: 2026-03-10' \
-  -F 'pull_requests[]=PR3' -F 'pull_requests[]=PR4'
-```
-
-Let jjpr own draft/ready state; do not pass `--open` to `link`. Never retry a
-failed link blindly: reread membership and every PR base first because an
-earlier write may have succeeded.
-
-## Verify the projection
-
-Read the Stack again and prove all of these:
-
-- the ordered PR numbers equal the desired bottom-to-top list;
-- the Stack base equals the intended base;
-- the bottom PR targets that base;
-- each higher PR targets the preceding PR's head branch;
-- every PR head still matches its jjpr-pushed bookmark;
-- explicitly scoped REST reads report the expected Stack number and positions.
-
-Fail closed on any partial or inconsistent result. Do not make `jjpr status`
-part of this gate; it cannot select the submitted Git remote.
-
-## Update a registered Stack
-
-After REST confirms the current membership and exact base chain, rewrite or
-append changes with jj and range-check:
-
-```bash
-jj status
-jj log -r 'conflicts() & <base>..<top>'
-```
-
-Repeat **Native pre-submit gate**. Run the live update only if the dry-run
-preserves every native member's target branch. A lower head commit changing is
-a content update; a member targeting a different branch is a shape change.
-
-```bash
-jjpr submit <top> --base <base> --remote <remote>
-```
-
-Resolve every desired PR number, head ref, and head SHA again, then repeat
-**Preflight native Stack registration** and **Verify the projection**. A new top
-PR remains unstacked until the top-append REST add succeeds. Do not call an
-update complete merely because `jjpr submit` succeeded.
-
-An unchanged PR chain can be updated normally. jjpr 0.39.1 refuses before
-pushing when the local graph would require retargeting a native member. Treat
-that refusal as a shape conflict; do not bypass it with `gh pr edit` or a raw
-base update.
-
-GitHub supports only exact reuse and top append in place. Insertion, reorder,
-removal, or a member target-branch change requires separate authorization to
-recreate the remote Stack. “Update the PRs” is not reshape authorization. After
-the user approves a stated final PR order and target-branch chain, read and
-follow [Native Stack reshape](references/native-reshape.md). It journals local
-and remote state, checks for concurrent drift immediately before unstacking,
-and fails closed on partial writes.
-
-## Land a native Stack
-
-Never use `jjpr merge` or `jjpr watch` for native members; jjpr 0.39.1 refuses
-them intentionally. Native landing has separate policy, scope, asynchronous
-settlement, and JJ reconciliation requirements. Resolve the intended landing
-scope, then read and follow [Native Stack landing](references/native-land.md)
-in full. It handles approval/CI parity with jjpr, merge-method selection,
-partial-merge number ambiguity, survivor restacking, and final verification.
+- `jjpr undo --dry-run` previews undoing the last jjpr command: it restores the
+  jj operation and force-pushes bookmarks back. `--force` also closes PRs it
+  opened and overwrites what others changed since; use it only when asked. `jjpr redo` reverses an undo.
+- Otherwise use `$jj` recovery with `jj op log`. A manual restack starts at the
+  oldest change of the segment (`jj rebase -s OLDEST -d BASE`); rebasing a tip
+  strands earlier commits.
+- Never blindly move a bookmark to its remote counterpart or discard
+  divergence.

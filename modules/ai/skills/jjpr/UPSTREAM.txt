@@ -3,4 +3,4 @@ source_type = local
 profile = all
 installed_at = 2026-07-19
 requested_source = authored in persops modules/ai/skills/jjpr
-via = original skill based on validated jjpr 0.39.1 and native GitHub Stack workflows
+via = original skill; simplified 2026-10-27 after live jjpr 0.45.1 and native GitHub Stack tests
