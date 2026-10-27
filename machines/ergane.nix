@@ -12,6 +12,10 @@
   system.stateVersion = 7;
   system.configurationRevision = self.rev or self.dirtyRev or null;
 
+  imports = [
+    ../modules/awdl.nix
+  ];
+
   # We use proprietary software on this machine
   nixpkgs.config.allowUnfree = true;
 
