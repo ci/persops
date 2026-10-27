@@ -4,7 +4,7 @@
   ...
 }:
 let
-  version = "0.39.1";
+  version = "0.45.1";
   jjpr = pkgs.rustPlatform.buildRustPackage {
     pname = "jjpr";
     inherit version;
@@ -12,19 +12,20 @@ let
     src = pkgs.fetchFromGitHub {
       owner = "michaeldhopkins";
       repo = "jjpr";
-      # v0.39.1 after upstream's history rewrite (names scrubbed from comments);
-      # pinned by commit so a future retag can't change the source again.
-      rev = "7bddb4ec0370cd6a9d482fe2700a371a2ae2b657";
-      hash = "sha256-CShFT8/Mzdpcdu7A5MPyO6ycJnqXj8jw5w0+gXR2SeI=";
+      # v0.45.1, pinned by commit: upstream has rewritten history and retagged
+      # before, so the tag alone could change the source.
+      rev = "b116c58a0227a3b50357ad026a6a5dc5e953705f";
+      hash = "sha256-3wJ7qt6xKBZKqTmXwMjHXVLf6jhVE+7vZAVajr2jDNY=";
     };
 
-    cargoHash = "sha256-yFcqPuZdFe128/X9spSosM3alkBz/uU/oteTu8kDNBY=";
+    cargoHash = "sha256-5cEhQqbo4ln5f3JoNi1hA0axqqu7mUGQ2vX5EV7tXnk=";
 
-    patches = [ ./jjpr-native-stack-recovery.patch ];
-    patchFlags = [
-      "-p1"
-      "--fuzz=0"
-    ];
+    # tests/mutants_run.rs runs its stub cargo and scripts/mutants-run.sh
+    # through /bin/bash, which the build sandbox doesn't have.
+    postPatch = ''
+      substituteInPlace tests/mutants_run.rs \
+        --replace-fail /bin/bash ${pkgs.bash}/bin/bash
+    '';
 
     # Upstream has a #[should_panic] test around a debug assertion.
     checkType = "debug";
