@@ -38,9 +38,10 @@ GH_REPO=OWNER/REPO gh stack merge PR --yes --merge-method METHOD
 ```
 
 Use the repo's standard merge method (see `$land`). This lands `PR` and every
-member below it. gh-stack 0.1.x reads a bare number as a Stack number first: if `gh api repos/OWNER/REPO/stacks/PR` exists, stop
-and ask which one is meant. Check approvals and CI on every PR in the merged
-range first; gh-stack doesn't apply jjpr's gates.
+member below it. gh-stack 0.1.x reads a bare number as a Stack number first:
+if `gh api repos/OWNER/REPO/stacks/PR` exists, stop and ask which one is
+meant. Check approvals and CI on every PR in the merged range first; gh-stack
+doesn't apply jjpr's gates.
 
 ## Reconcile after a partial land
 
