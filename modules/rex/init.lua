@@ -86,19 +86,46 @@ for i = 1, 9 do
   rex.bind(P .. i, "goto_session", { index = i })
 end
 
--- herdr's popups (prefix+y, prefix+f) run in a split below the pane, not a floating
--- layer: Rex draws a layer's unpainted cells see-through, so fzf would sit on top of
--- the pane's text. The split closes when the command exits.
-local function split_below(ctx, command)
-  local _, err = rex.session.new_split({
-    anchor_block_id = ctx.block_id,
-    direction = "vertical",
-    side = "after",
-    ratio = 0.6,
+-- herdr's popups (prefix+y, prefix+f) open in a floating pane over the window. Rex
+-- closes the layer when the command exits, but then focuses another pane and leaves
+-- zoom cleared, so the wrapper refocuses the pane and re-zooms before it exits.
+local POPUP_RESTORE = [[
+pane=$1 zoomed=$2
+shift 2
+"$@"
+rex focus "$pane" >/dev/null 2>&1
+[ -z "$zoomed" ] || rex zoom "$zoomed" --on >/dev/null 2>&1
+]]
+
+local function block_window(session_id, block_id)
+  local view, err = rex.call("session.view", { session_id = session_id })
+  if err ~= nil then
+    error(err, 0)
+  end
+  for _, window in ipairs(view.windows) do
+    for _, layer in ipairs(window.layers) do
+      for _, block in ipairs(layer.blocks) do
+        if block.block_id == block_id then
+          return window
+        end
+      end
+    end
+  end
+end
+
+local function float_popup(ctx, command)
+  local window = block_window(ctx.session_id, ctx.block_id) or {}
+  local argv = { "sh", "-c", POPUP_RESTORE, "sh", ctx.block_id, window.zoomed_block_id or "" }
+  for _, arg in ipairs(command) do
+    argv[#argv + 1] = arg
+  end
+  local _, err = rex.session.new_layer({
+    window_id = window.window_id,
+    bounds = { 0.1, 0.15, 0.8, 0.7 },
     focus = true,
     layout = rex.layout.block({
       flavor = "com.superlogical.terminal.shell",
-      options = { command = command },
+      options = { command = argv },
     }),
   })
   if err ~= nil then
@@ -111,7 +138,7 @@ rex.action({
   name = "hints",
   title = "Copy or Type a Hint from the Pane",
   run = function(ctx)
-    split_below(ctx, { "rex-hints", ctx.block_id })
+    float_popup(ctx, { "rex-hints", ctx.block_id })
   end,
 })
 rex.bind(P .. "y", "hints")
@@ -121,7 +148,7 @@ rex.action({
   name = "projects",
   title = "Open or Switch to a Project Session",
   run = function(ctx)
-    split_below(ctx, { "rex-project-picker" })
+    float_popup(ctx, { "rex-project-picker" })
   end,
 })
 rex.bind(P .. "f", "projects")
