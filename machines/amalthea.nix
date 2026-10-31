@@ -302,7 +302,6 @@ in
     # Remote unlock over SSH in initrd. Keep this out of the generated
     # hardware file so it doesn't get clobbered.
     initrd = {
-      verbose = true;
       # Realtek RTL8125 (enp2s0) needs r8169 in stage1 for networking/SSH.
       availableKernelModules = [ "r8169" ];
       kernelModules = [ "r8169" ];
