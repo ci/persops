@@ -3,6 +3,7 @@
   inputs,
   lib,
   currentSystemProfile,
+  currentSystemName ? null,
   ...
 }:
 let
@@ -82,8 +83,14 @@ let
     };
   localSkillTargets = map mkLocalSkill (builtins.attrNames localSkillDirs);
   # AGENTS.md is the portable core (also injected into cloud sessions by the
-  # persops plugin); AGENTS.local.md only makes sense on these hosts.
-  agentsText = builtins.readFile ./AGENTS.md + "\n" + builtins.readFile ./AGENTS.local.md;
+  # persops plugin); AGENTS.local.md only makes sense on these hosts, and
+  # AGENTS.<host>.md only on that host.
+  hostAgentsPath = ./. + "/AGENTS.${toString currentSystemName}.md";
+  agentsText =
+    builtins.readFile ./AGENTS.md
+    + "\n"
+    + builtins.readFile ./AGENTS.local.md
+    + lib.optionalString (builtins.pathExists hostAgentsPath) ("\n" + builtins.readFile hostAgentsPath);
   agentsFile = pkgs.writeText "AGENTS.md" agentsText;
   piAgentsFile = pkgs.writeText "pi-AGENTS.md" (
     agentsText + "\n\n" + (builtins.readFile ./pi/AGENTS.extra.md)

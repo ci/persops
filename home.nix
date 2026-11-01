@@ -52,6 +52,7 @@ in
     ./modules/starship.nix
     ./modules/mise.nix
     ./modules/direnv.nix
+    ./modules/docker-context.nix
     ./modules/nvim.nix
     ./modules/packages.nix
     ./modules/programming.nix
