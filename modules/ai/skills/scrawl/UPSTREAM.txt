@@ -1,0 +1,7 @@
+source = kitlangton/scrawl
+source_type = github
+profile = all
+installed_at = 2026-11-01T13:33:40Z
+via = bunx --bun skills add https://github.com/kitlangton/scrawl --agent \* --yes --copy --skill scrawl
+computed_hash = 9106c1f050543713733c1293896d4adfdc5af30da9bbfaf1175087a7db46f405
+marketplace = excluded (machine-only: reads local .scrawl bundles and the macOS scrawl CLI)
