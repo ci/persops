@@ -2,6 +2,7 @@
   pkgs,
   inputs,
   lib,
+  config,
   currentSystemProfile,
   currentSystemName ? null,
   ...
@@ -95,6 +96,10 @@ let
   piAgentsFile = pkgs.writeText "pi-AGENTS.md" (
     agentsText + "\n\n" + (builtins.readFile ./pi/AGENTS.extra.md)
   );
+  # Untracked per-machine replacement for all of the above. Pure eval can't read it,
+  # so activation symlinks the instruction files to it. Not AGENTS.override.md:
+  # Codex reads that name in ~/.codex and every repo dir.
+  agentsOverride = "${config.xdg.configHome}/persops/agents-override.md";
   skillTargets = localSkillTargets;
   agentSkillTargets = lib.filter (
     skill: builtins.elem ".agents/skills" (skill.bases or skillBaseProfiles.all)
@@ -123,7 +128,10 @@ in
 
     # Global agent instructions for Claude Code, Codex, and OpenCode.
     # Pi gets a generated mutable copy with pi-specific notes below.
-    "opencode/AGENTS.md".source = agentsFile;
+    "opencode/AGENTS.md" = {
+      source = agentsFile;
+      force = true; # applyAgentsOverride may symlink this elsewhere
+    };
   };
 
   home = {
@@ -160,8 +168,15 @@ in
     file =
       let
         baseFiles = {
-          ".claude/CLAUDE.md".source = agentsFile;
-          ".codex/AGENTS.md".source = agentsFile;
+          # force: applyAgentsOverride may symlink these elsewhere
+          ".claude/CLAUDE.md" = {
+            source = agentsFile;
+            force = true;
+          };
+          ".codex/AGENTS.md" = {
+            source = agentsFile;
+            force = true;
+          };
         }
         // lib.optionalAttrs isPersonal {
           ".summarize/config.json".text = builtins.toJSON {
@@ -273,6 +288,17 @@ in
       fi
     '';
 
+    # With a local override, point the global instruction files at it so edits apply live.
+    # force = true lets the next switch relink the store copy once the override is gone.
+    activation.applyAgentsOverride = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
+      if [ -s "${agentsOverride}" ]; then
+        for dst in "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "${config.xdg.configHome}/opencode/AGENTS.md"; do
+          ln -sfn "${agentsOverride}" "$dst"
+        done
+        echo "Linked agent instructions to ${agentsOverride}" >&2
+      fi
+    '';
+
     # Pi config files are copied, not symlinked, so /settings and /reload workflows can write to them.
     # Source of truth stays in modules/ai/pi; make local overwrites generated copies after backing up drift.
     activation.installPiAgentConfig = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
@@ -349,7 +375,14 @@ in
       }
 
       install_mutable_file "${./pi/settings.json}" "$pi_dir/settings.json"
-      install_mutable_file "${piAgentsFile}" "$pi_dir/AGENTS.md"
+      if [ -s "${agentsOverride}" ]; then
+        if [ -f "$pi_dir/AGENTS.md" ] && [ ! -L "$pi_dir/AGENTS.md" ]; then
+          backup_pi_path "$pi_dir/AGENTS.md"
+        fi
+        ln -sfn "${agentsOverride}" "$pi_dir/AGENTS.md"
+      else
+        install_mutable_file "${piAgentsFile}" "$pi_dir/AGENTS.md"
+      fi
       copy_mutable_tree "${./pi/extensions}" "$pi_dir/extensions"
       copy_mutable_tree "${./pi/prompts}" "$pi_dir/prompts"
       copy_mutable_tree "${./pi/themes}" "$pi_dir/themes"
