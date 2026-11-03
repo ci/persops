@@ -27,6 +27,7 @@ in
   launchd.user.envVariables = {
     PATH = [
       "/Users/${user}/.local/bin"
+      "/Users/${user}/.cargo/bin"
       "/Users/${user}/.nix-profile/bin"
       "/etc/profiles/per-user/${user}/bin"
       "/run/current-system/sw/bin"

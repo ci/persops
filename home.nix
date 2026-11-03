@@ -160,6 +160,7 @@ in
       "$HOME/.local/share/pnpm"
       "$HOME/.npm-global/bin"
       "$HOME/go/bin"
+      "$HOME/.cargo/bin"
     ];
   };
 
