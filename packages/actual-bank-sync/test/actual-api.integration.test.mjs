@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, stat } from 'node:fs/promises';
+import { join } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
 
 import { planReconciliation } from '../src/reconcile.mjs';
@@ -11,6 +13,40 @@ try {
 } catch (error) {
   if (error.code !== 'MODULE_NOT_FOUND') throw error;
   // Unit tests also run directly from the checkout, where npm dependencies are absent.
+}
+
+async function newestMtime(dir) {
+  let newest = 0;
+  let entries = [];
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch {
+    return newest;
+  }
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      newest = Math.max(newest, await newestMtime(path));
+      continue;
+    }
+    try {
+      newest = Math.max(newest, (await stat(path)).mtimeMs);
+    } catch {
+      // A temp file can disappear between readdir and stat.
+    }
+  }
+  return newest;
+}
+
+async function waitForBudgetWrites(dir) {
+  let quietFor = 0;
+  let previous = await newestMtime(dir);
+  for (let attempt = 0; attempt < 50 && quietFor < 1000; attempt += 1) {
+    await delay(100);
+    const current = await newestMtime(dir);
+    quietFor = current === previous ? quietFor + 100 : 0;
+    previous = current;
+  }
 }
 
 function bridgeRule(account, variant) {
@@ -180,6 +216,10 @@ test(
       );
     } finally {
       await api?.shutdown().catch(() => {});
+      // Actual 26.11 keeps writing the budget after shutdown resolves.
+      // Delete only after that write stops, so it does not reject once the
+      // test has ended.
+      await waitForBudgetWrites(dataDir);
       await rm(dataDir, { recursive: true, force: true });
     }
   },
