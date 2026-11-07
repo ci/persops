@@ -39,11 +39,12 @@ async function newestMtime(dir) {
 }
 
 async function waitForBudgetWrites(dir) {
+  let quietFor = 0;
   let previous = await newestMtime(dir);
-  for (let attempt = 0; attempt < 30; attempt += 1) {
+  for (let attempt = 0; attempt < 50 && quietFor < 1000; attempt += 1) {
     await delay(100);
     const current = await newestMtime(dir);
-    if (current === previous) return;
+    quietFor = current === previous ? quietFor + 100 : 0;
     previous = current;
   }
 }
