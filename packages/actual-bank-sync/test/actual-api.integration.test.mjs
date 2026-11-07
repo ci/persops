@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
+import { setTimeout as delay } from 'node:timers/promises';
 import test from 'node:test';
 
 import { planReconciliation } from '../src/reconcile.mjs';
@@ -180,6 +181,9 @@ test(
       );
     } finally {
       await api?.shutdown().catch(() => {});
+      // Actual 26.11 keeps writing the budget after shutdown resolves.
+      // Deleting immediately makes that write reject after the test ends.
+      await delay(1000);
       await rm(dataDir, { recursive: true, force: true });
     }
   },
