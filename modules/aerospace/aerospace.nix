@@ -30,8 +30,8 @@ let
 
       # variant: zen
       [gaps]
-          outer.left  = [{ monitor."DELL G3223Q" = 720 }, 0]
-          outer.right = [{ monitor."DELL G3223Q" = 720 }, 0]
+          outer.left  = [{ monitor."DELL G3223Q" = 610 }, 0]
+          outer.right = [{ monitor."DELL G3223Q" = 610 }, 0]
     ''
   );
 
