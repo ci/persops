@@ -334,12 +334,19 @@ in
         gateway = [ "192.168.42.1" ];
       };
 
-      systemd.contents."/root/.profile".text = ''
-        echo
-        echo "To unlock root, run:"
-        echo "  cryptsetup luksOpen /dev/disk/by-uuid/e12696b1-da5d-4aa3-8cda-ac2f90745068 luks-e12696b1-da5d-4aa3-8cda-ac2f90745068"
-        echo
-        exec /bin/sh
+      # systemd initrd sets root's home to /var/empty and has no cryptsetup
+      # CLI, so the unlock hint lives in /etc/profile, which the bash login
+      # shell reads. It answers the pending LUKS prompt straight away.
+      systemd.contents."/etc/profile".text = ''
+        case $- in
+          *i*)
+            echo
+            echo "amalthea initrd: enter the LUKS passphrase to continue booting."
+            echo "Ctrl-C for a shell; unlock later with: systemd-tty-ask-password-agent --query"
+            echo
+            systemd-tty-ask-password-agent --query
+            ;;
+        esac
       '';
     };
 
