@@ -7,4 +7,11 @@
     [git]
     abandon-unreachable-commits = false
   '';
+
+  # Update stale working copies automatically (e.g. after another workspace
+  # rewrote @'s commit) instead of erroring until `jj workspace update-stale`.
+  xdg.configFile."jj/conf.d/50-persops-snapshot.toml".text = ''
+    [snapshot]
+    auto-update-stale = true
+  '';
 }
