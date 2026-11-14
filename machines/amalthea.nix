@@ -740,6 +740,10 @@ in
       };
     };
 
+    # amalthea sits on the home LAN that aletheia advertises as a subnet
+    # route; accepting it would hairpin local LAN traffic through the tailnet.
+    tailscale.extraSetFlags = [ "--accept-routes=false" ];
+
     uptime-kuma = {
       enable = true;
       settings = {
