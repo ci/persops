@@ -764,6 +764,10 @@ in
         "husqvarna_automower_ble"
         "kegtron"
       ];
+      customComponents = [
+        # BLE-advertising lamps (LampSmart Pro and similar apps), e.g. the ring pendant.
+        (pkgs.home-assistant.python3Packages.callPackage ../packages/ha-ble-adv { })
+      ];
       config = {
         default_config = { };
         homeassistant = {
