@@ -61,7 +61,7 @@ def write_metrics(path, jobs, observations, now):
     lines = [f"persops_job_observer_timestamp_seconds {now}"]
     for key, job in jobs.items():
         status, record = observations[key]
-        labels = f'scheduled_job={json.dumps(key)}'
+        labels = f'scheduled_job={json.dumps(key)},unit={json.dumps(job["unit"])}'
         for metric, value in {
             "healthy": int(status == "up"),
             "last_success_timestamp_seconds": record.get("last_success", 0),
