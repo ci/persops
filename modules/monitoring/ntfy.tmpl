@@ -1,0 +1,62 @@
+{{/* ntfy push for one alert group: the title names what broke, the body says where to look. */}}
+
+{{ define "ntfy.name" -}}
+{{- if eq .Labels.alertname "DatasourceNoData" -}}
+No data: {{ .Labels.rulename }}
+{{- else if eq .Labels.alertname "DatasourceError" -}}
+Query error: {{ .Labels.rulename }}
+{{- else -}}
+{{ .Annotations.summary }}
+{{- end -}}
+{{- end }}
+
+{{ define "ntfy.line" -}}
+{{- if eq .Labels.alertname "DatasourceNoData" -}}
+No data for "{{ .Labels.rulename }}": the metric is missing (exporter down, or the host just restarted).
+{{- else if eq .Labels.alertname "DatasourceError" -}}
+"{{ .Labels.rulename }}" could not be evaluated. Check: journalctl -u grafana -u victoriametrics -n 50
+{{- else -}}
+{{ .Annotations.description }}
+{{- end -}}
+{{- end }}
+
+{{ define "ntfy.group" -}}
+{{- if eq .CommonLabels.alertname "DatasourceNoData" -}}
+No data for alert rules
+{{- else if eq .CommonLabels.alertname "DatasourceError" -}}
+Query errors in alert rules
+{{- else -}}
+{{ .CommonLabels.alertname }}
+{{- end -}}
+{{- end }}
+
+{{ define "ntfy.title" -}}
+{{- if .Alerts.Firing -}}
+{{- if eq (len .Alerts.Firing) 1 -}}
+{{ template "ntfy.name" (index .Alerts.Firing 0) }}
+{{- else -}}
+{{ template "ntfy.group" . }} ({{ len .Alerts.Firing }})
+{{- end -}}
+{{- else -}}
+Resolved: {{ if eq (len .Alerts.Resolved) 1 }}{{ template "ntfy.name" (index .Alerts.Resolved 0) }}{{ else }}{{ template "ntfy.group" . }} ({{ len .Alerts.Resolved }}){{ end }}
+{{- end -}}
+{{- end }}
+
+{{/* One line per alert; a blank line separates still-firing from resolved. */}}
+{{ define "ntfy.message" -}}
+{{ range .Alerts.Firing }}{{ template "ntfy.line" . }}
+{{ end }}
+{{- if and .Alerts.Firing .Alerts.Resolved }}
+{{ end }}
+{{- if and (not .Alerts.Firing) (eq (len .Alerts.Resolved) 1) }}
+{{- if eq (index .Alerts.Resolved 0).Annotations.grafana_state_reason "MissingSeries" }}The metric disappeared, so this is not confirmed fixed.{{ else }}Back to normal.{{ end }}
+{{- else }}
+{{- range .Alerts.Resolved }}Resolved: {{ template "ntfy.name" . }}
+{{- if eq .Annotations.grafana_state_reason "MissingSeries" }} (metric disappeared, not confirmed fixed){{ end }}
+{{ end }}
+{{- end }}
+{{- end }}
+
+{{ define "ntfy.click" -}}
+{{- if .Alerts.Firing }}{{ (index .Alerts.Firing 0).GeneratorURL }}{{ else }}{{ (index .Alerts 0).GeneratorURL }}{{ end -}}
+{{- end }}

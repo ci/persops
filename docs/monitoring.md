@@ -48,7 +48,12 @@ over 90%, memory availability below 5%, and failed scrapes. Missing metric data
 and evaluation errors also notify; initial rate queries need two samples.
 New-error and spare-drop notifications cover a rolling 30-minute window.
 
-Alerts and recoveries use ntfy's existing `alerts` topic. This phase shares the
+Alerts and recoveries use ntfy's existing `alerts` topic. Each rule's `summary`
+annotation is the push title (what broke) and its `description` is the body
+(where to look, usually the exact `journalctl`/`smartctl` command);
+`modules/monitoring/ntfy.tmpl` formats the group and tapping opens the rule.
+Contact-point provisioning expands `$VAR`, so payload template variables use `$$`.
+This phase shares the
 existing write-only `uptime-kuma` notification credential, rendered by opnix
 into a root-only Grafana environment file. No credentials enter Git/Nix store.
 Kuma continues to own availability and its existing scheduled-job checks, including
