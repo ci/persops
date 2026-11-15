@@ -1,6 +1,8 @@
 name: publish-public
 
-# Publishes the allowlisted part of the private repo to the public ci/persops.
+# Publishes the allowlisted part of the private repo to the public ci/persops,
+# then mirrors that repo's main to the public gitlab.com/cat/persops (full
+# clone, since GitLab rejects pushes from a shallow one).
 # Runs only on ci/privops main; the copy of this file in ci/persops never runs.
 
 on:
@@ -37,7 +39,7 @@ jobs:
           export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/publish -o IdentitiesOnly=yes"
 
           public="$RUNNER_TEMP/public"
-          git clone --depth 1 git@github.com:ci/persops.git "$public"
+          git clone git@github.com:ci/persops.git "$public"
           cd "$public"
           git checkout -B main
           git rm -rq --ignore-unmatch .
@@ -50,3 +52,15 @@ jobs:
           git -c user.name=Catalin -c user.email=6650666+ci@users.noreply.github.com \
             commit -qm "Publish snapshot"
           git push origin main
+
+      - name: Mirror to gitlab.com/cat/persops
+        env:
+          GITLAB_MIRROR_KEY: ${{ secrets.GITLAB_MIRROR_KEY }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$GITLAB_MIRROR_KEY" > ~/.ssh/gitlab
+          chmod 600 ~/.ssh/gitlab
+          echo 'gitlab.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAfuCHKVTjquxvt6CM6tdG4SLp1Btn/nOeHHE5UOzRdf' >> ~/.ssh/known_hosts
+          cd "$RUNNER_TEMP/public"
+          GIT_SSH_COMMAND="ssh -i $HOME/.ssh/gitlab -o IdentitiesOnly=yes" \
+            git push git@gitlab.com:cat/persops.git HEAD:refs/heads/main
