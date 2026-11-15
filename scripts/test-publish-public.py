@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -64,7 +65,8 @@ class PublishPublicTest(unittest.TestCase):
         )
 
     def publish(self, *args: str, check: bool = False) -> subprocess.CompletedProcess[str]:
-        return run(str(SCRIPT), *args, cwd=self.root, check=check)
+        # Via the interpreter: the Nix check sandbox has no /usr/bin/env for the shebang.
+        return run(sys.executable, str(SCRIPT), *args, cwd=self.root, check=check)
 
     def test_paths_merge_allowlist_and_marketplace(self) -> None:
         out = self.publish("paths", check=True).stdout.split()
