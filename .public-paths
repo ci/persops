@@ -1,4 +1,4 @@
-# Paths published to the public ci/persops-public repo by scripts/publish-public.
+# Paths published to the public ci/persops repo by scripts/publish-public.
 # Adding a line here publishes that path. Read all of it first.
 #
 # Skill folders and plugin sources named in .claude-plugin/marketplace.json

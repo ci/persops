@@ -13,7 +13,7 @@ next publish would overwrite them.
 ## Claude Code plugins
 
 ```sh
-/plugin marketplace add ci/persops-public
+/plugin marketplace add ci/persops
 /plugin install persops@persops
 ```
 

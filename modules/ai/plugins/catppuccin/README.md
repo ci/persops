@@ -22,9 +22,9 @@ Claude Code's plugin-authoring skill. Copy them again when Claude Code updates.
 At the prompt of a terminal session:
 
 ```
-/plugin install persops-catppuccin --marketplace ci/persops-public
+/plugin install persops-catppuccin --marketplace ci/persops
 ```
 
 In the desktop app: + next to the prompt box, then Plugins, Add marketplace
-with `ci/persops-public`, then add `persops-catppuccin`. For cloud sessions, add it in
+with `ci/persops`, then add `persops-catppuccin`. For cloud sessions, add it in
 Project settings > Plugins.

@@ -1,6 +1,6 @@
 {
   "name": "persops",
-  "description": "Agent skills from ci/persops-public, packaged as Claude Code plugins.",
+  "description": "Agent skills from ci/persops, packaged as Claude Code plugins.",
   "owner": {
     "name": "Catalin"
   },

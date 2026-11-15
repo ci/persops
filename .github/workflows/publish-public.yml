@@ -1,7 +1,7 @@
 name: publish-public
 
-# Publishes the allowlisted part of the private repo to the public ci/persops-public.
-# Runs only on ci/privops main; the copy of this file in ci/persops-public never runs.
+# Publishes the allowlisted part of the private repo to the public ci/persops.
+# Runs only on ci/privops main; the copy of this file in ci/persops never runs.
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
       - name: Build and scan the export
         run: scripts/publish-public export "$RUNNER_TEMP/export"
 
-      - name: Push to ci/persops-public
+      - name: Push to ci/persops
         env:
           PUBLIC_MIRROR_KEY: ${{ secrets.PUBLIC_MIRROR_KEY }}
         run: |
@@ -37,7 +37,7 @@ jobs:
           export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/publish -o IdentitiesOnly=yes"
 
           public="$RUNNER_TEMP/public"
-          git clone --depth 1 git@github.com:ci/persops-public.git "$public"
+          git clone --depth 1 git@github.com:ci/persops.git "$public"
           cd "$public"
           git checkout -B main
           git rm -rq --ignore-unmatch .
