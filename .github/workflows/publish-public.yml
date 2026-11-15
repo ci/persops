@@ -16,6 +16,7 @@ concurrency:
 
 permissions:
   contents: read
+  statuses: read
 
 jobs:
   publish:
@@ -23,11 +24,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Build and scan the export
         run: scripts/publish-public export "$RUNNER_TEMP/export"
 
-      - name: Push to ci/persops
+      - name: Clone ci/persops
         env:
           PUBLIC_MIRROR_KEY: ${{ secrets.PUBLIC_MIRROR_KEY }}
         run: |
@@ -36,11 +39,47 @@ jobs:
           printf '%s\n' "$PUBLIC_MIRROR_KEY" > ~/.ssh/publish
           chmod 600 ~/.ssh/publish
           echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > ~/.ssh/known_hosts
-          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/publish -o IdentitiesOnly=yes"
+          GIT_SSH_COMMAND="ssh -i $HOME/.ssh/publish -o IdentitiesOnly=yes" \
+            git clone git@github.com:ci/persops.git "$RUNNER_TEMP/public"
+          git -C "$RUNNER_TEMP/public" config core.sshCommand "ssh -i $HOME/.ssh/publish -o IdentitiesOnly=yes"
 
-          public="$RUNNER_TEMP/public"
-          git clone git@github.com:ci/persops.git "$public"
-          cd "$public"
+      # Every commit since the last snapshot that changes public paths needs a
+      # privops/leak status (scripts/land posts it). Without one, the public copy
+      # waits; private main is unaffected.
+      - name: Hold public changes without a leak review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          source="$(git -C "$RUNNER_TEMP/public" log -1 --format='%(trailers:key=Source,valueonly)' | head -n 1)"
+          if [ -n "$source" ]; then
+            if ! git merge-base --is-ancestor "$source" HEAD; then
+              echo "::error::last published source $source is not in main's history"
+              exit 1
+            fi
+            base="$source"
+          else
+            # No snapshot records its source yet: start from the commit before this step existed.
+            added="$(git log --reverse --format=%H -G 'name: Hold public changes without a leak review' \
+              -- .github/workflows/publish-public.yml | head -n 1)"
+            base="$added^"
+          fi
+          commits="$(scripts/publish-public changed "$base")"
+          held=0
+          for commit in $commits; do
+            state="$(gh api "repos/$GITHUB_REPOSITORY/commits/$commit/status" \
+              --jq '.statuses[] | select(.context == "privops/leak") | .state')"
+            if [ "$state" != success ]; then
+              echo "::error::$commit changes public paths without a privops/leak review"
+              held=1
+            fi
+          done
+          exit "$held"
+
+      - name: Push to ci/persops
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/public"
           git checkout -B main
           git rm -rq --ignore-unmatch .
           cp -a "$RUNNER_TEMP/export/." .
@@ -50,7 +89,7 @@ jobs:
             exit 0
           fi
           git -c user.name=Catalin -c user.email=6650666+ci@users.noreply.github.com \
-            commit -qm "Publish snapshot"
+            commit -qm "Publish snapshot" -m "Source: $GITHUB_SHA"
           git push origin main
 
       - name: Mirror to gitlab.com/cat/persops

@@ -159,6 +159,21 @@ class PublishPublicTest(unittest.TestCase):
         diff = self.publish("diff", base, check=True).stdout
         self.assertIn("modules/shared/tool.nix", diff)
 
+    def test_changed_lists_commits_that_touch_public_paths(self) -> None:
+        base = run("git", "rev-parse", "HEAD", cwd=self.root).stdout.strip()
+        (self.root / "machines/home.nix").write_text("private = true;\n")
+        self.commit("private only")
+        (self.root / "skills/one/SKILL.md").write_text("changed\n")
+        self.commit("public skill")
+        public = run("git", "rev-parse", "HEAD", cwd=self.root).stdout.strip()
+        (self.root / "public/README.md").write_text("# renamed readme\n")
+        self.commit("readme")
+        readme = run("git", "rev-parse", "HEAD", cwd=self.root).stdout.strip()
+        (self.root / "skills/two/SKILL.md").write_text("still unlisted\n")
+        self.commit("unlisted skill")
+        result = self.publish("changed", base, check=True)
+        self.assertEqual(result.stdout.split(), [public, readme])
+
 
 if __name__ == "__main__":
     unittest.main()

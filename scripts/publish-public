@@ -8,6 +8,7 @@ is scanned for private details before it can be published.
 
   publish-public paths [--rev REV]          print the public paths
   publish-public diff BASE [--rev REV]      diff of public paths, BASE...REV
+  publish-public changed BASE [--rev REV]   commits in BASE..REV (first parent) that change public paths
   publish-public export OUT [--rev REV] [--deny FILE | --no-deny]
   publish-public scan DIR [--deny FILE | --no-deny]
 """
@@ -143,6 +144,16 @@ def export(rev: str, out: Path, root: Path) -> None:
             parent = parent.parent
 
 
+def public_diff(base: str, rev: str, root: Path) -> bytes:
+    # Paths public on either side, so a path that stops being public shows too.
+    try:
+        before = public_paths(base, root)
+    except (subprocess.CalledProcessError, SystemExit):
+        before = []
+    paths = sorted({*before, *public_paths(rev, root), ALLOWLIST, *RENAMES})
+    return git("diff", f"{base}...{rev}", "--", *paths, cwd=root)
+
+
 def main() -> int:
     if sys.version_info < (3, 12):
         raise SystemExit("publish-public needs Python 3.12 or newer")
@@ -159,6 +170,9 @@ def main() -> int:
     p_diff = sub.add_parser("diff")
     p_diff.add_argument("base")
     p_diff.add_argument("--rev", default="HEAD")
+    p_changed = sub.add_parser("changed")
+    p_changed.add_argument("base")
+    p_changed.add_argument("--rev", default="HEAD")
     p_export = sub.add_parser("export")
     p_export.add_argument("out", type=Path)
     p_export.add_argument("--rev", default="HEAD")
@@ -173,13 +187,15 @@ def main() -> int:
         print("\n".join(public_paths(args.rev, root)))
         return 0
     if args.command == "diff":
-        # Paths public on either side, so a path that stops being public shows too.
-        try:
-            before = public_paths(args.base, root)
-        except (subprocess.CalledProcessError, SystemExit):
-            before = []
-        paths = sorted({*before, *public_paths(args.rev, root), ALLOWLIST, *RENAMES})
-        sys.stdout.buffer.write(git("diff", f"{args.base}...{args.rev}", "--", *paths, cwd=root))
+        sys.stdout.buffer.write(public_diff(args.base, args.rev, root))
+        return 0
+    if args.command == "changed":
+        # The publish workflow holds the public copy until each of these has a leak review.
+        commits = git("rev-list", "--first-parent", "--reverse", f"{args.base}..{args.rev}", cwd=root).decode().split()
+        for commit in commits:
+            parent = git("rev-list", "--parents", "-n", "1", commit, cwd=root).decode().split()[1:2]
+            if not parent or public_diff(parent[0], commit, root):
+                print(commit)
         return 0
 
     deny = None if args.no_deny else (args.deny or root / DEFAULT_DENY)
