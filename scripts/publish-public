@@ -1,0 +1,201 @@
+#!/usr/bin/env python3
+"""Build and check the public persops export from this private repo.
+
+The public repo (ci/persops-public) is generated: it holds only the paths listed in
+.public-paths plus the skill and plugin folders named in
+.claude-plugin/marketplace.json, taken from a committed revision. Every export
+is scanned for private details before it can be published.
+
+  publish-public paths [--rev REV]          print the public paths
+  publish-public diff BASE [--rev REV]      diff of public paths, BASE...REV
+  publish-public export OUT [--rev REV] [--deny FILE | --no-deny]
+  publish-public scan DIR [--deny FILE | --no-deny]
+"""
+
+from __future__ import annotations
+
+import argparse
+import io
+import json
+import os
+import re
+import subprocess
+import sys
+import tarfile
+from pathlib import Path
+
+ALLOWLIST = ".public-paths"
+MARKETPLACE = ".claude-plugin/marketplace.json"
+DEFAULT_DENY = ".public-deny"
+# Files that are published under a different name.
+RENAMES = {"public/README.md": "README.md"}
+
+# Generic patterns that are never right in the public copy. Personal names,
+# rooms, accounts and domains belong in the private deny file.
+BUILTIN_PATTERNS = {
+    "private IPv4": r"\b(10\.[0-9]{1,3}|192\.168|172\.(1[6-9]|2[0-9]|3[01]))\.[0-9]{1,3}\.[0-9]{1,3}\b",
+    "Tailscale IPv4": r"\b100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.[0-9]{1,3}\.[0-9]{1,3}\b",
+    "tailnet name": r"\b[a-z0-9]+(-[a-z0-9]+)+\.ts\.net\b",
+    "MAC address": r"\b([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\b",
+    "private key": r"-----BEGIN [A-Z ]*PRIVATE KEY-----",
+}
+EMAIL = re.compile(r"\b([A-Za-z0-9._%+-]+)@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})\b")
+# Placeholder and no-reply addresses that docs and tests use on purpose.
+SAFE_EMAIL_DOMAINS = re.compile(
+    r"(^|\.)(example\.(com|org|net)|test|invalid|email\.com|work\.com|workplace\.com|users\.noreply\.github\.com)$"
+)
+SAFE_EMAIL_USERS = {"git"}  # git@host:owner/repo remotes
+
+
+def has_private_email(text: str) -> bool:
+    return any(
+        user not in SAFE_EMAIL_USERS and not SAFE_EMAIL_DOMAINS.search(domain.lower())
+        for user, domain in EMAIL.findall(text)
+    )
+
+
+def git(*args: str, cwd: Path | None = None) -> bytes:
+    # Literal pathspecs: an allowlist line never globs or uses pathspec magic.
+    env = {**os.environ, "GIT_LITERAL_PATHSPECS": "1"}
+    return subprocess.run(["git", *args], cwd=cwd, env=env, check=True, stdout=subprocess.PIPE).stdout
+
+
+def checked_path(entry: str) -> str:
+    path = entry.removeprefix("./").rstrip("/")
+    parts = path.split("/")
+    if not path or path.startswith("/") or any(part in ("", ".", "..") for part in parts):
+        raise SystemExit(f"public path {entry!r} must be a plain relative path inside the repo")
+    return path
+
+
+def repo_root() -> Path:
+    return Path(git("rev-parse", "--show-toplevel").decode().strip())
+
+
+def show(rev: str, path: str, root: Path) -> str:
+    return git("show", f"{rev}:{path}", cwd=root).decode()
+
+
+def public_paths(rev: str, root: Path) -> list[str]:
+    paths: list[str] = []
+    for raw in show(rev, ALLOWLIST, root).splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            paths.append(checked_path(line))
+    marketplace = json.loads(show(rev, MARKETPLACE, root))
+    for plugin in marketplace.get("plugins", []):
+        source = plugin.get("source")
+        if isinstance(source, str) and source not in ("./", "."):
+            paths.append(checked_path(source))
+        for skill in plugin.get("skills", []):
+            paths.append(checked_path(skill))
+    unique = sorted(set(paths))
+    missing = [p for p in unique if not git("ls-tree", "--name-only", rev, "--", p, cwd=root).strip()]
+    if missing:
+        raise SystemExit(f"public paths missing at {rev}: {', '.join(missing)}")
+    return unique
+
+
+def load_patterns(deny: Path | None) -> list[tuple[str, re.Pattern[str]]]:
+    patterns = [(name, re.compile(rx)) for name, rx in BUILTIN_PATTERNS.items()]
+    if deny is None:
+        return patterns
+    if not deny.is_file():
+        raise SystemExit(f"deny file {deny} is missing; refusing to scan without it (use --no-deny for a dry run)")
+    for number, raw in enumerate(deny.read_text().splitlines(), 1):
+        line = raw.strip()
+        if line and not line.startswith("#"):
+            patterns.append((f"{deny.name} line {number}", re.compile(line, re.IGNORECASE)))
+    return patterns
+
+
+def scan(directory: Path, patterns: list[tuple[str, re.Pattern[str]]]) -> list[str]:
+    """Return findings as 'file:line: pattern name', never the matched text."""
+    findings: list[str] = []
+    for path in sorted(p for p in directory.rglob("*") if p.is_file() and ".git" not in p.parts):
+        relative = path.relative_to(directory)
+        # Binary files are scanned as text too, so readable strings in them count.
+        text = path.read_bytes().decode("utf-8", errors="replace")
+        candidates = [(0, str(relative)), *enumerate(text.splitlines(), 1)]
+        for number, text in candidates:
+            where = f"{relative}:{number}" if number else f"{relative} (path)"
+            for name, pattern in patterns:
+                if pattern.search(text):
+                    findings.append(f"{where}: {name}")
+            if has_private_email(text):
+                findings.append(f"{where}: email address")
+    return findings
+
+
+def export(rev: str, out: Path, root: Path) -> None:
+    out.mkdir(parents=True, exist_ok=True)
+    if any(out.iterdir()):
+        raise SystemExit(f"{out} is not empty")
+    paths = public_paths(rev, root) + [ALLOWLIST]
+    archive = git("archive", "--format=tar", rev, "--", *paths, *RENAMES, cwd=root)
+    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+        tar.extractall(out, filter="data")
+    for source, target in RENAMES.items():
+        (out / source).replace(out / target)
+        parent = (out / source).parent
+        while parent != out and not any(parent.iterdir()):
+            parent.rmdir()
+            parent = parent.parent
+
+
+def main() -> int:
+    if sys.version_info < (3, 12):
+        raise SystemExit("publish-public needs Python 3.12 or newer")
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    def add_deny(p: argparse.ArgumentParser) -> None:
+        group = p.add_mutually_exclusive_group()
+        group.add_argument("--deny", type=Path, help=f"private pattern file (default: {DEFAULT_DENY})")
+        group.add_argument("--no-deny", action="store_true", help="built-in patterns only, for local dry runs")
+
+    p_paths = sub.add_parser("paths")
+    p_paths.add_argument("--rev", default="HEAD")
+    p_diff = sub.add_parser("diff")
+    p_diff.add_argument("base")
+    p_diff.add_argument("--rev", default="HEAD")
+    p_export = sub.add_parser("export")
+    p_export.add_argument("out", type=Path)
+    p_export.add_argument("--rev", default="HEAD")
+    add_deny(p_export)
+    p_scan = sub.add_parser("scan")
+    p_scan.add_argument("dir", type=Path)
+    add_deny(p_scan)
+    args = parser.parse_args()
+
+    root = repo_root()
+    if args.command == "paths":
+        print("\n".join(public_paths(args.rev, root)))
+        return 0
+    if args.command == "diff":
+        # Paths public on either side, so a path that stops being public shows too.
+        try:
+            before = public_paths(args.base, root)
+        except (subprocess.CalledProcessError, SystemExit):
+            before = []
+        paths = sorted({*before, *public_paths(args.rev, root), ALLOWLIST, *RENAMES})
+        sys.stdout.buffer.write(git("diff", f"{args.base}...{args.rev}", "--", *paths, cwd=root))
+        return 0
+
+    deny = None if args.no_deny else (args.deny or root / DEFAULT_DENY)
+    patterns = load_patterns(deny)
+    if args.command == "export":
+        export(args.rev, args.out, root)
+        directory = args.out
+    else:
+        directory = args.dir
+    findings = scan(directory, patterns)
+    if findings:
+        print("private details found in the public export:", file=sys.stderr)
+        print("\n".join(findings), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

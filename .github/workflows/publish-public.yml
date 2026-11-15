@@ -1,0 +1,52 @@
+name: publish-public
+
+# Publishes the allowlisted part of the private repo to the public ci/persops-public.
+# Runs only on ci/privops main; the copy of this file in ci/persops-public never runs.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-public
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.repository == 'ci/privops' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build and scan the export
+        run: scripts/publish-public export "$RUNNER_TEMP/export"
+
+      - name: Push to ci/persops-public
+        env:
+          PUBLIC_MIRROR_KEY: ${{ secrets.PUBLIC_MIRROR_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$PUBLIC_MIRROR_KEY" > ~/.ssh/publish
+          chmod 600 ~/.ssh/publish
+          echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > ~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/publish -o IdentitiesOnly=yes"
+
+          public="$RUNNER_TEMP/public"
+          git clone --depth 1 git@github.com:ci/persops-public.git "$public"
+          cd "$public"
+          git checkout -B main
+          git rm -rq --ignore-unmatch .
+          cp -a "$RUNNER_TEMP/export/." .
+          git add -A --force
+          if git diff --cached --quiet; then
+            echo "public copy already up to date"
+            exit 0
+          fi
+          git -c user.name=Catalin -c user.email=6650666+ci@users.noreply.github.com \
+            commit -qm "Publish snapshot"
+          git push origin main

@@ -1,0 +1,17 @@
+# Paths published to the public ci/persops-public repo by scripts/publish-public.
+# Adding a line here publishes that path. Read all of it first.
+#
+# Skill folders and plugin sources named in .claude-plugin/marketplace.json
+# are published too, so the marketplace always works from the public repo.
+# public/README.md is published as README.md.
+
+.claude-plugin
+.github/workflows/publish-public.yml
+modules/ai/AGENTS.md
+modules/fish.nix
+modules/iamb.nix
+modules/iamb.toml
+modules/nvim
+modules/nvim.nix
+scripts/publish-public
+scripts/test-publish-public.py

@@ -1,0 +1,10 @@
+source = cursor/plugins
+source_type = github
+profile = all
+installed_at = 2026-10-18T22:44:17Z
+requested_source = https://github.com/cursor/plugins/tree/main/pstack/skills/unslop
+requested_ref = main
+revision = 8ad8a41fe418f7c948540641cf1d8649fba99db7
+subpath = pstack/skills/unslop
+via = bunx --bun skills add https://github.com/cursor/plugins/tree/8ad8a41fe418f7c948540641cf1d8649fba99db7/pstack/skills/unslop --agent \* --yes --copy --skill unslop
+computed_hash = eca0ad9fa3a3867c83f3aaf3a058e247a569c8976a68ca423a569b93eb86de5d

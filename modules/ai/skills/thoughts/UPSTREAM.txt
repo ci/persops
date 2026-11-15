@@ -1,0 +1,7 @@
+source = persops (repo-local, original)
+source_type = local
+profile = all
+installed_at = 2026-06-03
+requested_source = authored in persops modules/ai/skills/thoughts
+via = original skill, no upstream
+local_changes = n/a
