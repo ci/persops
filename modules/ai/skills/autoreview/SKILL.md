@@ -7,7 +7,7 @@ description: "Auto Review closeout for Git and Jujutsu changes. Runs a Codex + C
 
 Run the bundled structured review helper as a closeout check. This is code review, not Guardian `auto_review` approval routing.
 
-By default the helper runs a two-reviewer panel against one frozen bundle: GPT-6.1 Sol at `xhigh` and Opus 5.5 (`claude-opus-5-5`) at `high`. Each slot uses its native CLI (`codex`, `claude`) when installed. Inside an Amp orb (`AMP_ORB=1`), and for whichever native CLI is missing, the slot runs through `amp` instead: `openai/gpt-6.1-sol` through the generated adapter plugin, and for Claude, Amp's `--mode claude-code` (your Claude subscription) when `amp --help` lists it, else `anthropic/claude-opus-5-5`. A missing slot with no `amp` is skipped with a note. `--engine`, `AUTOREVIEW_ENGINE`, or `--reviewers` replace the panel; keyed `--model`/`--thinking` overrides adjust it: `codex=...` and `claude=...` follow their slot even when Amp runs it (mapped to `openai/...`/`anthropic/...`; a `claude=` override moves the Claude slot off `claude-code`), and `amp=...` targets only the amp-backed GPT slot; and a bare `--model` is rejected because it would hit both reviewers. Explicit `gpt-6-astra` on Codex defaults to `high`; both GPT-6.1 Sol and Astra accept only `low`, `medium`, `high`, `xhigh`, or `max`. Other Codex models keep the Codex CLI reasoning config. Grok defaults to `grok-4.6`. Pi and opencode use the model their own CLI is configured for.
+By default the helper runs a two-reviewer panel against one frozen bundle: GPT-6.2 Sol at `xhigh` and Opus 5.5 (`claude-opus-5-5`) at `high`. Each slot uses its native CLI (`codex`, `claude`) when installed. Inside an Amp orb (`AMP_ORB=1`), and for whichever native CLI is missing, the slot runs through `amp` instead: `openai/gpt-6.2-sol` through the generated adapter plugin, and for Claude, Amp's `--mode claude-code` (your Claude subscription) when `amp --help` lists it, else `anthropic/claude-opus-5-5`. A missing slot with no `amp` is skipped with a note. `--engine`, `AUTOREVIEW_ENGINE`, or `--reviewers` replace the panel; keyed `--model`/`--thinking` overrides adjust it: `codex=...` and `claude=...` follow their slot even when Amp runs it (mapped to `openai/...`/`anthropic/...`; a `claude=` override moves the Claude slot off `claude-code`), and `amp=...` targets only the amp-backed GPT slot; and a bare `--model` is rejected because it would hit both reviewers. Explicit `gpt-6-astra` on Codex defaults to `high`; GPT-6.2 Sol, GPT-6.1 Sol and Astra accept only `low`, `medium`, `high`, `xhigh`, or `max`. Other Codex models keep the Codex CLI reasoning config. Grok defaults to `grok-4.6`. Pi and opencode use the model their own CLI is configured for.
 
 Use when:
 
@@ -166,13 +166,13 @@ The default run is already a Codex + Claude panel. Pick reviewers explicitly wit
 Set reviewer models and thinking/effort explicitly:
 
 ```bash
-<autoreview-helper> --reviewers codex,claude --model codex=gpt-6.1-sol --thinking codex=xhigh --model claude=claude-opus-5-5 --thinking claude=high
+<autoreview-helper> --reviewers codex,claude --model codex=gpt-6.2-sol --thinking codex=xhigh --model claude=claude-opus-5-5 --thinking claude=high
 ```
 
 Inline syntax is also supported:
 
 ```bash
-<autoreview-helper> --reviewers codex:gpt-6.1-sol:xhigh,claude:claude-opus-5-5:high
+<autoreview-helper> --reviewers codex:gpt-6.2-sol:xhigh,claude:claude-opus-5-5:high
 ```
 
 The same engine may appear more than once with different models, which is how
@@ -180,20 +180,20 @@ an Amp orb runs the default panel through amp (`claude-code` selects Amp's
 Claude Code mode; it takes no model or thinking of its own):
 
 ```bash
-<autoreview-helper> --reviewers amp:openai/gpt-6.1-sol:xhigh,amp:claude-code
-<autoreview-helper> --reviewers amp:openai/gpt-6.1-sol:xhigh,amp:xai/grok-4.6:xhigh
+<autoreview-helper> --reviewers amp:openai/gpt-6.2-sol:xhigh,amp:claude-code
+<autoreview-helper> --reviewers amp:openai/gpt-6.2-sol:xhigh,amp:xai/grok-4.6:xhigh
 ```
 
 `AUTOREVIEW_MODEL` and `AUTOREVIEW_THINKING` env vars accept the same keyed
-syntax (`codex=gpt-6.1-sol,claude=claude-opus-5-5` or a bare global value) and sit between
+syntax (`codex=gpt-6.2-sol,claude=claude-opus-5-5` or a bare global value) and sit between
 CLI flags and built-in defaults.
 
 Thinking per engine: Codex maps to `model_reasoning_effort` (`none`-`max`),
-except GPT-6.1 Sol and GPT-6 Astra reject `none` and `minimal` and default to
-`xhigh` and `high` respectively. Claude maps to `--effort` (`low`-`max`, default
+except GPT-6.2 Sol, GPT-6.1 Sol and GPT-6 Astra reject `none` and `minimal` and default to
+`xhigh` (Sol) and `high` (Astra). Claude maps to `--effort` (`low`-`max`, default
 `high`). Amp maps to the adapter plugin's `reasoningEffort` (`none`-`max`, default
 `xhigh`) and its model must be a `provider/model` id (default
-`openai/gpt-6.1-sol`). Grok maps to `--effort`
+`openai/gpt-6.2-sol`). Grok maps to `--effort`
 (`low`-`xhigh`). Pi maps to `--thinking`
 (`off`-`max`). OpenCode maps to `--variant` (`minimal`-`max`). Engines
 without a real thinking knob reject `--thinking`.

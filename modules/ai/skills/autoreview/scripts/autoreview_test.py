@@ -368,7 +368,7 @@ class EngineRoutingTests(unittest.TestCase):
         reviewers = self.reviewers()
         self.assertEqual(
             self.summary(reviewers),
-            [("codex", "gpt-6.1-sol", "xhigh"), ("claude", "claude-opus-5-5", "high")],
+            [("codex", "gpt-6.2-sol", "xhigh"), ("claude", "claude-opus-5-5", "high")],
         )
 
     def test_orb_runs_both_default_reviewers_through_amp(self) -> None:
@@ -376,17 +376,17 @@ class EngineRoutingTests(unittest.TestCase):
             with self.subTest(available=available):
                 self.assertEqual(
                     self.summary(self.reviewers(env={"AMP_ORB": "1"}, available=available)),
-                    [("amp", "openai/gpt-6.1-sol", "xhigh"), ("amp", "anthropic/claude-opus-5-5", "high")],
+                    [("amp", "openai/gpt-6.2-sol", "xhigh"), ("amp", "anthropic/claude-opus-5-5", "high")],
                 )
 
     def test_amp_claude_slot_prefers_claude_code_mode(self) -> None:
         self.assertEqual(
             self.summary(self.reviewers(env={"AMP_ORB": "1"}, claude_code=True)),
-            [("amp", "openai/gpt-6.1-sol", "xhigh"), ("amp", "claude-code", None)],
+            [("amp", "openai/gpt-6.2-sol", "xhigh"), ("amp", "claude-code", None)],
         )
         self.assertEqual(
             self.summary(self.reviewers(available=("codex", "amp"), claude_code=True)),
-            [("codex", "gpt-6.1-sol", "xhigh"), ("amp", "claude-code", None)],
+            [("codex", "gpt-6.2-sol", "xhigh"), ("amp", "claude-code", None)],
         )
 
     def test_claude_code_failure_falls_back_to_amp_opus(self) -> None:
@@ -447,7 +447,7 @@ class EngineRoutingTests(unittest.TestCase):
             with self.subTest(arguments=arguments, env=env):
                 self.assertEqual(
                     self.summary(self.reviewers(*arguments, env=env, claude_code=True)),
-                    [("amp", "openai/gpt-6.1-sol", "low"), ("amp", "anthropic/claude-opus-5-5", "low")],
+                    [("amp", "openai/gpt-6.2-sol", "low"), ("amp", "anthropic/claude-opus-5-5", "low")],
                 )
 
     def test_amp_backed_slots_put_cli_above_env(self) -> None:
@@ -462,7 +462,7 @@ class EngineRoutingTests(unittest.TestCase):
         )
         self.assertEqual(
             self.summary(self.reviewers("--thinking", "high", env={"AMP_ORB": "1", "AUTOREVIEW_THINKING": "codex=low"}))[0],
-            ("amp", "openai/gpt-6.1-sol", "high"),
+            ("amp", "openai/gpt-6.2-sol", "high"),
         )
 
     def test_claude_code_reviewer_only_gets_web_tools(self) -> None:
@@ -491,11 +491,11 @@ class EngineRoutingTests(unittest.TestCase):
     def test_missing_native_cli_falls_back_to_amp(self) -> None:
         self.assertEqual(
             self.summary(self.reviewers(available=("claude", "amp"))),
-            [("amp", "openai/gpt-6.1-sol", "xhigh"), ("claude", "claude-opus-5-5", "high")],
+            [("amp", "openai/gpt-6.2-sol", "xhigh"), ("claude", "claude-opus-5-5", "high")],
         )
         self.assertEqual(
             self.summary(self.reviewers(available=("codex", "amp"))),
-            [("codex", "gpt-6.1-sol", "xhigh"), ("amp", "anthropic/claude-opus-5-5", "high")],
+            [("codex", "gpt-6.2-sol", "xhigh"), ("amp", "anthropic/claude-opus-5-5", "high")],
         )
 
     def test_missing_cli_without_amp_is_skipped(self) -> None:
@@ -537,19 +537,24 @@ class EngineRoutingTests(unittest.TestCase):
         reviewer = self.reviewer(
             "--thinking", "xhigh", env={"AUTOREVIEW_THINKING": "medium"}
         )
-        self.assertEqual(reviewer.model, "gpt-6.1-sol")
+        self.assertEqual(reviewer.model, "gpt-6.2-sol")
         self.assertEqual(reviewer.thinking, "xhigh")
         reviewer = self.reviewer(env={"AUTOREVIEW_THINKING": "medium"})
         self.assertEqual(reviewer.thinking, "medium")
 
-    def test_sol_6_1_accepts_supported_efforts_and_rejects_unsupported(self) -> None:
+    def test_sol_6_2_accepts_supported_efforts_and_rejects_unsupported(self) -> None:
         for effort in ("low", "medium", "high", "xhigh", "max"):
             with self.subTest(effort=effort):
                 self.assertEqual(self.reviewer("--thinking", effort).thinking, effort)
         for effort in ("none", "minimal", "ultra"):
             with self.subTest(effort=effort):
-                with self.assertRaisesRegex(SystemExit, f"invalid thinking level for codex model gpt-6.1-sol: {effort}"):
+                with self.assertRaisesRegex(SystemExit, f"invalid thinking level for codex model gpt-6.2-sol: {effort}"):
                     self.reviewer(env={"AUTOREVIEW_THINKING": effort})
+
+    def test_explicit_sol_6_1_keeps_sol_effort_rules(self) -> None:
+        self.assertEqual(self.reviewer("--engine", "codex", "--model", "gpt-6.1-sol").thinking, "xhigh")
+        with self.assertRaisesRegex(SystemExit, "invalid thinking level for codex model gpt-6.1-sol: minimal"):
+            self.reviewer("--engine", "codex", "--model", "gpt-6.1-sol", "--thinking", "minimal")
 
     def test_claude_selection_defaults_to_opus_5_5_high(self) -> None:
         for arguments, env in (
@@ -590,7 +595,7 @@ class EngineRoutingTests(unittest.TestCase):
 
     def test_environment_engine_wins_over_orb(self) -> None:
         reviewers = self.reviewers(env={"AMP_ORB": "1", "AUTOREVIEW_ENGINE": "codex"})
-        self.assertEqual(self.summary(reviewers), [("codex", "gpt-6.1-sol", "xhigh")])
+        self.assertEqual(self.summary(reviewers), [("codex", "gpt-6.2-sol", "xhigh")])
 
     def test_explicit_model_and_effort_win_over_orb_defaults(self) -> None:
         reviewer = self.reviewer(

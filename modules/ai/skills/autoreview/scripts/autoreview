@@ -35,9 +35,9 @@ THINKING_LEVELS_BY_ENGINE = {
     "opencode": {"minimal", "low", "medium", "high", "max"},
 }
 DEFAULT_MODEL_BY_ENGINE = {
-    "codex": "gpt-6.1-sol",
+    "codex": "gpt-6.2-sol",
     "claude": "claude-opus-5-5",
-    "amp": "openai/gpt-6.1-sol",
+    "amp": "openai/gpt-6.2-sol",
     "grok": "grok-4.6",
 }
 DEFAULT_THINKING_BY_ENGINE = {
@@ -1635,7 +1635,7 @@ def finish_parallel_tests(proc: subprocess.Popen, started: float) -> int:
 # Default panel: one GPT reviewer and one Claude reviewer. Each slot uses its
 # native CLI when installed and falls back to amp with the same model family.
 DEFAULT_PANEL = (
-    ("codex", "openai/gpt-6.1-sol", "xhigh"),
+    ("codex", "openai/gpt-6.2-sol", "xhigh"),
     ("claude", AMP_CLAUDE_FALLBACK_MODEL, "high"),
 )
 
@@ -1700,7 +1700,7 @@ def parse_args() -> argparse.Namespace:
         action="append",
         help=(
             "Thinking/effort for all reviewers or engine=level. Repeatable. Overrides AUTOREVIEW_THINKING. "
-            "Codex: none, minimal, low, medium, high, xhigh, max; gpt-6.1-sol and gpt-6-astra require low through max and default to xhigh and high respectively. "
+            "Codex: none, minimal, low, medium, high, xhigh, max; gpt-6.2-sol, gpt-6.1-sol and gpt-6-astra require low through max; Sol defaults to xhigh, Astra to high. "
             "Claude: low, medium, high, xhigh, max. Amp: none, low, medium, high, xhigh, max. Grok: low, medium, high, xhigh. "
             "Pi: off, minimal, low, medium, high, xhigh, max. OpenCode: minimal, low, medium, high, max."
         ),
@@ -1902,8 +1902,8 @@ def reviewer_args(args: argparse.Namespace) -> list[argparse.Namespace]:
             thinking = None  # Amp's claude-code mode has no effort knob.
         thinking_levels = THINKING_LEVELS_BY_ENGINE[engine]
         thinking_target = engine
-        if engine == "codex" and model in {"gpt-6.1-sol", "gpt-6-astra"}:
-            thinking = thinking or ("xhigh" if model == "gpt-6.1-sol" else "high")
+        if engine == "codex" and model in {"gpt-6.2-sol", "gpt-6.1-sol", "gpt-6-astra"}:
+            thinking = thinking or ("high" if model == "gpt-6-astra" else "xhigh")
             thinking_levels = thinking_levels - {"none", "minimal"}
             thinking_target = f"{engine} model {model}"
         if thinking and thinking not in thinking_levels:
